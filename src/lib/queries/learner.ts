@@ -53,13 +53,13 @@ export async function getLearnerProfile(id: string): Promise<LearnerProfileData 
   ]);
 
   return {
-    learner: learnerRes.data,
-    radar: radarRes.data ?? [],
-    skills: skillsRes.data ?? [],
-    programs: programsRes.data ?? [],
-    alerts: alertsRes.data ?? [],
-    goals: goalsRes.data ?? [],
-    sessions: sessionsRes.data ?? [],
-    care: careRes.data ?? [],
-  };
+  crianca: learnerRes.data,
+  radar: radarRes.data ?? [],
+  habilidades: skillsRes.data ?? [],
+  programas: programsRes.data ?? [],
+  alertas: [],
+  metas: [],
+  sessoes: [],
+  checkins: [],
+};
 }
