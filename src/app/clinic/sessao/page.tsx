@@ -1,461 +1,1051 @@
 "use client";
-import { useState } from "react";
+
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { FractaLogo } from "@/components/fracta/FractaLogo";
+import { useClinicContext } from "../layout";
 
-// ─── TIPOS ────────────────────────────────────────────────
-type Resultado = "correta" | "incorreta" | "aproximacao" | "nao_respondeu";
-type Fase = "preparacao" | "sessao" | "encerramento";
+// ─── TIPOS ───────────────────────────────────────────────────────────────────
+type Resultado   = "correta" | "incorreta" | "aproximacao" | "nao_respondeu";
+type Fase        = "preparacao" | "sessao" | "encerramento";
+type Senioridade = "terapeuta" | "coordenador" | "supervisor";
 
-const RESULTADO_CONFIG: Record<Resultado, { label: string; cor: string; bg: string }> = {
-  correta:       { label: "Correta",       cor: "#00c9a7", bg: "rgba(0,201,167,.12)"   },
-  incorreta:     { label: "Incorreta",     cor: "#ef4444", bg: "rgba(239,68,68,.12)"   },
-  aproximacao:   { label: "Aproximação",   cor: "#f59e0b", bg: "rgba(245,158,11,.12)"  },
-  nao_respondeu: { label: "Sem resposta",  cor: "#94a3b8", bg: "rgba(148,163,184,.12)" },
+interface Tentativa {
+  estimulo: string;
+  resultado: Resultado;
+  dica: number;
+  obs?: string;
+  ts: number;
+}
+
+interface Pausa {
+  inicio: number;
+  fim?: number;
+  motivo: string;
+  duracaoSegundos?: number;
+}
+
+interface EventoComportamental {
+  id: string;
+  tipo: string;
+  descricao: string;
+  ts: number;
+}
+
+interface Programa {
+  id: string;
+  nome: string;
+  operante: string;
+  objetivo: string;
+  sd: string;
+  criterio: string;
+  nivel_dica: string[];
+  nivel_atual: number;
+  estimulos: string[];
+  total_tentativas: number;
+  tentativas: Tentativa[];
+}
+
+// Estado do encerramento antecipado
+interface EncerramentoAntecipado {
+  motivo: string;
+  aguardandoResponsavel: boolean;
+  responsavelConfirmou: boolean | null;
+  supervisorNotificado: boolean;
+}
+
+// ─── CONSTANTES ──────────────────────────────────────────────────────────────
+const DURACAO_PREVISTA_MIN = 60; // 1 hora padrão
+const TEMPO_MINIMO_MIN     = 45; // mínimo sem justificativa pesada
+
+const RESULTADO_CONFIG: Record<Resultado, { label: string; cor: string; bg: string; key: string }> = {
+  correta:       { label: "Correta",      cor: "#1D9E75", bg: "rgba(29,158,117,.13)",  key: "1" },
+  incorreta:     { label: "Incorreta",    cor: "#E05A4B", bg: "rgba(224,90,75,.13)",   key: "2" },
+  aproximacao:   { label: "Aproximação",  cor: "#EF9F27", bg: "rgba(239,159,39,.13)",  key: "3" },
+  nao_respondeu: { label: "Sem resposta", cor: "#4d6d8a", bg: "rgba(77,109,138,.13)",  key: "4" },
 };
 
-// ─── DADOS DA SESSÃO ──────────────────────────────────────
-const PACIENTE = {
-  init: "LM", g: "linear-gradient(135deg,#00c9a7,#1e90ff)",
-  nome: "Lucas M.", idade: "4 anos",
-  terapeuta: "Dra. Carolina Amaral",
-};
+const MOTIVOS_PAUSA = [
+  "Criança precisou ir ao banheiro",
+  "Interrupção externa (barulho, entrada de pessoa)",
+  "Criança em crise comportamental",
+  "Problema técnico / material",
+  "Pausa para reforçador",
+  "Outro motivo",
+];
 
-const PROGRAMAS = [
+const MOTIVOS_ENCERRAMENTO = [
+  "Criança em crise — impossível continuar com segurança",
+  "Responsável solicitou encerramento",
+  "Problema de saúde da criança",
+  "Problema de saúde do terapeuta",
+  "Emergência no local",
+  "Outro motivo",
+];
+
+const EVENTOS_RAPIDOS = [
+  { tipo: "fuga",        label: "Fuga",               cor: "#E05A4B" },
+  { tipo: "agressao",    label: "Agressão",            cor: "#E05A4B" },
+  { tipo: "autoestimul", label: "Autoestimulação",     cor: "#EF9F27" },
+  { tipo: "choro",       label: "Choro",               cor: "#EF9F27" },
+  { tipo: "riso",        label: "Resposta afetiva",    cor: "#1D9E75" },
+  { tipo: "iniciativa",  label: "Iniciativa",          cor: "#1D9E75" },
+  { tipo: "transicao",   label: "Dific. transição",    cor: "#8B7FE8" },
+  { tipo: "outro",       label: "Outro",               cor: "#4d6d8a" },
+];
+
+const PROGRAMAS_MOCK: Programa[] = [
   {
-    id: "prog-1",
-    nome: "Mando funcional — palavra isolada",
-    operante: "Mando",
+    id: "p1", nome: "Mando funcional — palavra isolada", operante: "Mando",
     objetivo: "Emitir palavra isolada para solicitar item ou ação desejada na presença do SD.",
     sd: "Item desejado visível fora do alcance",
     criterio: "80% de respostas corretas em 3 sessões consecutivas",
-    nivel_dica: ["Independente","Gestual","Modelo","Física"],
-    nivel_atual: 0,
+    nivel_dica: ["Independente","Gestual","Modelo","Física"], nivel_atual: 0,
     estimulos: ["Bola","Suco","Biscoito","Tablet","Massinha"],
-    total_tentativas: 10,
-    tentativas: [] as { estimulo: string; resultado: Resultado; dica: number; obs?: string }[],
+    total_tentativas: 10, tentativas: [],
   },
   {
-    id: "prog-2",
-    nome: "Atenção ao nome",
-    operante: "Ouvinte",
+    id: "p2", nome: "Atenção ao nome", operante: "Ouvinte",
     objetivo: "Orientar o olhar para o terapeuta em até 3s após ser chamado pelo nome.",
     sd: "Nome da criança chamado em tom neutro",
     criterio: "90% em 2 sessões consecutivas",
-    nivel_dica: ["Independente","Gestual","Física"],
-    nivel_atual: 0,
+    nivel_dica: ["Independente","Gestual","Física"], nivel_atual: 0,
     estimulos: ["Tentativa 1","Tentativa 2","Tentativa 3","Tentativa 4","Tentativa 5"],
-    total_tentativas: 5,
-    tentativas: [] as { estimulo: string; resultado: Resultado; dica: number; obs?: string }[],
+    total_tentativas: 5, tentativas: [],
+  },
+  {
+    id: "p3", nome: "Imitação motora simples", operante: "Imitação",
+    objetivo: "Imitar ação motora grossa demonstrada pelo terapeuta imediatamente após o modelo.",
+    sd: "Terapeuta executa ação + 'Faça assim'",
+    criterio: "85% em 2 sessões consecutivas",
+    nivel_dica: ["Independente","Gestual","Físico parcial","Físico total"], nivel_atual: 1,
+    estimulos: ["Bater palma","Levantar braço","Bater mesa","Apontar"],
+    total_tentativas: 8, tentativas: [],
   },
 ];
 
+const PACIENTE_MOCK = {
+  init: "LM", gradient: "linear-gradient(135deg,#1D9E75,#378ADD)",
+  nome: "Lucas Marques", primeiroNome: "Lucas",
+  idade: "4 anos", cuidadorAtivo: true,
+  taxaMedia: 72, ultimaSessao: "3 dias atrás",
+  temSupervisor: false, // sem supervisor vinculado no Fracta
+};
+
+interface ModoConfig {
+  label: string;
+  cor: string;
+  bg: string;
+  borda: string;
+  // Dicas e critério
+  podeAjustarCriterio: boolean;   // ajustar nível de dica durante tentativa
+  podeVerCriterioCompleto: boolean; // ver critério completo vs resumido
+  // Navegação
+  podePularPrograma: boolean;     // pular para próximo programa
+  // Encerramento
+  motivoEncerramento: "lista_fixa" | "lista_livre"; // lista fixa ou campo livre
+  // Eventos comportamentais
+  podeRegistrarEventoLivre: boolean; // campo livre vs só lista rápida
+  // Métricas
+  nivelMetricas: "basico" | "completo" | "avancado"; // o que aparece no painel lateral
+  // Observações
+  podeObsPrograma: boolean;       // observação por tentativa
+  podeObsGeral: boolean;          // observação geral no encerramento
+  // Engine
+  podeVerInsightsEngine: boolean; // bloco de insights do FractaEngine na sessão
+}
+
+const MODO_CONFIG: Record<Senioridade, ModoConfig> = {
+  terapeuta: {
+    label: "Modo guiado",
+    cor: "#1D9E75", bg: "rgba(29,158,117,.08)", borda: "rgba(29,158,117,.25)",
+    podeAjustarCriterio:      false,
+    podeVerCriterioCompleto:  false,
+    podePularPrograma:        false,
+    motivoEncerramento:       "lista_fixa",
+    podeRegistrarEventoLivre: false,
+    nivelMetricas:            "basico",
+    podeObsPrograma:          false,
+    podeObsGeral:             true,
+    podeVerInsightsEngine:    false,
+  },
+  coordenador: {
+    label: "Modo semi-guiado",
+    cor: "#EF9F27", bg: "rgba(239,159,39,.08)", borda: "rgba(239,159,39,.25)",
+    podeAjustarCriterio:      true,
+    podeVerCriterioCompleto:  true,
+    podePularPrograma:        true,
+    motivoEncerramento:       "lista_livre",
+    podeRegistrarEventoLivre: true,
+    nivelMetricas:            "completo",
+    podeObsPrograma:          true,
+    podeObsGeral:             true,
+    podeVerInsightsEngine:    false,
+  },
+  supervisor: {
+    label: "Modo livre",
+    cor: "#8B7FE8", bg: "rgba(139,127,232,.08)", borda: "rgba(139,127,232,.25)",
+    podeAjustarCriterio:      true,
+    podeVerCriterioCompleto:  true,
+    podePularPrograma:        true,
+    motivoEncerramento:       "lista_livre",
+    podeRegistrarEventoLivre: true,
+    nivelMetricas:            "avancado",
+    podeObsPrograma:          true,
+    podeObsGeral:             true,
+    podeVerInsightsEngine:    true,
+  },
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function fmt(s: number) {
+  const m = Math.floor(s / 60).toString().padStart(2,"0");
+  const sec = (s % 60).toString().padStart(2,"0");
+  return `${m}:${sec}`;
+}
+function uid() { return Math.random().toString(36).slice(2,9); }
+
+// ─── PAGE ────────────────────────────────────────────────────────────────────
 export default function ClinicSessaoPage() {
-  const [fase,          setFase]          = useState<Fase>("preparacao");
-  const [progAtual,     setProgAtual]     = useState(0);
-  const [programas,     setProgramas]     = useState(PROGRAMAS);
-  const [tentAtual,     setTentAtual]     = useState<{ estimulo: string; resultado?: Resultado; dica: number; obs: string }>({ estimulo: "", dica: 0, obs: "" });
-  const [showEstimulo,  setShowEstimulo]  = useState(false);
-  const [iniciou,       setIniciou]       = useState<Date | null>(null);
-  const [encerrou,      setEncerrou]      = useState<Date | null>(null);
-  const [obsGeral,      setObsGeral]      = useState("");
+  const { terapeuta }    = useClinicContext();
+  const nivel: Senioridade = terapeuta?.nivel ?? "coordenador";
+  const modo             = MODO_CONFIG[nivel];
 
-  const prog = programas[progAtual];
-  const concluidas = prog?.tentativas.length ?? 0;
-  const total = prog?.total_tentativas ?? 10;
-  const pctProg = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+  // Fases e dados
+  const [fase,         setFase]         = useState<Fase>("preparacao");
+  const [programas,    setProgramas]    = useState<Programa[]>(PROGRAMAS_MOCK);
+  const [progAtual,    setProgAtual]    = useState(0);
+  const [tentAtual,    setTentAtual]    = useState({ estimulo: "", dica: 0, obs: "" });
+  const [obsGeral,     setObsGeral]     = useState("");
+  const [eventos,      setEventos]      = useState<EventoComportamental[]>([]);
 
-  // Métricas do programa atual
-  const acertos    = prog?.tentativas.filter(t => t.resultado === "correta").length ?? 0;
-  const erros      = prog?.tentativas.filter(t => t.resultado === "incorreta").length ?? 0;
-  const aprox      = prog?.tentativas.filter(t => t.resultado === "aproximacao").length ?? 0;
-  const taxaAcerto = concluidas > 0 ? Math.round((acertos / concluidas) * 100) : 0;
+  // Timer
+  const [segundos,     setSegundos]     = useState(0);
+  const [emPausa,      setEmPausa]      = useState(false);
+  const [pausas,       setPausas]       = useState<Pausa[]>([]);
+  const [segPausados,  setSegPausados]  = useState(0); // total acumulado de pausa
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pausaRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Modais
+  const [modalPausa,       setModalPausa]       = useState(false);
+  const [modalEncerrar,    setModalEncerrar]     = useState(false);
+  const [modalEventos,     setModalEventos]      = useState(false);
+  const [motivoPausa,      setMotivoPausa]       = useState("");
+  const [motivoEncerrar,   setMotivoEncerrar]    = useState("");
+  const [encerramentoData, setEncerramentoData]  = useState<EncerramentoAntecipado | null>(null);
+
+  // Timer principal (tempo de sessão real, sem pausas)
+  const iniciarTimer = useCallback(() => {
+    if (timerRef.current) return;
+    timerRef.current = setInterval(() => setSegundos(s => s + 1), 1000);
+  }, []);
+  const pararTimer = useCallback(() => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  }, []);
+
+  // Timer de pausa
+  const iniciarTimerPausa = useCallback(() => {
+    if (pausaRef.current) return;
+    pausaRef.current = setInterval(() => setSegPausados(s => s + 1), 1000);
+  }, []);
+  const pararTimerPausa = useCallback(() => {
+    if (pausaRef.current) { clearInterval(pausaRef.current); pausaRef.current = null; }
+  }, []);
+
+  useEffect(() => () => { pararTimer(); pararTimerPausa(); }, [pararTimer, pararTimerPausa]);
+
+  // Atalhos de teclado
+  useEffect(() => {
+    if (fase !== "sessao" || emPausa || modalPausa || modalEncerrar) return;
+    const handler = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT") return;
+      const map: Record<string, Resultado> = { "1":"correta","2":"incorreta","3":"aproximacao","4":"nao_respondeu" };
+      if (map[e.key]) registrarTentativa(map[e.key] as Resultado);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fase, emPausa, modalPausa, modalEncerrar, tentAtual, progAtual]);
+
+  // ── Ações principais ──────────────────────────────────────────────────────
   function iniciarSessao() {
-    setIniciou(new Date());
     setFase("sessao");
-    const novoEstimulo = prog.estimulos[0];
-    setTentAtual({ estimulo: novoEstimulo, dica: prog.nivel_atual, obs: "" });
+    iniciarTimer();
+    const p = programas[0];
+    setTentAtual({ estimulo: p.estimulos[0], dica: p.nivel_atual, obs: "" });
   }
 
   function registrarTentativa(resultado: Resultado) {
-    if (!tentAtual.estimulo) return;
-    const nova = { estimulo: tentAtual.estimulo, resultado, dica: tentAtual.dica, obs: tentAtual.obs };
-    const novosProg = [...programas];
-    novosProg[progAtual].tentativas.push(nova);
-    setProgramas(novosProg);
-
-    const proxIdx = novosProg[progAtual].tentativas.length;
-    if (proxIdx < total) {
-      const proxEstimulo = prog.estimulos[proxIdx % prog.estimulos.length];
-      setTentAtual({ estimulo: proxEstimulo, dica: prog.nivel_atual, obs: "" });
-    } else {
-      setTentAtual({ estimulo: "", dica: prog.nivel_atual, obs: "" });
-    }
+    const prog = programas[progAtual];
+    if (!tentAtual.estimulo || emPausa) return;
+    const nova: Tentativa = { estimulo: tentAtual.estimulo, resultado, dica: tentAtual.dica, obs: tentAtual.obs, ts: Date.now() };
+    setProgramas(prev => {
+      const next = prev.map((p, i) => i === progAtual ? { ...p, tentativas: [...p.tentativas, nova] } : p);
+      const proxIdx = next[progAtual].tentativas.length;
+      if (proxIdx < next[progAtual].total_tentativas) {
+        setTentAtual({ estimulo: prog.estimulos[proxIdx % prog.estimulos.length], dica: prog.nivel_atual, obs: "" });
+      } else {
+        setTentAtual({ estimulo: "", dica: prog.nivel_atual, obs: "" });
+      }
+      return next;
+    });
   }
 
   function proximoPrograma() {
-    if (progAtual < programas.length - 1) {
-      setProgAtual(p => p + 1);
-      const proximo = programas[progAtual + 1];
-      setTentAtual({ estimulo: proximo.estimulos[0], dica: proximo.nivel_atual, obs: "" });
+    if (progAtual >= programas.length - 1) return;
+    const prox = programas[progAtual + 1];
+    setProgAtual(i => i + 1);
+    setTentAtual({ estimulo: prox.estimulos[0], dica: prox.nivel_atual, obs: "" });
+  }
+
+  // ── Pausa ─────────────────────────────────────────────────────────────────
+  function solicitarPausa() {
+    setMotivoPausa("");
+    setModalPausa(true);
+  }
+
+  function confirmarPausa() {
+    if (!motivoPausa.trim()) return;
+    pararTimer();
+    iniciarTimerPausa();
+    setEmPausa(true);
+    setPausas(prev => [...prev, { inicio: Date.now(), motivo: motivoPausa }]);
+    setModalPausa(false);
+  }
+
+  function retomar() {
+    pararTimerPausa();
+    const duracao = segPausados - pausas.slice(0, -1).reduce((a, p) => a + (p.duracaoSegundos ?? 0), 0);
+    setPausas(prev => prev.map((p, i) => i === prev.length - 1 ? { ...p, fim: Date.now(), duracaoSegundos: duracao } : p));
+    setEmPausa(false);
+    iniciarTimer();
+  }
+
+  // ── Encerrar ──────────────────────────────────────────────────────────────
+  const minutosEfetivos = Math.floor(segundos / 60);
+  const encerrandoAntes = minutosEfetivos < TEMPO_MINIMO_MIN;
+
+  function solicitarEncerramento() {
+    setMotivoEncerrar("");
+    setModalEncerrar(true);
+  }
+
+  function confirmarEncerramento() {
+    if (!motivoEncerrar.trim()) return;
+    pararTimer();
+    pararTimerPausa();
+
+    if (encerrandoAntes) {
+      // Encerramento antecipado — precisa de autorização do responsável
+      setEncerramentoData({
+        motivo: motivoEncerrar,
+        aguardandoResponsavel: true,
+        responsavelConfirmou: null,
+        supervisorNotificado: PACIENTE_MOCK.temSupervisor,
+      });
+      setModalEncerrar(false);
+      setFase("encerramento");
+    } else {
+      setModalEncerrar(false);
+      setFase("encerramento");
     }
   }
 
-  function encerrarSessao() {
-    setEncerrou(new Date());
-    setFase("encerramento");
+  // Simula confirmação do responsável (na prática vem via Supabase realtime)
+  function simularConfirmacaoResponsavel(confirmou: boolean) {
+    setEncerramentoData(prev => prev ? { ...prev, aguardandoResponsavel: false, responsavelConfirmou: confirmou } : prev);
   }
 
-  const duracao = iniciou && encerrou
-    ? Math.round((encerrou.getTime() - iniciou.getTime()) / 60000)
-    : iniciou ? Math.round((Date.now() - iniciou.getTime()) / 60000) : 0;
+  function registrarEvento(tipo: string, descricao: string) {
+    setEventos(prev => [{ id: uid(), tipo, descricao, ts: Date.now() }, ...prev]);
+  }
 
-  const gcard: React.CSSProperties = {
-    background: "rgba(13,32,64,.7)", backdropFilter: "blur(14px)",
-    border: "1px solid rgba(255,255,255,.09)", borderRadius: 16,
+  // ── Métricas ──────────────────────────────────────────────────────────────
+  const prog         = programas[progAtual];
+  const concluidas   = prog?.tentativas.length ?? 0;
+  const total        = prog?.total_tentativas ?? 10;
+  const pctProg      = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+  const acertos      = prog?.tentativas.filter(t => t.resultado === "correta").length ?? 0;
+  const erros        = prog?.tentativas.filter(t => t.resultado === "incorreta").length ?? 0;
+  const aprox        = prog?.tentativas.filter(t => t.resultado === "aproximacao").length ?? 0;
+  const semResp      = prog?.tentativas.filter(t => t.resultado === "nao_respondeu").length ?? 0;
+  const taxaAcerto   = concluidas > 0 ? Math.round((acertos / concluidas) * 100) : 0;
+  const totalSessao  = programas.reduce((a, p) => a + p.tentativas.length, 0);
+  const acertosSessao= programas.reduce((a, p) => a + p.tentativas.filter(t => t.resultado === "correta").length, 0);
+  const taxaSessao   = totalSessao > 0 ? Math.round((acertosSessao / totalSessao) * 100) : 0;
+  const progsConcl   = programas.filter(p => p.tentativas.length >= p.total_tentativas).length;
+  const totalPausaSeg= pausas.reduce((a, p) => a + (p.duracaoSegundos ?? 0), 0) + (emPausa ? segPausados - pausas.filter(p => p.fim).reduce((a, p) => a + (p.duracaoSegundos ?? 0), 0) : 0);
+  const pctTempo     = Math.min(100, Math.round((minutosEfetivos / DURACAO_PREVISTA_MIN) * 100));
+
+  // ── CSS ───────────────────────────────────────────────────────────────────
+  const card: React.CSSProperties = {
+    background: "rgba(13,32,53,.75)",
+    border: "1px solid rgba(70,120,180,.5)",
+    borderRadius: 14,
+    backdropFilter: "blur(8px)",
+  };
+  const inp: React.CSSProperties = {
+    background: "rgba(20,55,110,.55)",
+    border: "1px solid rgba(26,58,92,.6)",
+    borderRadius: 8,
+    padding: "9px 12px",
+    color: "#e8f0f8",
+    fontFamily: "var(--font-sans)",
+    fontSize: ".82rem",
+    outline: "none",
+    width: "100%",
+    boxSizing: "border-box" as const,
+  };
+  const lbl: React.CSSProperties = {
+    fontSize: ".6rem", fontWeight: 700,
+    textTransform: "uppercase" as const,
+    letterSpacing: ".09em",
+    color: "rgba(170,210,245,.88)",
+    marginBottom: 8,
+  };
+  const overlay: React.CSSProperties = {
+    position: "fixed" as const, inset: 0,
+    background: "rgba(7,17,31,.82)",
+    backdropFilter: "blur(6px)",
+    zIndex: 100,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    padding: 20,
+  };
+  const modalBox: React.CSSProperties = {
+    background: "#0d2035",
+    border: "1px solid rgba(26,58,92,.7)",
+    borderRadius: 18,
+    padding: 28,
+    width: "100%",
+    maxWidth: 440,
   };
 
-  const input: React.CSSProperties = {
-    background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)",
-    borderRadius: 8, padding: "9px 12px", color: "white",
-    fontFamily: "var(--font-sans)", fontSize: ".82rem", outline: "none", width: "100%",
-    boxSizing: "border-box",
-  };
-
-  return (
-    <div style={{ fontFamily: "var(--font-sans)", background: "#07111f", color: "white", minHeight: "100vh" }}>
-
-      {/* NAV */}
-      <nav style={{ background: "rgba(7,17,31,.92)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,.08)", padding: "0 20px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 50 }}>
-        <Link href="/clinic/dashboard" style={{ display: "flex", alignItems: "center", gap: 7, textDecoration: "none", color: "#00c9a7", fontSize: ".8rem", fontWeight: 600 }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          Dashboard
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 26, height: 26, borderRadius: "50%", background: PACIENTE.g, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".55rem", fontWeight: 800, color: "white" }}>{PACIENTE.init}</div>
-          <span style={{ fontSize: ".8rem", fontWeight: 700 }}>{PACIENTE.nome} · {PACIENTE.idade}</span>
+  // ═════════════════════════════════════════════════════════════════════════
+  // MODAL: PAUSA
+  // ═════════════════════════════════════════════════════════════════════════
+  const ModalPausa = modalPausa && (
+    <div style={overlay}>
+      <div style={modalBox}>
+        <div style={{ fontSize: ".65rem", color: "#EF9F27", fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 8 }}>Registrar interrupção</div>
+        <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>Qual o motivo da pausa?</div>
+        <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.90)", marginBottom: 18, lineHeight: 1.55 }}>
+          O tempo de pausa será registrado separadamente e <strong style={{ color: "#e8f0f8" }}>não contará</strong> como tempo de sessão.
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {iniciou && fase === "sessao" && (
-            <div style={{ fontSize: ".72rem", color: "#00c9a7", fontWeight: 700 }}>
-              ⏱ {duracao} min
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+          {MOTIVOS_PAUSA.map(m => (
+            <button key={m} onClick={() => setMotivoPausa(m)} style={{
+              padding: "10px 14px", borderRadius: 9, textAlign: "left",
+              border: `1px solid ${motivoPausa === m ? "rgba(239,159,39,.5)" : "rgba(26,58,92,.5)"}`,
+              background: motivoPausa === m ? "rgba(239,159,39,.1)" : "rgba(26,58,92,.25)",
+              color: motivoPausa === m ? "#EF9F27" : "rgba(160,200,235,.92)",
+              fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)",
+            }}>{m}</button>
+          ))}
+        </div>
+        <input value={motivoPausa.startsWith("Outro") || !MOTIVOS_PAUSA.includes(motivoPausa) ? motivoPausa : ""} onChange={e => setMotivoPausa(e.target.value)} placeholder="Descreva o motivo..." style={{ ...inp, marginBottom: 16 }} />
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => setModalPausa(false)} style={{ flex: 1, padding: 12, borderRadius: 9, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".82rem", cursor: "pointer" }}>Cancelar</button>
+          <button onClick={confirmarPausa} disabled={!motivoPausa.trim()} style={{ flex: 1, padding: 12, borderRadius: 9, border: "none", background: motivoPausa.trim() ? "#EF9F27" : "rgba(26,58,92,.4)", color: motivoPausa.trim() ? "#07111f" : "rgba(165,208,242,.85)", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".82rem", cursor: motivoPausa.trim() ? "pointer" : "not-allowed" }}>Pausar sessão</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // MODAL: ENCERRAR
+  // ═════════════════════════════════════════════════════════════════════════
+  const ModalEncerrar = modalEncerrar && (
+    <div style={overlay}>
+      <div style={modalBox}>
+        <div style={{ fontSize: ".65rem", color: encerrandoAntes ? "#E05A4B" : "#EF9F27", fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 8 }}>
+          {encerrandoAntes ? "⚠ Encerramento antecipado" : "Encerrar sessão"}
+        </div>
+        <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>Qual o motivo do encerramento?</div>
+
+        {encerrandoAntes && (
+          <div style={{ background: "rgba(224,90,75,.1)", border: "1px solid rgba(224,90,75,.25)", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+            <div style={{ fontSize: ".78rem", color: "#E05A4B", fontWeight: 600, marginBottom: 4 }}>Sessão com {minutosEfetivos} min — mínimo é {TEMPO_MINIMO_MIN} min</div>
+            <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.92)", lineHeight: 1.55 }}>
+              Como a sessão está abaixo do tempo contratado, o motivo será registrado no prontuário e o responsável receberá uma notificação para confirmar o encerramento.
+              {PACIENTE_MOCK.temSupervisor && " O supervisor também será notificado."}
+              {!PACIENTE_MOCK.temSupervisor && " (Sem supervisor vinculado neste caso)"}
             </div>
-          )}
-          <FractaLogo logo="clinic" height={24} alt="FractaClinic" />
-        </div>
-      </nav>
+          </div>
+        )}
 
-      {/* BARRA DE PROGRESSO DA SESSÃO */}
-      {fase === "sessao" && (
-        <div style={{ height: 3, background: "rgba(255,255,255,.08)" }}>
-          <div style={{
-            height: "100%",
-            width: `${((progAtual / programas.length) + (pctProg / 100 / programas.length)) * 100}%`,
-            background: "linear-gradient(90deg,#00c9a7,#7bed9f)",
-            transition: "width .5s ease",
-          }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+          {MOTIVOS_ENCERRAMENTO.map(m => (
+            <button key={m} onClick={() => setMotivoEncerrar(m)} style={{
+              padding: "10px 14px", borderRadius: 9, textAlign: "left",
+              border: `1px solid ${motivoEncerrar === m ? "rgba(224,90,75,.5)" : "rgba(26,58,92,.5)"}`,
+              background: motivoEncerrar === m ? "rgba(224,90,75,.1)" : "rgba(26,58,92,.25)",
+              color: motivoEncerrar === m ? "#E05A4B" : "rgba(160,200,235,.92)",
+              fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)",
+            }}>{m}</button>
+          ))}
+        </div>
+        <textarea value={motivoEncerrar} onChange={e => setMotivoEncerrar(e.target.value)} rows={2} placeholder="Descreva o motivo com detalhes..." style={{ ...inp, resize: "none", marginBottom: 16 }} />
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => setModalEncerrar(false)} style={{ flex: 1, padding: 12, borderRadius: 9, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".82rem", cursor: "pointer" }}>Cancelar</button>
+          <button onClick={confirmarEncerramento} disabled={!motivoEncerrar.trim()} style={{ flex: 1, padding: 12, borderRadius: 9, border: "none", background: motivoEncerrar.trim() ? "#E05A4B" : "rgba(26,58,92,.4)", color: motivoEncerrar.trim() ? "#fff" : "rgba(165,208,242,.85)", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".82rem", cursor: motivoEncerrar.trim() ? "pointer" : "not-allowed" }}>
+            {encerrandoAntes ? "Encerrar e notificar responsável" : "Encerrar sessão"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // FASE: PREPARAÇÃO
+  // ═════════════════════════════════════════════════════════════════════════
+  if (fase === "preparacao") return (
+    <div style={{ background: "#07111f", minHeight: "100vh", color: "#e8f0f8", fontFamily: "var(--font-sans)", padding: "24px 28px 60px" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, background: modo.bg, border: `1px solid ${modo.borda}`, borderRadius: 10, padding: "10px 14px" }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: modo.cor }} />
+          <span style={{ fontSize: 12, fontWeight: 500, color: modo.cor }}>{modo.label}</span>
+          <span style={{ fontSize: 11, color: "rgba(160,200,235,.84)", marginLeft: 4 }}>
+            {nivel === "terapeuta" && "Siga o roteiro guiado · sem alterações de protocolo"}
+            {nivel === "coordenador" && "Você pode ajustar dicas e critérios durante a sessão"}
+            {nivel === "supervisor" && "Acesso completo · edite programas e lógica do Engine"}
+          </span>
+        </div>
+
+        <div>
+          <div style={{ fontSize: ".7rem", color: "rgba(170,210,245,.88)", marginBottom: 4 }}>Preparação</div>
+          <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>Sessão com {PACIENTE_MOCK.primeiroNome}</div>
+        </div>
+
+        <div style={{ ...card, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: PACIENTE_MOCK.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".8rem", fontWeight: 800, color: "#fff", flexShrink: 0 }}>{PACIENTE_MOCK.init}</div>
+            <div>
+              <div style={{ fontSize: "1rem", fontWeight: 700 }}>{PACIENTE_MOCK.nome}</div>
+              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)", marginTop: 2 }}>{PACIENTE_MOCK.idade} · {PACIENTE_MOCK.cuidadorAtivo ? "FractaCare ativo" : "Sem Care vinculado"}</div>
+            </div>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 8, padding: "6px 12px", fontSize: ".68rem", fontWeight: 700, color: "#1D9E75" }}>Taxa média: {PACIENTE_MOCK.taxaMedia}%</div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+            {[
+              { l: "Duração prevista",   v: `${DURACAO_PREVISTA_MIN} min` },
+              { l: "Última sessão",      v: PACIENTE_MOCK.ultimaSessao    },
+              { l: "Programas",          v: `${programas.length} ativos`  },
+              { l: "Supervisor",         v: PACIENTE_MOCK.temSupervisor ? "Vinculado" : "Sem vínculo" },
+            ].map(i => (
+              <div key={i.l} style={{ background: "rgba(20,55,110,.55)", borderRadius: 10, padding: "10px 12px" }}>
+                <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", marginBottom: 3 }}>{i.l}</div>
+                <div style={{ fontSize: ".85rem", fontWeight: 700 }}>{i.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ ...card, padding: 20 }}>
+          <div style={{ ...lbl }}>Programas desta sessão</div>
+          {programas.map((p, i) => (
+            <div key={p.id} style={{ display: "flex", gap: 14, padding: "14px 0", borderBottom: i < programas.length - 1 ? "1px solid rgba(26,58,92,.3)" : "none" }}>
+              <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(29,158,117,.15)", border: "1px solid rgba(29,158,117,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".7rem", fontWeight: 800, color: "#1D9E75", flexShrink: 0 }}>{i + 1}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: ".88rem", fontWeight: 700, marginBottom: 3 }}>{p.nome}</div>
+                <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{p.operante} · {p.total_tentativas} tentativas · Dica inicial: {p.nivel_dica[p.nivel_atual]}</div>
+              </div>
+              <div style={{ fontSize: ".65rem", color: "rgba(165,208,242,.85)", textAlign: "right", flexShrink: 0 }}>
+                <div>{p.criterio.split(" ").slice(0,3).join(" ")}…</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ background: "rgba(26,58,92,.2)", border: "1px solid rgba(70,120,180,.4)", borderRadius: 10, padding: "10px 14px" }}>
+          <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.88)", fontWeight: 600, marginBottom: 6 }}>Atalhos — teclas 1–4 registram a resposta durante a sessão</div>
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+            {Object.entries(RESULTADO_CONFIG).map(([,v]) => (
+              <div key={v.key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <kbd style={{ background: "rgba(26,58,92,.5)", border: "1px solid rgba(26,58,92,.7)", borderRadius: 4, padding: "2px 6px", fontSize: ".65rem", fontFamily: "monospace", color: "#e8f0f8" }}>{v.key}</kbd>
+                <span style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)" }}>{v.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button onClick={iniciarSessao} style={{ padding: 16, borderRadius: 12, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: "1rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          Iniciar sessão →
+        </button>
+      </div>
+    </div>
+  );
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // FASE: SESSÃO ATIVA
+  // ═════════════════════════════════════════════════════════════════════════
+  if (fase === "sessao" && prog) return (
+    <div style={{ background: "#07111f", minHeight: "100vh", color: "#e8f0f8", fontFamily: "var(--font-sans)", padding: "20px 28px 60px" }}>
+      {ModalPausa}
+      {ModalEncerrar}
+
+      {/* Overlay de pausa ativa */}
+      {emPausa && (
+        <div style={{ ...overlay, zIndex: 90 }}>
+          <div style={{ ...modalBox, textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>⏸</div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 800, marginBottom: 6 }}>Sessão em pausa</div>
+            <div style={{ fontFamily: "monospace", fontSize: "2rem", fontWeight: 700, color: "#EF9F27", marginBottom: 8 }}>{fmt(segPausados - pausas.filter(p => p.fim).reduce((a,p) => a + (p.duracaoSegundos ?? 0), 0))}</div>
+            <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.90)", marginBottom: 6, lineHeight: 1.5 }}>
+              Motivo: <strong style={{ color: "#e8f0f8" }}>{pausas[pausas.length - 1]?.motivo}</strong>
+            </div>
+            <div style={{ fontSize: ".72rem", color: "rgba(170,210,245,.88)", marginBottom: 20 }}>Tempo de pausa não conta como tempo de sessão</div>
+            <button onClick={retomar} style={{ padding: "12px 32px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".9rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+              ▶ Retomar sessão
+            </button>
+          </div>
         </div>
       )}
 
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 18px 60px" }}>
-
-        {/* ── FASE 1: PREPARAÇÃO ── */}
-        {fase === "preparacao" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div>
-              <div style={{ fontSize: ".72rem", color: "rgba(255,255,255,.35)", marginBottom: 4 }}>Preparação da sessão</div>
-              <div style={{ fontSize: "1.2rem", fontWeight: 800 }}>Sessão com {PACIENTE.nome}</div>
+      {/* Modal de eventos comportamentais */}
+      {modalEventos && (
+        <div style={{ ...overlay, zIndex: 95 }}>
+          <div style={{ ...modalBox }}>
+            <div style={{ ...lbl, color: "#E05A4B" }}>Registrar evento comportamental</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+              {EVENTOS_RAPIDOS.map(ev => (
+                <button key={ev.tipo} onClick={() => { registrarEvento(ev.tipo, ev.label); setModalEventos(false); }} style={{ padding: "7px 12px", borderRadius: 7, border: `1px solid ${ev.cor}44`, background: `${ev.cor}11`, color: ev.cor, fontSize: ".72rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  {ev.label}
+                </button>
+              ))}
             </div>
-
-            {/* Info do paciente */}
-            <div style={{ ...gcard, padding: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
-                <div style={{ width: 48, height: 48, borderRadius: "50%", background: PACIENTE.g, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".8rem", fontWeight: 800, color: "white", flexShrink: 0 }}>{PACIENTE.init}</div>
-                <div>
-                  <div style={{ fontSize: "1rem", fontWeight: 800 }}>{PACIENTE.nome}</div>
-                  <div style={{ fontSize: ".72rem", color: "rgba(255,255,255,.45)" }}>{PACIENTE.idade} · FractaCare ativo</div>
-                </div>
-                <div style={{ marginLeft: "auto", background: "rgba(0,201,167,.1)", border: "1px solid rgba(0,201,167,.2)", borderRadius: 8, padding: "6px 12px", fontSize: ".68rem", fontWeight: 700, color: "#00c9a7" }}>
-                  Radar: 58% Comunicação
-                </div>
+            {modo.podeRegistrarEventoLivre ? (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input autoFocus placeholder="Descreva o comportamento..." style={{ ...inp, flex: 1 }} onKeyDown={e => { if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) { registrarEvento("personalizado", (e.target as HTMLInputElement).value); setModalEventos(false); } }} />
+                <button onClick={() => setModalEventos(false)} style={{ padding: "9px 14px", borderRadius: 8, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontFamily: "var(--font-sans)", fontSize: ".78rem", cursor: "pointer" }}>Fechar</button>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {[
-                  { label:"Última sessão", val:"3 dias atrás" },
-                  { label:"Taxa média",    val:"72%" },
-                  { label:"Programas",     val:`${programas.length} ativos` },
-                  { label:"Próx. critério",val:"Pedro G. (91%)" },
-                ].map(item => (
-                  <div key={item.label} style={{ background: "rgba(255,255,255,.04)", borderRadius: 10, padding: "10px 12px" }}>
-                    <div style={{ fontSize: ".62rem", color: "rgba(255,255,255,.35)", marginBottom: 3 }}>{item.label}</div>
-                    <div style={{ fontSize: ".85rem", fontWeight: 700 }}>{item.val}</div>
+            ) : (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                <span style={{ fontSize: ".68rem", color: "rgba(165,208,242,.85)" }}>Modo guiado — use os atalhos acima</span>
+                <button onClick={() => setModalEventos(false)} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.84)", fontFamily: "var(--font-sans)", fontSize: ".72rem", cursor: "pointer" }}>Fechar</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TOPBAR ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+
+        {/* Timer principal */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(29,158,117,.08)", border: "1px solid rgba(29,158,117,.25)", borderRadius: 10, padding: "8px 16px" }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#1D9E75", animation: "pulse 1.5s ease infinite" }} />
+          <span style={{ fontFamily: "monospace", fontSize: 20, fontWeight: 700, color: "#1D9E75", letterSpacing: ".05em" }}>{fmt(segundos)}</span>
+          <span style={{ fontSize: ".62rem", color: "rgba(170,210,245,.88)" }}>/ {DURACAO_PREVISTA_MIN}:00</span>
+        </div>
+
+        {/* Barra de progresso de tempo */}
+        <div style={{ flex: 1, minWidth: 120 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+            <span style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)" }}>Tempo efetivo</span>
+            <span style={{ fontSize: ".6rem", color: pctTempo >= 75 ? "#1D9E75" : "#EF9F27", fontWeight: 600 }}>{pctTempo}%</span>
+          </div>
+          <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pctTempo}%`, background: pctTempo >= 75 ? "linear-gradient(90deg,#1D9E75,#23c48f)" : "linear-gradient(90deg,#EF9F27,#f59e0b)", transition: "width .5s ease" }} />
+          </div>
+        </div>
+
+        {/* Pausas */}
+        {totalPausaSeg > 0 && (
+          <div style={{ fontSize: ".7rem", color: "#EF9F27", fontFamily: "monospace", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 8, padding: "6px 10px" }}>
+            ⏸ {fmt(totalPausaSeg)} pausado
+          </div>
+        )}
+
+        {/* Prog geral */}
+        <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)" }}>
+          Prog. {progAtual + 1}/{programas.length} · <span style={{ color: "#1D9E75", fontWeight: 600 }}>{progsConcl} concluídos</span>
+        </div>
+
+        {/* Paciente */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 26, height: 26, borderRadius: "50%", background: PACIENTE_MOCK.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".55rem", fontWeight: 800, color: "#fff" }}>{PACIENTE_MOCK.init}</div>
+          <span style={{ fontSize: ".75rem", fontWeight: 600 }}>{PACIENTE_MOCK.primeiroNome}</span>
+        </div>
+
+        {/* Ações */}
+        <div style={{ display: "flex", gap: 7, marginLeft: "auto" }}>
+          <button onClick={() => setModalEventos(true)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 11px", borderRadius: 8, border: `1px solid ${eventos.length > 0 ? "rgba(224,90,75,.35)" : "rgba(26,58,92,.5)"}`, background: "transparent", color: eventos.length > 0 ? "#E05A4B" : "rgba(160,200,235,.90)", fontSize: ".7rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v5l3 2"/><circle cx="8" cy="8" r="6"/></svg>
+            Evento {eventos.length > 0 && `(${eventos.length})`}
+          </button>
+          <button onClick={solicitarPausa} style={{ padding: "7px 11px", borderRadius: 8, border: "1px solid rgba(239,159,39,.3)", background: "rgba(239,159,39,.07)", color: "#EF9F27", fontSize: ".7rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            ⏸ Pausar
+          </button>
+          <button onClick={solicitarEncerramento} style={{ padding: "7px 11px", borderRadius: 8, border: "1px solid rgba(224,90,75,.25)", background: "rgba(224,90,75,.07)", color: "#E05A4B", fontSize: ".7rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            Encerrar
+          </button>
+        </div>
+      </div>
+
+      {/* ── GRADE PRINCIPAL ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 310px", gap: 16, alignItems: "start" }}>
+
+        {/* Coluna esquerda */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+          <div style={{ ...card, padding: 18 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+              <div>
+                <div style={{ display: "inline-block", background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 50, padding: "3px 10px", fontSize: ".6rem", fontWeight: 700, color: "#1D9E75", marginBottom: 8 }}>{prog.operante}</div>
+                <div style={{ fontSize: ".98rem", fontWeight: 800, marginBottom: 4 }}>{prog.nome}</div>
+                <div style={{ fontSize: ".77rem", color: "rgba(160,200,235,.84)", lineHeight: 1.55 }}>{prog.objetivo}</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 14 }}>
+                <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)" }}>Prog. {progAtual+1}/{programas.length}</div>
+                <div style={{ fontSize: ".8rem", color: "#1D9E75", fontWeight: 700, marginTop: 3 }}>{concluidas}/{total}</div>
+              </div>
+            </div>
+            <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pctProg}%`, background: "linear-gradient(90deg,#1D9E75,#23c48f)", transition: "width .35s ease" }} />
+            </div>
+          </div>
+
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ ...lbl }}>SD — Estímulo discriminativo</div>
+            <div style={{ fontSize: ".85rem", color: "rgba(160,200,235,.90)", marginBottom: 20, lineHeight: 1.6, padding: "10px 14px", background: "rgba(26,58,92,.25)", borderRadius: 8, borderLeft: "3px solid rgba(55,138,221,.4)" }}>{prog.sd}</div>
+
+            {concluidas < total ? (
+              <>
+                <div style={{ ...lbl }}>Estímulo — Tentativa {concluidas+1}</div>
+                <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "#1D9E75", marginBottom: 20, padding: "16px 20px", background: "rgba(29,158,117,.07)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 12, textAlign: "center" }}>
+                  {tentAtual.estimulo}
+                </div>
+
+                <div style={{ ...lbl }}>Nível de dica</div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+                  {prog.nivel_dica.map((d,i) => (
+                    <button key={d} onClick={() => modo.podeAjustarCriterio && setTentAtual(t => ({ ...t, dica: i }))} style={{
+                      padding: "7px 14px", borderRadius: 7,
+                      border: `1px solid ${tentAtual.dica === i ? "#1D9E75" : "rgba(26,58,92,.5)"}`,
+                      background: tentAtual.dica === i ? "rgba(29,158,117,.12)" : "transparent",
+                      color: tentAtual.dica === i ? "#1D9E75" : "rgba(170,210,245,.88)",
+                      fontSize: ".73rem", fontWeight: tentAtual.dica === i ? 700 : 400,
+                      cursor: modo.podeAjustarCriterio ? "pointer" : "default",
+                      fontFamily: "var(--font-sans)",
+                    }}>{d}</button>
+                  ))}
+                </div>
+
+                <div style={{ ...lbl }}>Registrar resposta <span style={{ color: "rgba(165,208,242,.85)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(ou tecla 1–4)</span></div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                  {(Object.entries(RESULTADO_CONFIG) as [Resultado, typeof RESULTADO_CONFIG[Resultado]][]).map(([key,cfg]) => (
+                    <button key={key} onClick={() => registrarTentativa(key)} style={{
+                      padding: "16px 12px", borderRadius: 12,
+                      border: `1.5px solid ${cfg.cor}44`,
+                      background: cfg.bg, color: cfg.cor,
+                      fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".85rem",
+                      cursor: "pointer", transition: "border-color .15s",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = cfg.cor)}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = `${cfg.cor}44`)}
+                    >
+                      <kbd style={{ background: `${cfg.cor}22`, border: `1px solid ${cfg.cor}44`, borderRadius: 4, padding: "1px 5px", fontSize: ".62rem", fontFamily: "monospace" }}>{cfg.key}</kbd>
+                      {cfg.label}
+                    </button>
+                  ))}
+                </div>
+                {modo.podeObsPrograma && (
+                <input value={tentAtual.obs} onChange={e => setTentAtual(t => ({ ...t, obs: e.target.value }))} placeholder="Observação desta tentativa (opcional)..." style={{...inp, marginTop: 4}} />
+              )}
+              </>
+            ) : (
+              <div style={{ textAlign: "center", padding: "28px 0" }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>✓</div>
+                <div style={{ fontSize: ".95rem", fontWeight: 700, color: "#1D9E75", marginBottom: 6 }}>Programa concluído — {taxaAcerto}%</div>
+                {progAtual < programas.length - 1 ? (
+                  <button onClick={proximoPrograma} style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".88rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                    Próximo programa →
+                  </button>
+                ) : (
+                  <button onClick={solicitarEncerramento} style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#378ADD,#8B7FE8)", color: "#fff", fontWeight: 800, fontSize: ".88rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                    Todos os programas concluídos — Encerrar
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {concluidas < total && progAtual < programas.length - 1 && modo.podePularPrograma && (
+            <button onClick={proximoPrograma} style={{ padding: 11, borderRadius: 8, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.84)", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: ".78rem", cursor: "pointer" }}>
+              Pular para próximo programa
+            </button>
+          )}
+        </div>
+
+        {/* Coluna direita */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+          <div style={{ ...card, padding: 16 }}>
+            <div style={{ ...lbl }}>Métricas em tempo real</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+              {[
+                { l:"Tentativas",  v:`${concluidas}/${total}`, c:"#e8f0f8",                                                          sempre: true  },
+                { l:"Taxa acerto", v:`${taxaAcerto}%`,         c: taxaAcerto >= 80 ? "#1D9E75" : taxaAcerto >= 50 ? "#EF9F27" : "#E05A4B", sempre: true  },
+                { l:"Corretas",    v:acertos,                  c:"#1D9E75",                                                          sempre: true  },
+                { l:"Incorretas",  v:erros,                    c:"#E05A4B",                                                          sempre: true  },
+                { l:"Aprox.",      v:aprox,                    c:"#EF9F27",                                                          sempre: false },
+                { l:"Sem resp.",   v:semResp,                  c:"#4d6d8a",                                                          sempre: false },
+                ...(modo.nivelMetricas === "avancado" ? [
+                  { l:"% Independente", v: concluidas > 0 ? `${Math.round((prog.tentativas.filter(t => t.dica === 0).length / concluidas) * 100)}%` : "—", c:"#8B7FE8", sempre: false },
+                  { l:"Dica atual",     v: prog.nivel_dica[prog.nivel_atual], c:"#EF9F27", sempre: false },
+                ] : []),
+              ].filter(m => m.sempre || modo.nivelMetricas !== "basico").map(m => (
+                <div key={m.l} style={{ background: "rgba(26,58,92,.25)", borderRadius: 8, padding: "8px 10px" }}>
+                  <div style={{ fontSize: ".58rem", color: "rgba(165,208,242,.85)", marginBottom: 2 }}>{m.l}</div>
+                  <div style={{ fontSize: ".95rem", fontWeight: 800, color: m.c }}>{m.v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {prog.tentativas.map((t,i) => (
+                <div key={i} title={`${t.estimulo}: ${RESULTADO_CONFIG[t.resultado].label}`} style={{ width: 18, height: 18, borderRadius: "50%", background: RESULTADO_CONFIG[t.resultado].cor, opacity: .85, cursor: "help" }} />
+              ))}
+              {Array.from({ length: total - concluidas }, (_,i) => (
+                <div key={`e${i}`} style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(26,58,92,.5)", border: "1px solid rgba(26,58,92,.7)" }} />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ ...card, padding: 14 }}>
+            <div style={{ ...lbl }}>Critério de domínio</div>
+            <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.90)", lineHeight: 1.55, marginBottom: 10 }}>
+              {modo.podeVerCriterioCompleto
+                ? prog.criterio
+                : prog.criterio.split(" ").slice(0, 4).join(" ") + "…"}
+            </div>
+            <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${taxaAcerto}%`, background: taxaAcerto >= 80 ? "#1D9E75" : taxaAcerto >= 50 ? "#EF9F27" : "#E05A4B", transition: "width .4s" }} />
+            </div>
+            <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 4, textAlign: "right" }}>{taxaAcerto}% / 80%</div>
+          </div>
+
+          {concluidas > 0 && (
+            <div style={{ ...card, padding: 14 }}>
+              <div style={{ ...lbl }}>Tentativas registradas</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 180, overflowY: "auto" }}>
+                {[...prog.tentativas].reverse().map((t,i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", background: "rgba(26,58,92,.2)", borderRadius: 7 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: RESULTADO_CONFIG[t.resultado].cor, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: ".72rem", fontWeight: 600 }}>{t.estimulo}</div>
+                      <div style={{ fontSize: ".6rem", color: "rgba(165,208,242,.85)" }}>{prog.nivel_dica[t.dica]}</div>
+                    </div>
+                    <div style={{ fontSize: ".65rem", color: RESULTADO_CONFIG[t.resultado].cor, flexShrink: 0 }}>{RESULTADO_CONFIG[t.resultado].label}</div>
                   </div>
                 ))}
               </div>
             </div>
+          )}
 
-            {/* Programas planejados */}
-            <div style={{ ...gcard, padding: 20 }}>
-              <div style={{ fontSize: ".65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".09em", color: "rgba(255,255,255,.4)", marginBottom: 14 }}>Programas desta sessão</div>
-              {programas.map((p, i) => (
-                <div key={p.id} style={{ display: "flex", gap: 14, padding: "14px 0", borderBottom: i < programas.length - 1 ? "1px solid rgba(255,255,255,.05)" : "none" }}>
-                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(0,201,167,.15)", border: "1px solid rgba(0,201,167,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".7rem", fontWeight: 800, color: "#00c9a7", flexShrink: 0 }}>{i + 1}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: ".88rem", fontWeight: 700, marginBottom: 3 }}>{p.nome}</div>
-                    <div style={{ fontSize: ".72rem", color: "rgba(255,255,255,.45)", marginBottom: 4 }}>{p.operante} · {p.total_tentativas} tentativas</div>
-                    <div style={{ fontSize: ".75rem", color: "rgba(255,255,255,.5)", lineHeight: 1.5 }}>{p.objetivo}</div>
-                  </div>
-                  <div style={{ flexShrink: 0, fontSize: ".65rem", color: "rgba(255,255,255,.35)", textAlign: "right" }}>
-                    <div>Critério:</div>
-                    <div style={{ color: "#00c9a7", marginTop: 2 }}>{p.criterio.split(" ").slice(0, 2).join(" ")}...</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <button onClick={iniciarSessao} style={{ padding: "15px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00c9a7,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".95rem", cursor: "pointer", fontFamily: "var(--font-sans)", boxShadow: "0 4px 20px rgba(0,201,167,.3)" }}>
-              Iniciar sessão
-            </button>
-          </div>
-        )}
-
-        {/* ── FASE 2: SESSÃO ── */}
-        {fase === "sessao" && prog && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18, alignItems: "start" }}>
-
-            {/* PAINEL PRINCIPAL */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-              {/* Header do programa */}
-              <div style={{ ...gcard, padding: 20 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-                  <div>
-                    <div style={{ display: "inline-block", background: "rgba(0,201,167,.1)", border: "1px solid rgba(0,201,167,.2)", borderRadius: 50, padding: "3px 10px", fontSize: ".62rem", fontWeight: 700, color: "#00c9a7", marginBottom: 8 }}>{prog.operante}</div>
-                    <div style={{ fontSize: "1rem", fontWeight: 800, marginBottom: 4 }}>{prog.nome}</div>
-                    <div style={{ fontSize: ".78rem", color: "rgba(255,255,255,.5)", lineHeight: 1.55 }}>{prog.objetivo}</div>
-                  </div>
-                  <div style={{ fontSize: ".72rem", color: "rgba(255,255,255,.35)", textAlign: "right", flexShrink: 0, marginLeft: 14 }}>
-                    <div>Programa {progAtual + 1} / {programas.length}</div>
-                    <div style={{ color: "#00c9a7", fontWeight: 700, marginTop: 3 }}>{concluidas} / {total} tentativas</div>
-                  </div>
-                </div>
-
-                {/* Barra de progresso do programa */}
-                <div style={{ height: 6, background: "rgba(255,255,255,.08)", borderRadius: 50, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${pctProg}%`, background: "linear-gradient(90deg,#00c9a7,#7bed9f)", transition: "width .4s ease" }} />
-                </div>
+          <div style={{ ...card, padding: 14 }}>
+            <div style={{ ...lbl }}>Sessão geral</div>
+            {[
+              { l:"Taxa geral",    v:`${taxaSessao}%`,        c: taxaSessao >= 80 ? "#1D9E75" : taxaSessao >= 50 ? "#EF9F27" : "#E05A4B" },
+              { l:"Total tentativas", v:totalSessao,          c:"#e8f0f8" },
+              { l:"Eventos",      v:eventos.length,            c: eventos.length > 0 ? "#E05A4B" : "rgba(165,208,242,.85)" },
+              { l:"Pausas",       v:`${pausas.length}x · ${fmt(totalPausaSeg)}`, c: pausas.length > 0 ? "#EF9F27" : "rgba(165,208,242,.85)" },
+            ].map(r => (
+              <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(26,58,92,.2)" }}>
+                <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{r.l}</span>
+                <span style={{ fontSize: ".72rem", fontWeight: 600, color: r.c as string, fontFamily: "monospace" }}>{r.v}</span>
               </div>
+            ))}
+          </div>
 
-              {/* SD e estímulo atual */}
-              <div style={{ ...gcard, padding: 20 }}>
-                <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".09em", color: "rgba(255,255,255,.4)", marginBottom: 8 }}>Estímulo discriminativo (SD)</div>
-                <div style={{ fontSize: ".85rem", color: "rgba(255,255,255,.65)", marginBottom: 18, lineHeight: 1.55 }}>{prog.sd}</div>
-
-                {concluidas < total ? (
-                  <>
-                    <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".09em", color: "rgba(255,255,255,.4)", marginBottom: 8 }}>Estímulo desta tentativa</div>
-                    <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#00c9a7", marginBottom: 18, padding: "12px 16px", background: "rgba(0,201,167,.08)", border: "1px solid rgba(0,201,167,.15)", borderRadius: 10 }}>
-                      {tentAtual.estimulo}
-                    </div>
-
-                    {/* Nível de dica */}
-                    <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".09em", color: "rgba(255,255,255,.4)", marginBottom: 8 }}>Nível de dica</div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-                      {prog.nivel_dica.map((d, i) => (
-                        <button key={d} onClick={() => setTentAtual(t => ({ ...t, dica: i }))} style={{
-                          padding: "6px 12px", borderRadius: 6, border: `1px solid ${tentAtual.dica === i ? "#00c9a7" : "rgba(255,255,255,.1)"}`,
-                          background: tentAtual.dica === i ? "rgba(0,201,167,.12)" : "transparent",
-                          color: tentAtual.dica === i ? "#00c9a7" : "rgba(255,255,255,.45)",
-                          fontSize: ".72rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)",
-                        }}>{d}</button>
-                      ))}
-                    </div>
-
-                    {/* Botões de registro */}
-                    <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".09em", color: "rgba(255,255,255,.4)", marginBottom: 10 }}>Registrar resposta</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                      {(Object.entries(RESULTADO_CONFIG) as [Resultado, typeof RESULTADO_CONFIG[Resultado]][]).map(([key, cfg]) => (
-                        <button key={key} onClick={() => registrarTentativa(key)} style={{
-                          padding: "14px", borderRadius: 10, border: `1px solid ${cfg.cor}44`,
-                          background: cfg.bg, color: cfg.cor,
-                          fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".82rem",
-                          cursor: "pointer", transition: "all .2s",
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.borderColor = cfg.cor)}
-                        onMouseLeave={e => (e.currentTarget.style.borderColor = `${cfg.cor}44`)}
-                        >{cfg.label}</button>
-                      ))}
-                    </div>
-
-                    {/* Obs da tentativa */}
-                    <div style={{ marginTop: 14 }}>
-                      <div style={{ fontSize: ".62rem", fontWeight: 600, color: "rgba(255,255,255,.35)", marginBottom: 5 }}>Observação (opcional)</div>
-                      <input value={tentAtual.obs} onChange={e => setTentAtual(t => ({ ...t, obs: e.target.value }))} placeholder="Comportamento observado..." style={input} />
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "20px 0" }}>
-                    <div style={{ fontSize: "2rem", marginBottom: 10 }}>✓</div>
-                    <div style={{ fontSize: ".9rem", fontWeight: 700, color: "#00c9a7", marginBottom: 8 }}>Programa concluído</div>
-                    <div style={{ fontSize: ".8rem", color: "rgba(255,255,255,.5)", marginBottom: 20 }}>Taxa de acerto: {taxaAcerto}%</div>
-                    {progAtual < programas.length - 1 ? (
-                      <button onClick={proximoPrograma} style={{ padding: "12px 24px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#00c9a7,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".85rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                        Próximo programa →
-                      </button>
-                    ) : (
-                      <button onClick={encerrarSessao} style={{ padding: "12px 24px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#1e90ff,#7c3aed)", color: "white", fontWeight: 800, fontSize: ".85rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                        Encerrar sessão
-                      </button>
-                    )}
+          {modo.podeVerInsightsEngine && (
+            <div style={{ background: "rgba(139,127,232,.07)", border: "1px solid rgba(139,127,232,.2)", borderRadius: 14, padding: 14 }}>
+              <div style={{ ...lbl, color: "#8B7FE8" }}>FractaEngine — insights</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {taxaAcerto < 50 && (
+                  <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.92)", lineHeight: 1.55, padding: "7px 10px", background: "rgba(224,90,75,.07)", borderRadius: 8 }}>
+                    Taxa abaixo de 50% — considerar reduzir critério ou revisar reforçadores
+                  </div>
+                )}
+                {prog.tentativas.filter(t => t.dica > 0).length > concluidas * 0.6 && (
+                  <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.92)", lineHeight: 1.55, padding: "7px 10px", background: "rgba(239,159,39,.07)", borderRadius: 8 }}>
+                    Alta dependência de dica (&gt;60%) — avaliar fading gradual
+                  </div>
+                )}
+                {taxaAcerto >= 80 && (
+                  <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.92)", lineHeight: 1.55, padding: "7px 10px", background: "rgba(29,158,117,.07)", borderRadius: 8 }}>
+                    Performance acima de 80% — programa próximo de critério de domínio
+                  </div>
+                )}
+                {taxaAcerto >= 50 && taxaAcerto < 80 && (
+                  <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.92)", lineHeight: 1.55, padding: "7px 10px", background: "rgba(20,55,110,.55)", borderRadius: 8 }}>
+                    Progresso consistente — manter protocolo atual
                   </div>
                 )}
               </div>
+            </div>
+          )}
 
-              {/* Ações da sessão */}
-              {concluidas < total && (
-                <div style={{ display: "flex", gap: 10 }}>
-                  {progAtual < programas.length - 1 && (
-                    <button onClick={proximoPrograma} style={{ flex: 1, padding: "11px", borderRadius: 8, border: "1px solid rgba(255,255,255,.12)", background: "transparent", color: "rgba(255,255,255,.6)", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".8rem", cursor: "pointer" }}>
-                      Pular para próximo
-                    </button>
-                  )}
-                  <button onClick={encerrarSessao} style={{ flex: 1, padding: "11px", borderRadius: 8, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.06)", color: "#f87171", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".8rem", cursor: "pointer" }}>
-                    Encerrar sessão
-                  </button>
-                </div>
-              )}
+        </div>
+      </div>
+
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}`}</style>
+    </div>
+  );
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // FASE: ENCERRAMENTO
+  // ═════════════════════════════════════════════════════════════════════════
+  return (
+    <div style={{ background: "#07111f", minHeight: "100vh", color: "#e8f0f8", fontFamily: "var(--font-sans)", padding: "24px 28px 60px" }}>
+      <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+
+        <div style={{ textAlign: "center", padding: "10px 0 20px" }}>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", background: encerrandoAntes ? "rgba(224,90,75,.15)" : "rgba(29,158,117,.15)", border: `1px solid ${encerrandoAntes ? "rgba(224,90,75,.3)" : "rgba(29,158,117,.3)"}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 22 }}>
+            {encerrandoAntes ? "⚠" : "✓"}
+          </div>
+          <div style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: 6 }}>Sessão encerrada</div>
+          <div style={{ fontSize: ".85rem", color: "rgba(160,200,235,.84)" }}>
+            {PACIENTE_MOCK.primeiroNome} · {fmt(segundos)} efetivos · {totalSessao} tentativas
+          </div>
+        </div>
+
+        {/* Status de encerramento antecipado */}
+        {encerramentoData && (
+          <div style={{ background: "rgba(224,90,75,.08)", border: "1px solid rgba(224,90,75,.25)", borderRadius: 14, padding: 18 }}>
+            <div style={{ fontSize: ".65rem", color: "#E05A4B", fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 10 }}>Encerramento antecipado — aguardando confirmação</div>
+
+            <div style={{ fontSize: ".82rem", color: "rgba(160,200,235,.92)", marginBottom: 10 }}>
+              Motivo registrado: <strong style={{ color: "#e8f0f8" }}>{encerramentoData.motivo}</strong>
             </div>
 
-            {/* PAINEL LATERAL */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-              {/* Métricas em tempo real */}
-              <div style={{ ...gcard, padding: 18 }}>
-                <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".09em", color: "rgba(255,255,255,.4)", marginBottom: 12 }}>Métricas — {prog.nome.split(" ")[0]}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-                  {[
-                    { label:"Tentativas",  val:`${concluidas}/${total}`, cor:"white" },
-                    { label:"Taxa acerto", val:`${taxaAcerto}%`,         cor:"#00c9a7" },
-                    { label:"Corretas",    val:acertos,                  cor:"#00c9a7" },
-                    { label:"Erros",       val:erros,                    cor:"#ef4444" },
-                    { label:"Aproximação", val:aprox,                    cor:"#f59e0b" },
-                    { label:"Dica atual",  val:prog.nivel_dica[prog.nivel_atual], cor:"#7bed9f" },
-                  ].map(m => (
-                    <div key={m.label} style={{ background: "rgba(255,255,255,.04)", borderRadius: 8, padding: "8px 10px" }}>
-                      <div style={{ fontSize: ".58rem", color: "rgba(255,255,255,.3)", marginBottom: 2 }}>{m.label}</div>
-                      <div style={{ fontSize: ".95rem", fontWeight: 800, color: m.cor }}>{m.val}</div>
-                    </div>
-                  ))}
+            {encerramentoData.aguardandoResponsavel && encerramentoData.responsavelConfirmou === null && (
+              <div style={{ background: "rgba(20,55,110,.65)", borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                <div style={{ fontSize: ".78rem", color: "#EF9F27", fontWeight: 600, marginBottom: 4 }}>Notificação enviada ao responsável</div>
+                <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.90)", marginBottom: 12 }}>
+                  O responsável precisa confirmar o encerramento. A sessão ficará como <strong style={{ color: "#e8f0f8" }}>incompleta — aguardando confirmação</strong> até a resposta.
                 </div>
-
-                {/* Dots de tentativas */}
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                  {prog.tentativas.map((t, i) => (
-                    <div key={i} title={`${t.estimulo}: ${RESULTADO_CONFIG[t.resultado].label}`} style={{
-                      width: 20, height: 20, borderRadius: "50%",
-                      background: RESULTADO_CONFIG[t.resultado].cor,
-                      opacity: .85, cursor: "help",
-                    }} />
-                  ))}
-                  {Array.from({ length: total - concluidas }, (_, i) => (
-                    <div key={`empty-${i}`} style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,.1)" }} />
-                  ))}
+                {/* Simulação — em produção isso vem via Supabase realtime */}
+                <div style={{ fontSize: ".65rem", color: "rgba(165,208,242,.85)", marginBottom: 8 }}>Simular resposta do responsável (dev only):</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => simularConfirmacaoResponsavel(true)} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid rgba(29,158,117,.4)", background: "rgba(29,158,117,.1)", color: "#1D9E75", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".75rem", cursor: "pointer" }}>Responsável confirmou</button>
+                  <button onClick={() => simularConfirmacaoResponsavel(false)} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid rgba(224,90,75,.3)", background: "rgba(224,90,75,.08)", color: "#E05A4B", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".75rem", cursor: "pointer" }}>Responsável contestou</button>
                 </div>
               </div>
+            )}
 
-              {/* Histórico de tentativas */}
-              {concluidas > 0 && (
-                <div style={{ ...gcard, padding: 18 }}>
-                  <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".09em", color: "rgba(255,255,255,.4)", marginBottom: 12 }}>Tentativas registradas</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto" }}>
-                    {[...prog.tentativas].reverse().map((t, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", background: "rgba(255,255,255,.03)", borderRadius: 8 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: RESULTADO_CONFIG[t.resultado].cor, flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: ".72rem", fontWeight: 600 }}>{t.estimulo}</div>
-                          <div style={{ fontSize: ".62rem", color: "rgba(255,255,255,.35)" }}>Dica: {prog.nivel_dica[t.dica]}</div>
-                        </div>
-                        <div style={{ fontSize: ".65rem", color: RESULTADO_CONFIG[t.resultado].cor, flexShrink: 0 }}>{RESULTADO_CONFIG[t.resultado].label}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Critério de domínio */}
-              <div style={{ ...gcard, padding: 16 }}>
-                <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".09em", color: "rgba(255,255,255,.4)", marginBottom: 8 }}>Critério de domínio</div>
-                <div style={{ fontSize: ".78rem", color: "rgba(255,255,255,.6)", lineHeight: 1.55 }}>{prog.criterio}</div>
-                <div style={{ marginTop: 10, height: 5, background: "rgba(255,255,255,.08)", borderRadius: 50, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${taxaAcerto}%`, background: taxaAcerto >= 80 ? "#00c9a7" : taxaAcerto >= 50 ? "#f59e0b" : "#ef4444", transition: "width .4s" }} />
-                </div>
-                <div style={{ fontSize: ".65rem", color: "rgba(255,255,255,.35)", marginTop: 4, textAlign: "right" }}>{taxaAcerto}% / 80%</div>
+            {encerramentoData.responsavelConfirmou === true && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.25)", borderRadius: 10 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#1D9E75" }} />
+                <span style={{ fontSize: ".78rem", color: "#1D9E75", fontWeight: 600 }}>Responsável confirmou o encerramento antecipado</span>
               </div>
+            )}
 
-            </div>
+            {encerramentoData.responsavelConfirmou === false && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(224,90,75,.1)", border: "1px solid rgba(224,90,75,.25)", borderRadius: 10 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#E05A4B" }} />
+                <span style={{ fontSize: ".78rem", color: "#E05A4B", fontWeight: 600 }}>Responsável contestou — caso encaminhado para supervisão</span>
+              </div>
+            )}
+
+            {encerramentoData.supervisorNotificado && (
+              <div style={{ fontSize: ".72rem", color: "rgba(170,210,245,.88)", marginTop: 8 }}>✓ Supervisor notificado</div>
+            )}
           </div>
         )}
 
-        {/* ── FASE 3: ENCERRAMENTO ── */}
-        {fase === "encerramento" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 600, margin: "0 auto" }}>
-            <div style={{ textAlign: "center", padding: "10px 0 20px" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>✓</div>
-              <div style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: 6 }}>Sessão encerrada</div>
-              <div style={{ fontSize: ".85rem", color: "rgba(255,255,255,.5)" }}>{PACIENTE.nome} · {duracao} minutos</div>
-            </div>
-
-            {/* Resumo por programa */}
-            {programas.map(p => {
-              const ac = p.tentativas.filter(t => t.resultado === "correta").length;
-              const tot = p.tentativas.length;
-              const tx = tot > 0 ? Math.round((ac / tot) * 100) : 0;
-              return (
-                <div key={p.id} style={{ ...gcard, padding: 18 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div>
-                      <div style={{ fontSize: ".88rem", fontWeight: 700 }}>{p.nome}</div>
-                      <div style={{ fontSize: ".72rem", color: "rgba(255,255,255,.45)" }}>{p.operante} · {tot} tentativas</div>
-                    </div>
-                    <div style={{ fontSize: "1.4rem", fontWeight: 800, color: tx >= 80 ? "#00c9a7" : tx >= 50 ? "#f59e0b" : "#ef4444" }}>{tx}%</div>
-                  </div>
-                  <div style={{ height: 5, background: "rgba(255,255,255,.08)", borderRadius: 50, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${tx}%`, background: tx >= 80 ? "#00c9a7" : tx >= 50 ? "#f59e0b" : "#ef4444" }} />
-                  </div>
-                  {tx >= 80 && (
-                    <div style={{ marginTop: 8, fontSize: ".72rem", color: "#00c9a7", fontWeight: 700 }}>
-                      ✓ Próximo de critério — considerar avançar o nível
-                    </div>
-                  )}
+        {/* Resumo por programa */}
+        {programas.map((p, idx) => {
+          const ac  = p.tentativas.filter(t => t.resultado === "correta").length;
+          const inc = p.tentativas.filter(t => t.resultado === "incorreta").length;
+          const ap  = p.tentativas.filter(t => t.resultado === "aproximacao").length;
+          const tot = p.tentativas.length;
+          const tx  = tot > 0 ? Math.round((ac / tot) * 100) : 0;
+          return (
+            <div key={p.id} style={{ ...card, padding: 18 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginBottom: 3 }}>Programa {idx+1}</div>
+                  <div style={{ fontSize: ".9rem", fontWeight: 700 }}>{p.nome}</div>
+                  <div style={{ fontSize: ".72rem", color: "rgba(170,210,245,.88)" }}>{p.operante} · {tot} tentativas</div>
                 </div>
-              );
-            })}
-
-            {/* Observações gerais */}
-            <div style={{ ...gcard, padding: 18 }}>
-              <div style={{ fontSize: ".65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".09em", color: "rgba(255,255,255,.4)", marginBottom: 8 }}>Observações gerais da sessão</div>
-              <textarea value={obsGeral} onChange={e => setObsGeral(e.target.value)} rows={3} placeholder="Comportamento geral, humor, adesão, eventos relevantes..." style={{ ...input, resize: "none" }} />
-            </div>
-
-            {/* Dados atualizados no Care */}
-            <div style={{ background: "linear-gradient(135deg,rgba(0,201,167,.07),rgba(30,144,255,.04))", border: "1px solid rgba(0,201,167,.15)", borderRadius: 14, padding: 16 }}>
-              <div style={{ fontSize: ".72rem", color: "#00c9a7", fontWeight: 700, marginBottom: 6 }}>🔗 FractaCare atualizado</div>
-              <div style={{ fontSize: ".8rem", color: "rgba(255,255,255,.55)", lineHeight: 1.65 }}>
-                Os dados desta sessão alimentaram o radar de {PACIENTE.nome} no FractaCare. A família poderá ver o progresso atualizado em tempo real.
+                <div style={{ fontSize: "1.8rem", fontWeight: 800, color: tx >= 80 ? "#1D9E75" : tx >= 50 ? "#EF9F27" : "#E05A4B" }}>{tx}%</div>
               </div>
+              <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden", marginBottom: 10 }}>
+                <div style={{ height: "100%", width: `${tx}%`, background: tx >= 80 ? "#1D9E75" : tx >= 50 ? "#EF9F27" : "#E05A4B" }} />
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                {[["Corretas",ac,"#1D9E75"],["Incorretas",inc,"#E05A4B"],["Aprox.",ap,"#EF9F27"],["Sem resp.",tot-ac-inc-ap,"#4d6d8a"]].map(([l,v,c]) => (
+                  <div key={String(l)} style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: ".65rem", color: "rgba(165,208,242,.85)" }}>{l}</div>
+                    <div style={{ fontSize: ".85rem", fontWeight: 700, color: c as string }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              {tx >= 80 && <div style={{ marginTop: 10, fontSize: ".72rem", color: "#1D9E75", fontWeight: 600 }}>✓ Próximo de critério — considerar avançar nível</div>}
             </div>
+          );
+        })}
 
-            <div style={{ display: "flex", gap: 12 }}>
-              <button style={{ flex: 1, padding: "14px", borderRadius: 10, border: "1px solid rgba(255,255,255,.12)", background: "transparent", color: "rgba(255,255,255,.7)", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".88rem", cursor: "pointer" }}>
-                Salvar e exportar PDF
-              </button>
-              <Link href="/clinic/dashboard" style={{ flex: 1, padding: "14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#00c9a7,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".88rem", textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                Voltar ao painel
-              </Link>
-            </div>
+        {/* Pausas */}
+        {pausas.length > 0 && (
+          <div style={{ ...card, padding: 18 }}>
+            <div style={{ ...lbl, color: "#EF9F27" }}>Interrupções registradas ({pausas.length})</div>
+            {pausas.map((p, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: i < pausas.length - 1 ? "1px solid rgba(26,58,92,.2)" : "none" }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#EF9F27", marginTop: 5, flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: ".78rem", color: "#e8f0f8" }}>{p.motivo}</div>
+                  {p.duracaoSegundos && <div style={{ fontSize: ".65rem", color: "rgba(170,210,245,.88)", marginTop: 2 }}>{fmt(p.duracaoSegundos)} de pausa</div>}
+                </div>
+              </div>
+            ))}
           </div>
         )}
+
+        {/* Eventos comportamentais */}
+        {eventos.length > 0 && (
+          <div style={{ ...card, padding: 18 }}>
+            <div style={{ ...lbl, color: "#E05A4B" }}>Eventos comportamentais ({eventos.length})</div>
+            {eventos.map(ev => (
+              <div key={ev.id} style={{ display: "flex", gap: 8, padding: "7px 10px", background: "rgba(224,90,75,.07)", borderRadius: 8, marginBottom: 5, border: "1px solid rgba(224,90,75,.15)" }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#E05A4B", marginTop: 4, flexShrink: 0 }} />
+                <span style={{ fontSize: ".78rem", color: "rgba(175,210,240,.95)" }}>{ev.descricao}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Obs gerais */}
+        <div style={{ ...card, padding: 18 }}>
+          <div style={{ ...lbl }}>Observações gerais</div>
+          <textarea value={obsGeral} onChange={e => setObsGeral(e.target.value)} rows={3} placeholder="Comportamento geral, humor, adesão, transições, pontos relevantes para a família..." style={{ ...inp, resize: "none" }} />
+        </div>
+
+        {/* Conexão Care */}
+        <div style={{ background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 14, padding: 16 }}>
+          <div style={{ fontSize: ".72rem", color: "#1D9E75", fontWeight: 700, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+            FractaCare — dados sincronizados
+          </div>
+          <div style={{ fontSize: ".8rem", color: "rgba(160,200,235,.90)", lineHeight: 1.65 }}>
+            Os dados desta sessão alimentaram o radar de <strong style={{ color: "#e8f0f8" }}>{PACIENTE_MOCK.primeiroNome}</strong>.
+            A família verá o progresso atualizado e receberá sugestões de continuidade para o dia a dia.
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 12 }}>
+          <button style={{ flex: 1, padding: 14, borderRadius: 10, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".88rem", cursor: "pointer" }}>
+            Exportar relatório
+          </button>
+          <Link href="/clinic/dashboard" style={{ flex: 1, padding: 14, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".88rem", textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            Voltar ao painel
+          </Link>
+        </div>
 
       </div>
     </div>

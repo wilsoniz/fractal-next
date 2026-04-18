@@ -4,6 +4,7 @@ import { NavBar } from "@/components/fracta/NavBar";
 import { FractaLogo } from "@/components/fracta/FractaLogo";
 import { FractalTriangle } from "@/components/fracta/FractalTriangle";
 
+
 const platforms = [
   {
     logo: "care" as const,

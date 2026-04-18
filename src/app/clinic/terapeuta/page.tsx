@@ -1,433 +1,627 @@
 "use client";
-import { useState } from "react";
+
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { FractaLogo } from "@/components/fracta/FractaLogo";
-import { FractalTriangle } from "@/components/fracta/FractalTriangle";
+import { useClinicContext } from "../layout";
 
-type Nivel = "junior"|"pleno"| "senior"|"supervisor";
-type Step = "perfil"|"clinico"|"disponibilidade"|"revisao"|"enviado";
+// ─── TIPOS ───────────────────────────────────────────────────────────────────
+type TabPerfil = "vitrine" | "formacao" | "disponibilidade" | "avaliacoes" | "configuracoes";
+type Nivel     = "terapeuta" | "coordenador" | "supervisor";
 
-const NIVEIS: Record<Nivel, { label: string; desc: string; cor: string; req: string }> = {
-  junior:     { label:"Terapeuta Júnior",    desc:"Formação em ABA, até 2 anos supervisionado",    cor:"rgba(0,201,167,.5)",  req:"Supervisão obrigatória" },
-  pleno:      { label:"Terapeuta Pleno",     desc:"2–5 anos, casos complexos documentados",         cor:"rgba(0,201,167,.7)",  req:"ABAT ou equivalente" },
-  senior:     { label:"Terapeuta Sênior",    desc:"Mais de 5 anos, capacidade de supervisão",       cor:"#00c9a7",             req:"Histórico verificado" },
-  supervisor: { label:"Supervisor / BCBA",  desc:"Credencial BCBA ou equivalente reconhecida",     cor:"#7bed9f",             req:"Credencial BCBA" },
+interface Certificacao {
+  id: string;
+  titulo: string;
+  instituicao: string;
+  ano: number;
+  tipo: "graduacao" | "especializacao" | "certificacao" | "curso";
+  verificada: boolean;
+  url?: string;
+}
+
+interface Avaliacao {
+  id: string;
+  familiaNome: string;
+  pacienteIniciais: string;
+  nota: number; // 1-5
+  comentario: string;
+  data: string;
+  verificada: boolean;
+}
+
+interface DisponibilidadeSlot {
+  dia: number; // 0=dom
+  turno: "manha" | "tarde" | "noite";
+  disponivel: boolean;
+}
+
+interface PerfilData {
+  nome: string;
+  sobrenome: string;
+  iniciais: string;
+  titulo: string;
+  nivel: Nivel;
+  anosExperiencia: number;
+  cidade: string;
+  estado: string;
+  bio: string;
+  especialidades: string[];
+  abordagens: string[];
+  modalidades: ("presencial" | "domiciliar" | "teleconsulta")[];
+  valorSessao: number;
+  aceitaPlano: boolean;
+  planosAceitos: string[];
+  certificacoes: Certificacao[];
+  avaliacoes: Avaliacao[];
+  disponibilidade: DisponibilidadeSlot[];
+  pacientesAtivos: number;
+  sessoesTotais: number;
+  taxaSucesso: number;
+  tempoResposta: string;
+  visivel: boolean; // visível no FractaCare
+  destaque: boolean;
+}
+
+// ─── MOCK ─────────────────────────────────────────────────────────────────────
+const PERFIL_INICIAL: PerfilData = {
+  nome: "Carolina", sobrenome: "Amaral", iniciais: "CA",
+  titulo: "Analista do Comportamento · BCBA",
+  nivel: "supervisor",
+  anosExperiencia: 8,
+  cidade: "São Paulo", estado: "SP",
+  bio: "Especialista em intervenção comportamental intensiva para crianças com TEA e TDAH. Formada em Psicologia pela USP com especialização em ABA pelo IBAC. Mais de 8 anos de experiência com crianças de 2 a 12 anos, com foco em comunicação funcional, habilidades sociais e redução de comportamentos desafiadores.\n\nTrabalho com abordagem baseada em evidências, integrando DTT, NET e Análise Funcional para construir programas personalizados que respeitam o ritmo e as necessidades de cada aprendiz.",
+  especialidades: ["TEA", "TDAH", "Comunicação funcional", "Comportamentos desafiadores", "Habilidades sociais"],
+  abordagens: ["DTT", "NET", "Análise Funcional", "Equivalência de Estímulos", "PRT"],
+  modalidades: ["presencial", "domiciliar", "teleconsulta"],
+  valorSessao: 280,
+  aceitaPlano: true,
+  planosAceitos: ["Unimed", "Amil", "SulAmérica"],
+  certificacoes: [
+    { id: "c1", titulo: "BCBA — Board Certified Behavior Analyst", instituicao: "BACB", ano: 2019, tipo: "certificacao", verificada: true, url: "https://bacb.com" },
+    { id: "c2", titulo: "Especialização em ABA Aplicada ao TEA", instituicao: "IBAC", ano: 2018, tipo: "especializacao", verificada: true },
+    { id: "c3", titulo: "Graduação em Psicologia", instituicao: "Universidade de São Paulo (USP)", ano: 2016, tipo: "graduacao", verificada: true },
+    { id: "c4", titulo: "Verbal Behavior Approach — AVBA", instituicao: "VB-MAPP Institute", ano: 2020, tipo: "curso", verificada: true },
+    { id: "c5", titulo: "Análise Funcional Avançada", instituicao: "ABPMC", ano: 2022, tipo: "curso", verificada: false },
+  ],
+  avaliacoes: [
+    { id: "a1", familiaNome: "Família Carvalho", pacienteIniciais: "LC", nota: 5, comentario: "A Dra. Carolina transformou a vida do nosso filho. Em 8 meses Lucas passou a se comunicar de forma funcional. Profissional incrível, muito dedicada e sempre disponível para tirar dúvidas.", data: "Mar 2025", verificada: true },
+    { id: "a2", familiaNome: "Família Gomes", pacienteIniciais: "PG", nota: 5, comentario: "Profissional excepcional. O Pedro evoluiu muito além do que esperávamos. Os relatórios são detalhados e ela sempre explica tudo de forma clara para os pais.", data: "Fev 2025", verificada: true },
+    { id: "a3", familiaNome: "Família Pinto", pacienteIniciais: "RP", nota: 5, comentario: "Excelente terapeuta. Muito comprometida e os resultados falam por si. Rafael adorava as sessões.", data: "Jan 2025", verificada: true },
+    { id: "a4", familiaNome: "Família Santos", pacienteIniciais: "MS", nota: 4, comentario: "Muito boa profissional, cuidadosa e atenciosa. Às vezes demora um pouco para responder mensagens, mas o trabalho é de altíssima qualidade.", data: "Abr 2025", verificada: true },
+  ],
+  disponibilidade: [
+    ...([1,2,3,4,5] as number[]).flatMap(dia =>
+      (["manha","tarde","noite"] as const).map(turno => ({
+        dia, turno, disponivel: turno !== "noite" && !(dia === 5 && turno === "tarde"),
+      }))
+    ),
+    ...([0,6] as number[]).flatMap(dia =>
+      (["manha","tarde","noite"] as const).map(turno => ({
+        dia, turno, disponivel: false,
+      }))
+    ),
+  ],
+  pacientesAtivos: 5,
+  sessoesTotais: 847,
+  taxaSucesso: 89,
+  tempoResposta: "< 2 horas",
+  visivel: true,
+  destaque: true,
 };
 
-const ESPECIALIDADES = [
-  "TEA","TDAH","Atrasos de linguagem","Comportamentos desafiadores",
-  "Habilidades sociais","Autocuidado","Controle de impulsos","Habilidades acadêmicas",
-];
+// ─── CONSTANTES ──────────────────────────────────────────────────────────────
+const NIVEL_CONFIG: Record<Nivel, { label: string; cor: string; bg: string }> = {
+  terapeuta:   { label: "Terapeuta / RBT",  cor: "#1D9E75", bg: "rgba(29,158,117,.1)"  },
+  coordenador: { label: "Coordenador ABA",  cor: "#EF9F27", bg: "rgba(239,159,39,.1)"  },
+  supervisor:  { label: "Supervisor / BCBA",cor: "#8B7FE8", bg: "rgba(139,127,232,.1)" },
+};
 
-const ABORDAGENS = [
-  "DTT (Treino Discriminativo)","NET (Ensino em Ambiente Natural)",
-  "PRT (Tratamento Pivotal)","Equivalência de Estímulos",
-  "Análise Funcional","Encadeamento","PECS",
-];
+const TIPO_CERT_CONFIG = {
+  graduacao:       { label: "Graduação",       cor: "#378ADD", icon: "🎓" },
+  especializacao:  { label: "Especialização",  cor: "#8B7FE8", icon: "📚" },
+  certificacao:    { label: "Certificação",    cor: "#1D9E75", icon: "🏆" },
+  curso:           { label: "Curso",           cor: "#EF9F27", icon: "📋" },
+};
 
-const DIAS = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
-const TURNOS = ["Manhã (8h–12h)","Tarde (13h–18h)","Noite (18h–21h)"];
+const DIAS_LABEL = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const TURNOS_LABEL = { manha: "Manhã (8–12h)", tarde: "Tarde (13–18h)", noite: "Noite (18–21h)" };
 
-export default function TerapeutaPage() {
-  const [step,           setStep]           = useState<Step>("perfil");
-  const [nome,           setNome]           = useState("");
-  const [sobrenome,      setSobrenome]      = useState("");
-  const [email,          setEmail]          = useState("");
-  const [telefone,       setTelefone]       = useState("");
-  const [cidade,         setCidade]         = useState("");
-  const [estado,         setEstado]         = useState("");
-  const [nivel,          setNivel]          = useState<Nivel|null>(null);
-  const [anos,           setAnos]           = useState("");
-  const [tipo,           setTipo]           = useState("");
-  const [especialidades, setEspecialidades] = useState<string[]>([]);
-  const [abordagens,     setAbordagens]     = useState<string[]>([]);
-  const [credencial,     setCredencial]     = useState("");
-  const [bio,            setBio]            = useState("");
-  const [dias,           setDias]           = useState<string[]>([]);
-  const [turnos,         setTurnos]         = useState<string[]>([]);
-  const [atendOnline,    setAtendOnline]    = useState(false);
-  const [atendPresencial,setAtendPresencial]= useState(false);
-  const [enviando,       setEnviando]       = useState(false);
+function Stars({ nota, size = 14 }: { nota: number; size?: number }) {
+  return (
+    <div style={{ display: "flex", gap: 2 }}>
+      {[1,2,3,4,5].map(i => (
+        <svg key={i} width={size} height={size} viewBox="0 0 16 16" fill={i <= nota ? "#EF9F27" : "rgba(138,168,200,.2)"}>
+          <path d="M8 1l1.9 3.8 4.2.6-3 3 .7 4.2L8 11l-3.8 2 .7-4.2-3-3 4.2-.6z"/>
+        </svg>
+      ))}
+    </div>
+  );
+}
 
-  function toggleArr<T>(arr: T[], setArr: (v:T[])=>void, item: T) {
-    setArr(arr.includes(item) ? arr.filter(x=>x!==item) : [...arr, item]);
+// ─── PAGE ────────────────────────────────────────────────────────────────────
+export default function TerapeutaPerfilPage() {
+  const { terapeuta: terapeutaCtx } = useClinicContext();
+  const nivelCtx = terapeutaCtx?.nivel ?? "supervisor";
+
+  const [tab,     setTab]     = useState<TabPerfil>("vitrine");
+  const [perfil,  setPerfil]  = useState<PerfilData>(PERFIL_INICIAL);
+  const [editBio, setEditBio] = useState(false);
+  const [bioDraft,setBioDraft]= useState(perfil.bio);
+  const [salvando,setSalvando]= useState(false);
+
+  const notaMedia = useMemo(() => {
+    if (!perfil.avaliacoes.length) return 0;
+    return Math.round((perfil.avaliacoes.reduce((a, av) => a + av.nota, 0) / perfil.avaliacoes.length) * 10) / 10;
+  }, [perfil.avaliacoes]);
+
+  function salvarBio() {
+    setSalvando(true);
+    setTimeout(() => { setPerfil(p => ({ ...p, bio: bioDraft })); setEditBio(false); setSalvando(false); }, 800);
   }
 
-  async function enviarPerfil() {
-    setEnviando(true);
-    try {
-      await fetch("https://fractal-behavior-production.up.railway.app/api/auth/cadastro-clinic", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nome:`${nome} ${sobrenome}`, email, telefone, cidade, estado, nivel, anos, tipo, especialidades, abordagens, credencial, bio, dias, turnos, atendOnline, atendPresencial }),
-      });
-    } catch(_) { /* continua para tela de enviado */ }
-    finally { setEnviando(false); setStep("enviado"); }
+  function toggleDisponibilidade(dia: number, turno: "manha" | "tarde" | "noite") {
+    setPerfil(p => ({
+      ...p,
+      disponibilidade: p.disponibilidade.map(s =>
+        s.dia === dia && s.turno === turno ? { ...s, disponivel: !s.disponivel } : s
+      ),
+    }));
   }
 
-  const input: React.CSSProperties = {
-    width:"100%", padding:"11px 14px",
-    border:"1px solid rgba(255,255,255,.12)", borderRadius:8,
-    background:"rgba(255,255,255,.06)", color:"white",
-    fontFamily:"var(--font-sans)", fontSize:".85rem", outline:"none",
-    boxSizing:"border-box" as const, transition:"border-color .2s",
-  };
+  const nc = NIVEL_CONFIG[perfil.nivel];
 
-  const select: React.CSSProperties = {
-    ...input, appearance:"none" as const, cursor:"pointer",
-    background:"rgba(13,32,64,.8)",
-  };
+  // ── CSS ────────────────────────────────────────────────────────────────────
+  const card: React.CSSProperties = { background: "rgba(13,32,53,.75)", border: "1px solid rgba(70,120,180,.5)", borderRadius: 14, backdropFilter: "blur(8px)" };
+  const inp: React.CSSProperties  = { background: "rgba(20,55,110,.55)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 8, padding: "9px 12px", color: "#e8f0f8", fontFamily: "var(--font-sans)", fontSize: ".82rem", outline: "none", width: "100%", boxSizing: "border-box" as const };
+  const lbl: React.CSSProperties  = { fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".09em", color: "rgba(170,210,245,.88)", marginBottom: 8 };
 
-  const gcard: React.CSSProperties = {
-    background:"rgba(13,32,64,.7)", backdropFilter:"blur(14px)",
-    border:"1px solid rgba(255,255,255,.09)", borderRadius:16, padding:22,
-  };
-
-  const chip = (active: boolean, cor="rgba(0,201,167,.2)", corText="#00c9a7"): React.CSSProperties => ({
-    padding:"6px 13px", borderRadius:50, cursor:"pointer",
-    border:`1px solid ${active ? cor : "rgba(255,255,255,.1)"}`,
-    background: active ? cor : "transparent",
-    color: active ? corText : "rgba(255,255,255,.45)",
-    fontFamily:"var(--font-sans)", fontSize:".72rem", fontWeight:700,
-    transition:"all .2s",
-  });
-
-  const STEPS: Step[] = ["perfil","clinico","disponibilidade","revisao"];
-  const stepIdx = STEPS.indexOf(step as any);
+  const TABS: { id: TabPerfil; label: string }[] = [
+    { id: "vitrine",          label: "Vitrine"        },
+    { id: "formacao",         label: "Formação"       },
+    { id: "disponibilidade",  label: "Disponibilidade"},
+    { id: "avaliacoes",       label: `Avaliações (${perfil.avaliacoes.length})` },
+    { id: "configuracoes",    label: "Configurações"  },
+  ];
 
   return (
-    <div style={{ fontFamily:"var(--font-sans)", background:"#07111f", color:"white", minHeight:"100vh" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* NAV */}
-      <nav style={{ background:"rgba(7,17,31,.92)", backdropFilter:"blur(20px)", borderBottom:"1px solid rgba(255,255,255,.08)", padding:"0 20px", height:54, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:50 }}>
-        <Link href="/clinic" style={{ textDecoration:"none" }}>
-          <FractaLogo logo="clinic" height={24} alt="FractaClinic"/>
-        </Link>
-        <span style={{ fontSize:".75rem", color:"rgba(255,255,255,.4)" }}>
-          {step==="enviado" ? "Perfil enviado" : `Etapa ${stepIdx+1} de ${STEPS.length}`}
-        </span>
-        <Link href="/clinic" style={{ fontSize:".72rem", color:"rgba(255,255,255,.4)", textDecoration:"none" }}>Cancelar</Link>
-      </nav>
+      {/* ── HEADER CARD ── */}
+      <div style={{ ...card, padding: 24, border: perfil.destaque ? "1px solid rgba(139,127,232,.3)" : "1px solid rgba(26,58,92,.5)" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
 
-      {/* BARRA DE PROGRESSO */}
-      {step !== "enviado" && (
-        <div style={{ height:3, background:"rgba(255,255,255,.08)" }}>
-          <div style={{ height:"100%", width:`${((stepIdx+1)/STEPS.length)*100}%`, background:"linear-gradient(90deg,#00c9a7,#7bed9f)", transition:"width .5s ease" }}/>
-        </div>
-      )}
-
-      <div style={{ maxWidth:640, margin:"0 auto", padding:"28px 18px 60px" }}>
-
-        {/* STEP INDICATOR */}
-        {step !== "enviado" && (
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0, marginBottom:28 }}>
-            {[["perfil","Perfil"],["clinico","Clínico"],["disponibilidade","Agenda"],["revisao","Revisão"]].map(([k,l],i)=>{
-              const done = stepIdx > i;
-              const active = stepIdx === i;
-              return (
-                <div key={k} style={{ display:"flex", alignItems:"center" }}>
-                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
-                    <div style={{ width:26, height:26, borderRadius:"50%", background:done?"linear-gradient(135deg,#00c9a7,#7bed9f)":active?"#00c9a7":"rgba(255,255,255,.1)", color:done||active?"#07111f":"rgba(255,255,255,.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:".65rem", fontWeight:800, boxShadow:active?"0 0 0 3px rgba(0,201,167,.25)":"none" }}>
-                      {done?"✓":i+1}
-                    </div>
-                    <span style={{ fontSize:".58rem", color:active?"#00c9a7":"rgba(255,255,255,.3)", marginTop:4, fontWeight:active?700:400 }}>{l}</span>
-                  </div>
-                  {i<3 && <div style={{ width:40, height:2, background:done?"#00c9a7":"rgba(255,255,255,.1)", margin:"0 4px 16px", transition:"background .3s" }}/>}
-                </div>
-              );
-            })}
+          {/* Avatar */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,#1D9E75,#378ADD)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", fontWeight: 800, color: "#fff" }}>
+              {perfil.iniciais}
+            </div>
+            {perfil.visivel && (
+              <div style={{ position: "absolute", bottom: 2, right: 2, width: 14, height: 14, borderRadius: "50%", background: "#1D9E75", border: "2px solid #07111f" }} title="Visível no FractaCare" />
+            )}
           </div>
-        )}
 
-        {/* ── ETAPA 1: PERFIL PESSOAL ── */}
-        {step==="perfil" && (
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-            <div>
-              <div style={{ fontSize:".65rem", fontWeight:700, textTransform:"uppercase", letterSpacing:".12em", color:"#00c9a7", marginBottom:6 }}>Etapa 1</div>
-              <h2 style={{ fontSize:"1.2rem", fontWeight:800, marginBottom:4 }}>Dados pessoais e contato</h2>
-              <p style={{ fontSize:".82rem", color:"rgba(255,255,255,.45)", lineHeight:1.65 }}>Estas informações identificam seu perfil no FractaEngine.</p>
+          {/* Info principal */}
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+              <h1 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#e8f0f8", margin: 0 }}>{perfil.nome} {perfil.sobrenome}</h1>
+              <span style={{ fontSize: ".65rem", color: nc.cor, background: nc.bg, borderRadius: 20, padding: "3px 10px", fontWeight: 700 }}>{nc.label}</span>
+              {perfil.destaque && <span style={{ fontSize: ".62rem", color: "#8B7FE8", background: "rgba(139,127,232,.1)", border: "1px solid rgba(139,127,232,.2)", borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>⭐ Destaque</span>}
             </div>
-            <div style={gcard}>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                {[
-                  { label:"Nome", val:nome,      set:setNome,      placeholder:"Seu nome" },
-                  { label:"Sobrenome", val:sobrenome, set:setSobrenome, placeholder:"Seu sobrenome" },
-                ].map(f=>(
-                  <div key={f.label}>
-                    <label style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", display:"block", marginBottom:5 }}>{f.label}</label>
-                    <input style={input} value={f.val} onChange={e=>f.set(e.target.value)} placeholder={f.placeholder}
-                      onFocus={e=>(e.target.style.borderColor="rgba(0,201,167,.4)")}
-                      onBlur={e=>(e.target.style.borderColor="rgba(255,255,255,.12)")}
-                    />
-                  </div>
-                ))}
-                <div style={{ gridColumn:"1/-1" }}>
-                  <label style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", display:"block", marginBottom:5 }}>E-mail profissional</label>
-                  <input style={input} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="seu@email.com"
-                    onFocus={e=>(e.target.style.borderColor="rgba(0,201,167,.4)")}
-                    onBlur={e=>(e.target.style.borderColor="rgba(255,255,255,.12)")}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", display:"block", marginBottom:5 }}>WhatsApp</label>
-                  <input style={input} value={telefone} onChange={e=>setTelefone(e.target.value)} placeholder="(11) 99999-9999"
-                    onFocus={e=>(e.target.style.borderColor="rgba(0,201,167,.4)")}
-                    onBlur={e=>(e.target.style.borderColor="rgba(255,255,255,.12)")}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", display:"block", marginBottom:5 }}>Estado</label>
-                  <select style={select} value={estado} onChange={e=>setEstado(e.target.value)}>
-                    <option value="">Selecione</option>
-                    {["SP","RJ","MG","RS","PR","SC","BA","PE","CE","GO","DF","Outro"].map(s=><option key={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div style={{ gridColumn:"1/-1" }}>
-                  <label style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", display:"block", marginBottom:5 }}>Cidade</label>
-                  <input style={input} value={cidade} onChange={e=>setCidade(e.target.value)} placeholder="Sua cidade"
-                    onFocus={e=>(e.target.style.borderColor="rgba(0,201,167,.4)")}
-                    onBlur={e=>(e.target.style.borderColor="rgba(255,255,255,.12)")}
-                  />
-                </div>
-              </div>
-            </div>
-            <button onClick={()=>setStep("clinico")} style={{ padding:"14px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#00c9a7,#0f8f7a)", color:"#07111f", fontWeight:800, fontSize:".92rem", cursor:"pointer", fontFamily:"var(--font-sans)" }}>
-              Continuar →
-            </button>
-          </div>
-        )}
-
-        {/* ── ETAPA 2: PERFIL CLÍNICO ── */}
-        {step==="clinico" && (
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-            <div>
-              <div style={{ fontSize:".65rem", fontWeight:700, textTransform:"uppercase", letterSpacing:".12em", color:"#00c9a7", marginBottom:6 }}>Etapa 2</div>
-              <h2 style={{ fontSize:"1.2rem", fontWeight:800, marginBottom:4 }}>Perfil clínico</h2>
-              <p style={{ fontSize:".82rem", color:"rgba(255,255,255,.45)", lineHeight:1.65 }}>Estas informações determinam seu nível de senioridade e visibilidade no FractaEngine.</p>
-            </div>
-
-            {/* Nível */}
-            <div style={gcard}>
-              <div style={{ fontSize:".65rem", fontWeight:700, textTransform:"uppercase", letterSpacing:".09em", color:"rgba(255,255,255,.4)", marginBottom:12 }}>Nível de senioridade</div>
-              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                {(Object.entries(NIVEIS) as [Nivel, typeof NIVEIS[Nivel]][]).map(([k,v])=>(
-                  <div key={k} onClick={()=>setNivel(k)} style={{
-                    display:"flex", alignItems:"center", justifyContent:"space-between",
-                    padding:"14px 16px", borderRadius:12, cursor:"pointer",
-                    border:`1px solid ${nivel===k?v.cor:"rgba(255,255,255,.1)"}`,
-                    background:nivel===k?"rgba(0,201,167,.08)":"rgba(255,255,255,.03)",
-                    transition:"all .2s",
-                  }}>
-                    <div>
-                      <div style={{ fontSize:".88rem", fontWeight:700, color:nivel===k?"#00c9a7":"white" }}>{v.label}</div>
-                      <div style={{ fontSize:".72rem", color:"rgba(255,255,255,.45)", marginTop:2 }}>{v.desc}</div>
-                    </div>
-                    <div style={{ fontSize:".65rem", fontWeight:700, padding:"3px 10px", borderRadius:50, background:`${v.cor}22`, color:v.cor, flexShrink:0, marginLeft:12 }}>{v.req}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Tipo e anos */}
-            <div style={gcard}>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
-                <div>
-                  <label style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", display:"block", marginBottom:5 }}>Tipo de atuação</label>
-                  <select style={select} value={tipo} onChange={e=>setTipo(e.target.value)}>
-                    <option value="">Selecione</option>
-                    {["Terapeuta ABA","Psicólogo comportamental","Fonoaudiólogo com formação ABA","Pedagogo com formação ABA","Supervisor / BCBA"].map(o=><option key={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", display:"block", marginBottom:5 }}>Anos de experiência</label>
-                  <select style={select} value={anos} onChange={e=>setAnos(e.target.value)}>
-                    <option value="">Selecione</option>
-                    {["Menos de 1","1–2","2–5","5–10","Mais de 10"].map(o=><option key={o}>{o}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Especialidades */}
-              <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", marginBottom:8 }}>Especialidades (selecione todas que se aplicam)</div>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
-                  {ESPECIALIDADES.map(s=>(
-                    <button key={s} onClick={()=>toggleArr(especialidades,setEspecialidades,s)} style={chip(especialidades.includes(s))}>{s}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Abordagens */}
-              <div>
-                <div style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", marginBottom:8 }}>Abordagens utilizadas</div>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
-                  {ABORDAGENS.map(a=>(
-                    <button key={a} onClick={()=>toggleArr(abordagens,setAbordagens,a)} style={chip(abordagens.includes(a),"rgba(30,144,255,.25)","#60a5fa")}>{a}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Credencial e bio */}
-            <div style={gcard}>
-              <div style={{ marginBottom:14 }}>
-                <label style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", display:"block", marginBottom:5 }}>Número de registro / credencial (opcional)</label>
-                <input style={input} value={credencial} onChange={e=>setCredencial(e.target.value)} placeholder="CRP, ABAT, BCBA..."
-                  onFocus={e=>(e.target.style.borderColor="rgba(0,201,167,.4)")}
-                  onBlur={e=>(e.target.style.borderColor="rgba(255,255,255,.12)")}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", display:"block", marginBottom:5 }}>Mini bio profissional</label>
-                <textarea style={{ ...input, resize:"none" } as React.CSSProperties} rows={3} value={bio} onChange={e=>setBio(e.target.value)} placeholder="Descreva sua abordagem, experiência e diferenciais em 2–3 frases..."
-                  onFocus={e=>(e.target.style.borderColor="rgba(0,201,167,.4)")}
-                  onBlur={e=>(e.target.style.borderColor="rgba(255,255,255,.12)")}
-                />
-              </div>
-            </div>
-
-            <div style={{ display:"flex", gap:10 }}>
-              <button onClick={()=>setStep("perfil")} style={{ padding:"13px 20px", borderRadius:10, border:"1px solid rgba(255,255,255,.12)", background:"transparent", color:"rgba(255,255,255,.6)", fontFamily:"var(--font-sans)", fontWeight:600, fontSize:".88rem", cursor:"pointer" }}>← Voltar</button>
-              <button onClick={()=>setStep("disponibilidade")} style={{ flex:1, padding:"13px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#00c9a7,#0f8f7a)", color:"#07111f", fontWeight:800, fontSize:".92rem", cursor:"pointer", fontFamily:"var(--font-sans)" }}>Continuar →</button>
+            <div style={{ fontSize: ".82rem", color: "rgba(160,200,235,.92)", marginBottom: 8 }}>{perfil.titulo}</div>
+            <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.84)" }}>
+              {perfil.cidade}, {perfil.estado} · {perfil.anosExperiencia} anos de experiência
             </div>
           </div>
-        )}
 
-        {/* ── ETAPA 3: DISPONIBILIDADE ── */}
-        {step==="disponibilidade" && (
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-            <div>
-              <div style={{ fontSize:".65rem", fontWeight:700, textTransform:"uppercase", letterSpacing:".12em", color:"#00c9a7", marginBottom:6 }}>Etapa 3</div>
-              <h2 style={{ fontSize:"1.2rem", fontWeight:800, marginBottom:4 }}>Disponibilidade</h2>
-              <p style={{ fontSize:".82rem", color:"rgba(255,255,255,.45)", lineHeight:1.65 }}>O FractaEngine usa estas informações para compatibilizar com famílias disponíveis.</p>
-            </div>
-
-            <div style={gcard}>
-              <div style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", marginBottom:10 }}>Dias disponíveis</div>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:7, marginBottom:20 }}>
-                {DIAS.map(d=>(
-                  <button key={d} onClick={()=>toggleArr(dias,setDias,d)} style={chip(dias.includes(d))}>{d}</button>
-                ))}
-              </div>
-
-              <div style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", marginBottom:10 }}>Turnos disponíveis</div>
-              <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:20 }}>
-                {TURNOS.map(t=>(
-                  <div key={t} onClick={()=>toggleArr(turnos,setTurnos,t)} style={{ display:"flex", alignItems:"center", gap:10, padding:"11px 14px", borderRadius:10, cursor:"pointer", border:`1px solid ${turnos.includes(t)?"rgba(0,201,167,.4)":"rgba(255,255,255,.1)"}`, background:turnos.includes(t)?"rgba(0,201,167,.08)":"rgba(255,255,255,.03)" }}>
-                    <div style={{ width:18, height:18, borderRadius:"50%", border:`2px solid ${turnos.includes(t)?"#00c9a7":"rgba(255,255,255,.2)"}`, background:turnos.includes(t)?"#00c9a7":"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                      {turnos.includes(t) && <div style={{ width:6, height:6, borderRadius:"50%", background:"#07111f" }}/>}
-                    </div>
-                    <span style={{ fontSize:".82rem", fontWeight:600, color:turnos.includes(t)?"#00c9a7":"rgba(255,255,255,.6)" }}>{t}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ fontSize:".72rem", fontWeight:700, color:"rgba(255,255,255,.45)", marginBottom:10 }}>Modalidade de atendimento</div>
-              <div style={{ display:"flex", gap:10 }}>
-                {[["Online",atendOnline,setAtendOnline],["Presencial",atendPresencial,setAtendPresencial]].map(([label,val,set])=>(
-                  <div key={label as string} onClick={()=>(set as Function)(!val)} style={{ flex:1, padding:"11px", borderRadius:10, cursor:"pointer", border:`1px solid ${val?"rgba(0,201,167,.4)":"rgba(255,255,255,.1)"}`, background:val?"rgba(0,201,167,.08)":"rgba(255,255,255,.03)", textAlign:"center" }}>
-                    <div style={{ fontSize:".82rem", fontWeight:700, color:val?"#00c9a7":"rgba(255,255,255,.5)" }}>{label as string}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display:"flex", gap:10 }}>
-              <button onClick={()=>setStep("clinico")} style={{ padding:"13px 20px", borderRadius:10, border:"1px solid rgba(255,255,255,.12)", background:"transparent", color:"rgba(255,255,255,.6)", fontFamily:"var(--font-sans)", fontWeight:600, fontSize:".88rem", cursor:"pointer" }}>← Voltar</button>
-              <button onClick={()=>setStep("revisao")} style={{ flex:1, padding:"13px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#00c9a7,#0f8f7a)", color:"#07111f", fontWeight:800, fontSize:".92rem", cursor:"pointer", fontFamily:"var(--font-sans)" }}>Revisar perfil →</button>
-            </div>
-          </div>
-        )}
-
-        {/* ── ETAPA 4: REVISÃO ── */}
-        {step==="revisao" && (
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-            <div>
-              <div style={{ fontSize:".65rem", fontWeight:700, textTransform:"uppercase", letterSpacing:".12em", color:"#00c9a7", marginBottom:6 }}>Revisão</div>
-              <h2 style={{ fontSize:"1.2rem", fontWeight:800, marginBottom:4 }}>Confirme seu perfil</h2>
-              <p style={{ fontSize:".82rem", color:"rgba(255,255,255,.45)", lineHeight:1.65 }}>Verifique as informações antes de enviar para o processo de seleção.</p>
-            </div>
-
+          {/* Stats */}
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             {[
-              { titulo:"Dados pessoais", items:[
-                { label:"Nome", val:`${nome} ${sobrenome}` },
-                { label:"E-mail", val:email },
-                { label:"Localização", val:`${cidade}, ${estado}` },
-              ]},
-              { titulo:"Perfil clínico", items:[
-                { label:"Nível", val:nivel?NIVEIS[nivel].label:"—" },
-                { label:"Tipo", val:tipo||"—" },
-                { label:"Experiência", val:anos?`${anos} anos`:"—" },
-                { label:"Especialidades", val:especialidades.join(", ")||"—" },
-              ]},
-              { titulo:"Disponibilidade", items:[
-                { label:"Dias", val:dias.join(", ")||"—" },
-                { label:"Turnos", val:turnos.join(", ")||"—" },
-                { label:"Modalidade", val:[atendOnline&&"Online",atendPresencial&&"Presencial"].filter(Boolean).join(" + ")||"—" },
-              ]},
-            ].map(sec=>(
-              <div key={sec.titulo} style={gcard}>
-                <div style={{ fontSize:".72rem", fontWeight:700, textTransform:"uppercase", letterSpacing:".09em", color:"#00c9a7", marginBottom:12 }}>{sec.titulo}</div>
-                {sec.items.map(item=>(
-                  <div key={item.label} style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid rgba(255,255,255,.05)" }}>
-                    <div style={{ fontSize:".78rem", color:"rgba(255,255,255,.4)" }}>{item.label}</div>
-                    <div style={{ fontSize:".78rem", fontWeight:600, maxWidth:"60%", textAlign:"right" }}>{item.val}</div>
-                  </div>
-                ))}
+              { l: "Pacientes",  v: perfil.pacientesAtivos, c: "#1D9E75"  },
+              { l: "Sessões",    v: perfil.sessoesTotais,   c: "#378ADD"  },
+              { l: "Sucesso",    v: `${perfil.taxaSucesso}%`, c: "#EF9F27" },
+              { l: "Resposta",   v: perfil.tempoResposta,  c: "#e8f0f8"  },
+            ].map(s => (
+              <div key={s.l} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "1.1rem", fontWeight: 800, color: s.c, lineHeight: 1 }}>{s.v}</div>
+                <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", marginTop: 2 }}>{s.l}</div>
               </div>
             ))}
+          </div>
 
-            {/* Aviso */}
-            <div style={{ background:"rgba(0,201,167,.08)", border:"1px solid rgba(0,201,167,.2)", borderRadius:14, padding:"14px 16px" }}>
-              <div style={{ fontSize:".72rem", color:"#00c9a7", fontWeight:700, marginBottom:5 }}>O que acontece depois</div>
-              <div style={{ fontSize:".78rem", color:"rgba(255,255,255,.55)", lineHeight:1.65 }}>
-                Seu perfil passa por revisão em até 48h. Você receberá um e-mail com o resultado e o nível de senioridade definido. O FractaEngine começa as indicações assim que o perfil for aprovado.
+          {/* Nota */}
+          <div style={{ textAlign: "center", ...card, padding: "12px 16px", minWidth: 90 }}>
+            <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "#EF9F27", lineHeight: 1 }}>{notaMedia}</div>
+            <Stars nota={Math.round(notaMedia)} size={12} />
+            <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", marginTop: 3 }}>{perfil.avaliacoes.length} avaliações</div>
+          </div>
+        </div>
+
+        {/* Tags de especialidade */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 16 }}>
+          {perfil.especialidades.map(e => (
+            <span key={e} style={{ fontSize: ".68rem", background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", color: "#1D9E75", borderRadius: 20, padding: "3px 10px", fontWeight: 500 }}>{e}</span>
+          ))}
+          {perfil.modalidades.map(m => (
+            <span key={m} style={{ fontSize: ".68rem", background: "rgba(55,138,221,.08)", border: "1px solid rgba(55,138,221,.2)", color: "#378ADD", borderRadius: 20, padding: "3px 10px" }}>
+              {m === "presencial" ? "Presencial" : m === "domiciliar" ? "Domiciliar" : "Teleconsulta"}
+            </span>
+          ))}
+          {perfil.aceitaPlano && <span style={{ fontSize: ".68rem", background: "rgba(139,127,232,.08)", border: "1px solid rgba(139,127,232,.2)", color: "#8B7FE8", borderRadius: 20, padding: "3px 10px" }}>Aceita plano de saúde</span>}
+        </div>
+      </div>
+
+      {/* Status de visibilidade */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, ...card, padding: "10px 16px", border: perfil.visivel ? "1px solid rgba(29,158,117,.25)" : "1px solid rgba(224,90,75,.25)", background: perfil.visivel ? "rgba(29,158,117,.06)" : "rgba(224,90,75,.06)" }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: perfil.visivel ? "#1D9E75" : "#E05A4B", animation: perfil.visivel ? "pulse 2s ease infinite" : "none" }} />
+        <span style={{ fontSize: ".78rem", color: perfil.visivel ? "#1D9E75" : "#E05A4B", fontWeight: 600 }}>
+          {perfil.visivel ? "Perfil visível no FractaCare" : "Perfil oculto — famílias não conseguem te encontrar"}
+        </span>
+        <button onClick={() => setPerfil(p => ({ ...p, visivel: !p.visivel }))} style={{ marginLeft: "auto", padding: "4px 12px", borderRadius: 6, border: `1px solid ${perfil.visivel ? "rgba(224,90,75,.3)" : "rgba(29,158,117,.3)"}`, background: "transparent", color: perfil.visivel ? "#E05A4B" : "#1D9E75", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".72rem", cursor: "pointer" }}>
+          {perfil.visivel ? "Ocultar perfil" : "Tornar visível"}
+        </button>
+      </div>
+
+      {/* ── TABS ── */}
+      <div style={{ display: "flex", borderBottom: "1px solid rgba(26,58,92,.4)" }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            padding: "10px 16px", background: "none", border: "none",
+            borderBottom: `2px solid ${tab === t.id ? "#1D9E75" : "transparent"}`,
+            color: tab === t.id ? "#1D9E75" : "rgba(160,200,235,.84)",
+            fontFamily: "var(--font-sans)", fontWeight: tab === t.id ? 600 : 400,
+            fontSize: ".78rem", cursor: "pointer", marginBottom: -1, whiteSpace: "nowrap",
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB: VITRINE */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {tab === "vitrine" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16 }}>
+
+          {/* Coluna principal */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+            {/* Bio */}
+            <div style={{ ...card, padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ ...lbl, marginBottom: 0 }}>Sobre mim</div>
+                {!editBio ? (
+                  <button onClick={() => { setBioDraft(perfil.bio); setEditBio(true); }} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontFamily: "var(--font-sans)", fontSize: ".7rem", cursor: "pointer" }}>
+                    Editar
+                  </button>
+                ) : (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => setEditBio(false)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.84)", fontFamily: "var(--font-sans)", fontSize: ".7rem", cursor: "pointer" }}>Cancelar</button>
+                    <button onClick={salvarBio} style={{ padding: "4px 12px", borderRadius: 6, border: "none", background: "#1D9E75", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".7rem", cursor: "pointer" }}>
+                      {salvando ? "Salvando..." : "Salvar"}
+                    </button>
+                  </div>
+                )}
+              </div>
+              {editBio ? (
+                <textarea value={bioDraft} onChange={e => setBioDraft(e.target.value)} rows={7} style={{ ...inp, resize: "vertical", lineHeight: 1.65 }} />
+              ) : (
+                <div style={{ fontSize: ".82rem", color: "rgba(160,200,235,.92)", lineHeight: 1.75, whiteSpace: "pre-line" }}>{perfil.bio}</div>
+              )}
+            </div>
+
+            {/* Abordagens */}
+            <div style={{ ...card, padding: 20 }}>
+              <div style={{ ...lbl }}>Abordagens terapêuticas</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {perfil.abordagens.map(a => (
+                  <div key={a} style={{ padding: "8px 14px", background: "rgba(55,138,221,.08)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 9, fontSize: ".78rem", color: "#378ADD", fontWeight: 500 }}>{a}</div>
+                ))}
               </div>
             </div>
 
-            <div style={{ display:"flex", gap:10 }}>
-              <button onClick={()=>setStep("disponibilidade")} style={{ padding:"13px 20px", borderRadius:10, border:"1px solid rgba(255,255,255,.12)", background:"transparent", color:"rgba(255,255,255,.6)", fontFamily:"var(--font-sans)", fontWeight:600, fontSize:".88rem", cursor:"pointer" }}>← Voltar</button>
-              <button onClick={enviarPerfil} disabled={enviando} style={{ flex:1, padding:"13px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#00c9a7,#0f8f7a)", color:"#07111f", fontWeight:800, fontSize:".92rem", cursor:enviando?"not-allowed":"pointer", fontFamily:"var(--font-sans)", opacity:enviando?.7:1 }}>
-                {enviando?"Enviando...":"Enviar perfil para seleção"}
-              </button>
+            {/* Preview como aparece no FractaCare */}
+            <div style={{ ...card, padding: 20, border: "1px solid rgba(139,127,232,.2)", background: "rgba(139,127,232,.04)" }}>
+              <div style={{ fontSize: ".62rem", color: "#8B7FE8", fontWeight: 700, letterSpacing: ".09em", textTransform: "uppercase", marginBottom: 12 }}>Preview — como aparece no FractaCare</div>
+              <div style={{ background: "rgba(255,255,255,.03)", borderRadius: 12, padding: 16, border: "1px solid rgba(255,255,255,.06)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(135deg,#1D9E75,#378ADD)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".82rem", fontWeight: 800, color: "#fff" }}>{perfil.iniciais}</div>
+                  <div>
+                    <div style={{ fontSize: ".92rem", fontWeight: 700, color: "#e8f0f8" }}>{perfil.nome} {perfil.sobrenome}</div>
+                    <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.90)" }}>{perfil.titulo}</div>
+                  </div>
+                  <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                    <Stars nota={Math.round(notaMedia)} size={11} />
+                    <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.88)", marginTop: 2 }}>{notaMedia} · {perfil.avaliacoes.length} avaliações</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.90)", lineHeight: 1.6, marginBottom: 12 }}>{perfil.bio.slice(0, 180)}...</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                  {perfil.especialidades.slice(0, 3).map(e => (
+                    <span key={e} style={{ fontSize: ".62rem", background: "rgba(29,158,117,.1)", color: "#1D9E75", borderRadius: 20, padding: "2px 8px" }}>{e}</span>
+                  ))}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>A partir de R$ {perfil.valorSessao}/sessão</div>
+                  <div style={{ padding: "6px 14px", borderRadius: 8, background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".72rem", fontWeight: 700 }}>Contatar →</div>
+                </div>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* ── ENVIADO ── */}
-        {step==="enviado" && (
-          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", gap:20, paddingTop:40 }}>
-            <div style={{ display:"flex", justifyContent:"center" }}>
-              <FractalTriangle size={120} animate style={{ filter:"hue-rotate(160deg) saturate(1.1)" }}/>
-            </div>
-            <div>
-              <div style={{ fontSize:".72rem", fontWeight:700, textTransform:"uppercase", letterSpacing:".12em", color:"#00c9a7", marginBottom:10 }}>Perfil enviado</div>
-              <h2 style={{ fontSize:"1.4rem", fontWeight:800, marginBottom:10, lineHeight:1.2 }}>Seu perfil está em análise</h2>
-              <p style={{ fontSize:".88rem", color:"rgba(255,255,255,.55)", lineHeight:1.75, maxWidth:400 }}>
-                Recebemos seu cadastro. Nossa equipe vai revisar suas informações e definir seu nível de senioridade em até 48 horas. Você receberá um e-mail com o resultado.
-              </p>
+          {/* Coluna lateral */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+            {/* Valor e modalidades */}
+            <div style={{ ...card, padding: 18 }}>
+              <div style={{ ...lbl }}>Atendimento</div>
+              <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "#1D9E75", marginBottom: 4 }}>R$ {perfil.valorSessao}<span style={{ fontSize: ".7rem", fontWeight: 400, color: "rgba(160,200,235,.84)" }}>/sessão</span></div>
+              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)", marginBottom: 14 }}>Tempo de resposta: {perfil.tempoResposta}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {perfil.modalidades.map(m => (
+                  <div key={m} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: ".75rem", color: "rgba(160,200,235,.92)" }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#1D9E75" }} />
+                    {m === "presencial" ? "Atendimento presencial" : m === "domiciliar" ? "Atendimento domiciliar" : "Teleconsulta"}
+                  </div>
+                ))}
+                {perfil.aceitaPlano && (
+                  <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(139,127,232,.07)", border: "1px solid rgba(139,127,232,.15)", borderRadius: 7, fontSize: ".7rem", color: "#8B7FE8" }}>
+                    Planos: {perfil.planosAceitos.join(", ")}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div style={{ width:"100%", maxWidth:400, background:"rgba(13,32,64,.7)", border:"1px solid rgba(0,201,167,.15)", borderRadius:16, padding:20, display:"flex", flexDirection:"column", gap:12 }}>
+            {/* Métricas clínicas */}
+            <div style={{ ...card, padding: 18 }}>
+              <div style={{ ...lbl }}>Métricas clínicas</div>
               {[
-                { icon:"✓", label:"Perfil recebido e em análise" },
-                { icon:"⏱", label:"Revisão em até 48 horas" },
-                { icon:"📧", label:`E-mail de confirmação para ${email}` },
-                { icon:"🤖", label:"FractaEngine ativo após aprovação" },
-              ].map(item=>(
-                <div key={item.label} style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ width:24, height:24, borderRadius:"50%", background:"rgba(0,201,167,.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:".75rem", flexShrink:0 }}>{item.icon}</div>
-                  <div style={{ fontSize:".8rem", color:"rgba(255,255,255,.65)" }}>{item.label}</div>
+                { l: "Pacientes ativos",    v: perfil.pacientesAtivos, c: "#1D9E75" },
+                { l: "Sessões realizadas",  v: perfil.sessoesTotais,   c: "#378ADD" },
+                { l: "Taxa de sucesso",     v: `${perfil.taxaSucesso}%`, c: "#EF9F27" },
+                { l: "Anos de experiência", v: perfil.anosExperiencia, c: "#e8f0f8" },
+              ].map(m => (
+                <div key={m.l} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(26,58,92,.2)" }}>
+                  <span style={{ fontSize: ".75rem", color: "rgba(160,200,235,.84)" }}>{m.l}</span>
+                  <span style={{ fontSize: ".78rem", fontWeight: 700, color: m.c, fontFamily: "monospace" }}>{m.v}</span>
                 </div>
               ))}
             </div>
 
-            <Link href="/clinic" style={{ padding:"13px 32px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#00c9a7,#0f8f7a)", color:"#07111f", fontWeight:800, fontSize:".9rem", textDecoration:"none" }}>
-              Voltar ao FractaClinic
+            {/* Última avaliação */}
+            {perfil.avaliacoes[0] && (
+              <div style={{ ...card, padding: 18 }}>
+                <div style={{ ...lbl }}>Avaliação recente</div>
+                <Stars nota={perfil.avaliacoes[0].nota} />
+                <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.92)", lineHeight: 1.6, margin: "8px 0" }}>"{perfil.avaliacoes[0].comentario.slice(0, 120)}..."</div>
+                <div style={{ fontSize: ".65rem", color: "rgba(170,210,245,.88)" }}>{perfil.avaliacoes[0].familiaNome} · {perfil.avaliacoes[0].data}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB: FORMAÇÃO */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {tab === "formacao" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: ".8rem", color: "rgba(160,200,235,.90)" }}>{perfil.certificacoes.filter(c => c.verificada).length} de {perfil.certificacoes.length} certificações verificadas</div>
+            <button style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".75rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10"/></svg>
+              Adicionar certificação
+            </button>
+          </div>
+
+          {(["certificacao","graduacao","especializacao","curso"] as const).map(tipo => {
+            const certs = perfil.certificacoes.filter(c => c.tipo === tipo);
+            if (!certs.length) return null;
+            const tc = TIPO_CERT_CONFIG[tipo];
+            return (
+              <div key={tipo} style={{ ...card, padding: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                  <span style={{ fontSize: 16 }}>{tc.icon}</span>
+                  <span style={{ fontSize: ".72rem", fontWeight: 700, color: tc.cor, textTransform: "uppercase", letterSpacing: ".09em" }}>{tc.label}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {certs.map(c => (
+                    <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", background: "rgba(26,58,92,.2)", borderRadius: 10, border: `1px solid ${c.verificada ? "rgba(29,158,117,.2)" : "rgba(26,58,92,.4)"}` }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                          <span style={{ fontSize: ".85rem", fontWeight: 600, color: "#e8f0f8" }}>{c.titulo}</span>
+                          {c.verificada && (
+                            <span style={{ fontSize: ".58rem", color: "#1D9E75", background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 20, padding: "1px 6px", fontWeight: 700 }}>✓ Verificado</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.90)" }}>{c.instituicao} · {c.ano}</div>
+                      </div>
+                      {c.url && (
+                        <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: ".68rem", color: "#378ADD", textDecoration: "none", padding: "3px 8px", border: "1px solid rgba(55,138,221,.2)", borderRadius: 6 }}>Ver →</a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Link para Education */}
+          <div style={{ ...card, padding: 18, border: "1px solid rgba(55,138,221,.2)", background: "rgba(55,138,221,.04)", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ fontSize: 24 }}>📚</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: ".82rem", fontWeight: 600, color: "#e8f0f8", marginBottom: 4 }}>FractaClinic Education</div>
+              <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.90)" }}>Complete trilhas de formação e adicione certificações automaticamente ao seu perfil</div>
+            </div>
+            <Link href="/clinic/education" style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#378ADD,#8B7FE8)", color: "#fff", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".78rem", textDecoration: "none" }}>
+              Acessar Education →
             </Link>
           </div>
-        )}
+        </div>
+      )}
 
-      </div>
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB: DISPONIBILIDADE */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {tab === "disponibilidade" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.90)" }}>
+            Clique nos slots para marcar sua disponibilidade. Isso aparece para as famílias no FractaCare ao buscar um terapeuta.
+          </div>
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "80px repeat(7,1fr)", gap: 8 }}>
+              <div />
+              {DIAS_LABEL.map(d => (
+                <div key={d} style={{ textAlign: "center", fontSize: ".65rem", color: "rgba(160,200,235,.84)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }}>{d}</div>
+              ))}
+              {(["manha","tarde","noite"] as const).map(turno => (
+                <>
+                  <div key={turno} style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)", display: "flex", alignItems: "center" }}>{TURNOS_LABEL[turno]}</div>
+                  {[0,1,2,3,4,5,6].map(dia => {
+                    const slot = perfil.disponibilidade.find(s => s.dia === dia && s.turno === turno);
+                    const disp = slot?.disponivel ?? false;
+                    return (
+                      <button key={dia} onClick={() => toggleDisponibilidade(dia, turno)} style={{
+                        height: 40, borderRadius: 8,
+                        border: `1px solid ${disp ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`,
+                        background: disp ? "rgba(29,158,117,.15)" : "rgba(26,58,92,.2)",
+                        cursor: "pointer",
+                        transition: "all .15s",
+                      }}>
+                        {disp && <span style={{ fontSize: ".6rem", color: "#1D9E75", fontWeight: 700 }}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 16, height: 16, borderRadius: 4, background: "rgba(29,158,117,.15)", border: "1px solid rgba(29,158,117,.4)" }} />
+              <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>Disponível</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 16, height: 16, borderRadius: 4, background: "rgba(26,58,92,.2)", border: "1px solid rgba(70,120,180,.4)" }} />
+              <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>Indisponível</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB: AVALIAÇÕES */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {tab === "avaliacoes" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* Resumo de nota */}
+          <div style={{ ...card, padding: 20, display: "flex", alignItems: "center", gap: 24 }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "3rem", fontWeight: 800, color: "#EF9F27", lineHeight: 1 }}>{notaMedia}</div>
+              <Stars nota={Math.round(notaMedia)} size={16} />
+              <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.88)", marginTop: 4 }}>{perfil.avaliacoes.length} avaliações</div>
+            </div>
+            <div style={{ flex: 1 }}>
+              {[5,4,3,2,1].map(n => {
+                const qtd = perfil.avaliacoes.filter(a => a.nota === n).length;
+                const pct = perfil.avaliacoes.length > 0 ? Math.round((qtd / perfil.avaliacoes.length) * 100) : 0;
+                return (
+                  <div key={n} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                    <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)", width: 8 }}>{n}</span>
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="#EF9F27"><path d="M8 1l1.9 3.8 4.2.6-3 3 .7 4.2L8 11l-3.8 2 .7-4.2-3-3 4.2-.6z"/></svg>
+                    <div style={{ flex: 1, height: 6, background: "rgba(26,58,92,.5)", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: "#EF9F27", opacity: .8 }} />
+                    </div>
+                    <span style={{ fontSize: ".65rem", color: "rgba(170,210,245,.88)", width: 24 }}>{qtd}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Cards de avaliação */}
+          {perfil.avaliacoes.map(av => (
+            <div key={av.id} style={{ ...card, padding: 18 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#378ADD,#8B7FE8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".55rem", fontWeight: 800, color: "#fff" }}>{av.pacienteIniciais}</div>
+                    <span style={{ fontSize: ".82rem", fontWeight: 600, color: "#e8f0f8" }}>{av.familiaNome}</span>
+                    {av.verificada && <span style={{ fontSize: ".58rem", color: "#1D9E75", background: "rgba(29,158,117,.1)", borderRadius: 20, padding: "1px 6px", fontWeight: 600 }}>✓ Verificada</span>}
+                  </div>
+                  <Stars nota={av.nota} size={12} />
+                </div>
+                <span style={{ fontSize: ".68rem", color: "rgba(170,210,245,.88)" }}>{av.data}</span>
+              </div>
+              <div style={{ fontSize: ".8rem", color: "rgba(160,200,235,.92)", lineHeight: 1.65, fontStyle: "italic" }}>"{av.comentario}"</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB: CONFIGURAÇÕES */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {tab === "configuracoes" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ ...lbl }}>Visibilidade no FractaCare</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                { l: "Perfil visível para famílias", v: perfil.visivel, k: "visivel" as const },
+                { l: "Perfil em destaque", v: perfil.destaque, k: "destaque" as const },
+              ].map(opt => (
+                <div key={opt.k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "rgba(26,58,92,.2)", borderRadius: 9 }}>
+                  <span style={{ fontSize: ".82rem", color: "#e8f0f8" }}>{opt.l}</span>
+                  <button onClick={() => setPerfil(p => ({ ...p, [opt.k]: !p[opt.k] }))} style={{
+                    width: 44, height: 24, borderRadius: 12,
+                    background: opt.v ? "#1D9E75" : "rgba(26,58,92,.6)",
+                    border: "none", cursor: "pointer", position: "relative", transition: "background .2s",
+                  }}>
+                    <div style={{ position: "absolute", top: 3, left: opt.v ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left .2s" }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ ...lbl }}>Valor e modalidades</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ ...lbl }}>Valor por sessão (R$)</label>
+                <input type="number" value={perfil.valorSessao} onChange={e => setPerfil(p => ({ ...p, valorSessao: Number(e.target.value) }))} style={inp} />
+              </div>
+              <div>
+                <label style={{ ...lbl }}>Tempo de resposta</label>
+                <input value={perfil.tempoResposta} onChange={e => setPerfil(p => ({ ...p, tempoResposta: e.target.value }))} style={inp} />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ ...lbl }}>Nível de senioridade</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              {(Object.entries(NIVEL_CONFIG) as [Nivel, typeof NIVEL_CONFIG[Nivel]][]).map(([key, nc]) => (
+                <div key={key} style={{ flex: 1, padding: "12px 14px", background: perfil.nivel === key ? nc.bg : "rgba(26,58,92,.2)", border: `1px solid ${perfil.nivel === key ? nc.cor + "55" : "rgba(26,58,92,.4)"}`, borderRadius: 10 }}>
+                  <div style={{ fontSize: ".75rem", fontWeight: 700, color: perfil.nivel === key ? nc.cor : "rgba(160,200,235,.84)" }}>{nc.label}</div>
+                  <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 2 }}>
+                    {key === "terapeuta" ? "Modo guiado" : key === "coordenador" ? "Modo semi-guiado" : "Modo livre · BCBA"}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 10, fontSize: ".72rem", color: "rgba(170,210,245,.88)" }}>
+              O nível é validado pela supervisão. Para avançar, solicite avaliação ao seu supervisor.
+            </div>
+          </div>
+
+          <button style={{ padding: 14, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".9rem", cursor: "pointer" }}>
+            Salvar configurações
+          </button>
+        </div>
+      )}
+
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
     </div>
   );
 }
