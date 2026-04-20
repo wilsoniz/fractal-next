@@ -276,7 +276,7 @@ export default function EvolucaoPage() {
     });
 
     // Ponto de transição — último ponto real também aparece na projeção para conectar
-    const transicao = { ...reais[reais.length - 1], projecao: "transicao" };
+    const transicao: Record<string, unknown> = { ...reais[reais.length - 1], projecao: "transicao" };
     dominiosSel.forEach(d => {
       transicao[d + "_proj"] = last[d as DominioKey];
       transicao[d + "_min"]  = last[d as DominioKey];
