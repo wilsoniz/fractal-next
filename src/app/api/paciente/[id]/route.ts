@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLearnerProfile } from "@/lib/queries/learner";
+import { getCriancaById } from "@/lib/queries/learner";
 
 export async function GET(
   _req: NextRequest,
@@ -11,7 +11,7 @@ export async function GET(
     return NextResponse.json({ error: "id required" }, { status: 400 });
   }
 
-  const data = await getLearnerProfile(id);
+  const data = await getCriancaById(id);
 
   if (!data) {
     return NextResponse.json({ error: "learner not found" }, { status: 404 });
