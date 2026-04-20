@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { FractaLogo } from "@/components/fracta/FractaLogo";
 import { FractalTriangle } from "@/components/fracta/FractalTriangle";
 import { supabase } from "@/lib/supabase";
@@ -86,7 +87,7 @@ function gerarMensagem(tentativas: (Resultado|null)[], nome: string) {
 }
 
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────
-export default function AtividadePage() {
+function AtividadePageInner() {
   const router = useRouter();
 
   const searchParams = useSearchParams();
@@ -587,4 +588,8 @@ export default function AtividadePage() {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
+}
+
+export default function AtividadePage() {
+  return <Suspense fallback={null}><AtividadePageInner /></Suspense>;
 }

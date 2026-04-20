@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { FractalTriangle } from "@/components/fracta/FractalTriangle";
 
-export default function ClinicLoginPage() {
+function ClinicLoginPageInner() {
   const router      = useRouter();
   const params      = useSearchParams();
   const redirect    = params.get("redirect") ?? "/clinic/dashboard";
@@ -264,4 +264,8 @@ export default function ClinicLoginPage() {
       </div>
     </div>
   );
+}
+
+export default function ClinicLoginPage() {
+  return <Suspense fallback={null}><ClinicLoginPageInner /></Suspense>;
 }

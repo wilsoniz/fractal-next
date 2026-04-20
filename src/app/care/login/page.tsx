@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FractaLogo } from "@/components/fracta/FractaLogo";
@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 
 type Aba = "login" | "cadastro";
 
-export default function LoginPage() {
+function LoginPageInner() {
   const searchParams = useSearchParams();
   const redirect     = searchParams.get("redirect") || "/care";
 
@@ -320,4 +320,8 @@ export default function LoginPage() {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
+}
+
+export default function LoginPage() {
+  return <Suspense fallback={null}><LoginPageInner /></Suspense>;
 }
