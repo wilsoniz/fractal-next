@@ -284,6 +284,11 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
   const [isMobile,   setIsMobile]   = useState(false)
   const [menuMaisAberto, setMenuMaisAberto] = useState(false)
   const [avatarOpen,     setAvatarOpen]     = useState(false)
+  const router = useRouter()
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.replace('/login')
+  }
   const pathname = usePathname()
 
 
