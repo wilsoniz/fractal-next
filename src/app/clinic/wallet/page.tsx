@@ -303,7 +303,7 @@ export default function ClinicWalletPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,58,92,.4)" vertical={false} />
                   <XAxis dataKey="nome" stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.90)", fontSize: 11 }} />
                   <YAxis stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} tickFormatter={v => `${v/1000}k`} />
-                  <Tooltip {...tooltipStyle} formatter={(v: number) => [fmtBRL(v)]} />
+                  <Tooltip {...tooltipStyle} formatter={(v: unknown) => [fmtBRL(Number(v))] as [string]} />
                   <Bar dataKey="recebido" name="Recebido" stackId="a" radius={[0,0,0,0]}>
                     {CONTRATOS.map((c, i) => <Cell key={i} fill={c.cor} fillOpacity={0.8} />)}
                   </Bar>
@@ -528,7 +528,7 @@ export default function ClinicWalletPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,58,92,.4)" vertical={false} />
                   <XAxis dataKey="mesLabel" stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.90)", fontSize: 11 }} />
                   <YAxis stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} tickFormatter={v => `${v/1000}k`} />
-                  <Tooltip {...tooltipStyle} formatter={(v: number) => [fmtBRL(v)]} />
+                  <Tooltip {...tooltipStyle} formatter={(v: unknown) => [fmtBRL(Number(v))] as [string]} />
                   <Bar dataKey="receitaPrevista" name="Prevista" fill="rgba(26,58,92,.6)" radius={[4,4,0,0]} barSize={16} />
                   <Bar dataKey="receitaRealizada" name="Realizada" fill="#1D9E75" radius={[4,4,0,0]} barSize={16} fillOpacity={0.85} />
                 </BarChart>
@@ -546,7 +546,7 @@ export default function ClinicWalletPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,58,92,.4)" />
                   <XAxis dataKey="mesLabel" stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.90)", fontSize: 11 }} />
                   <YAxis stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} tickFormatter={v => `${v/1000}k`} />
-                  <Tooltip {...tooltipStyle} formatter={(v: number) => [fmtBRL(v), "Inadimplência"]} />
+                  <Tooltip {...tooltipStyle} formatter={(v: unknown) => [fmtBRL(Number(v)), "Inadimplência"] as [string, string]} />
                   <Line type="monotone" dataKey="inadimplencia" stroke="#E05A4B" strokeWidth={2} dot={{ r: 4, fill: "#E05A4B" }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -604,7 +604,7 @@ export default function ClinicWalletPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,58,92,.4)" />
                   <XAxis dataKey="mes" stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.90)", fontSize: 10 }} />
                   <YAxis stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} tickFormatter={v => `${v/1000}k`} domain={[6000, 15000]} />
-                  <Tooltip {...tooltipStyle} formatter={(v: number) => [fmtBRL(v)]} />
+                  <Tooltip {...tooltipStyle} formatter={(v: unknown) => [fmtBRL(Number(v))] as [string]} />
                   <Line type="monotone" dataKey="otimista"    name="Otimista"    stroke="#1D9E75" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
                   <Line type="monotone" dataKey="previsto"    name="Previsto"    stroke="#EF9F27" strokeWidth={2.5} dot={{ r: 4, fill: "#EF9F27" }} />
                   <Line type="monotone" dataKey="conservador" name="Conservador" stroke="#E05A4B" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />

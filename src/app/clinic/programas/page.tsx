@@ -13,6 +13,7 @@ type TipoRelacao =
   | "B→A"
   | "A→C"
   | "B→C"
+  | "C→A"
   | "C→B"
   | "A=A"
   | "B=A"
