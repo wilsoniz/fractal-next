@@ -372,7 +372,7 @@ export default function EvolucaoPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,58,92,.4)" vertical={false} />
                   <XAxis dataKey="nome" stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.90)", fontSize: 11 }} />
                   <YAxis domain={[0, 100]} stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} />
-                  <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v}%`, "Média"]} />
+                  <Tooltip {...tooltipStyle} formatter={(v: unknown) => [`${v as number}%`, "Média"]} />
                   <Bar dataKey="media" radius={[6, 6, 0, 0]}>
                     {consolidadoData.map((entry, i) => (
                       <Cell key={i} fill={entry.cor} fillOpacity={0.8} />
@@ -409,7 +409,7 @@ export default function EvolucaoPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={p.radar.map(r => ({ date: r.date, val: Math.round([r.communication,r.social,r.attention,r.regulation,r.autonomy,r.flexibility,r.play,r.motivation].reduce((a,b)=>a+b,0)/8) }))}>
                         <Line type="monotone" dataKey="val" stroke={p.cor} strokeWidth={2} dot={false} />
-                        <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v}%`, "Média"]} />
+                        <Tooltip {...tooltipStyle} formatter={(v: unknown) => [`${v as number}%`, "Média"]} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
