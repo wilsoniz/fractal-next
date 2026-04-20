@@ -238,7 +238,7 @@ export default function EvolucaoPage() {
       const obj: Record<string, string | number | null> = {
         date: r.date,
         realDate: r.realDate ?? r.date,
-        projecao: false,
+        projecao: null,
       };
       dominiosSel.forEach(d => { obj[d] = r[d]; });
       return obj;
