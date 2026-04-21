@@ -93,6 +93,12 @@ const ABAS = [
     exact: false,
     icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   },
+  {
+  key: 'perfil',
+  label: 'Meu Perfil',
+  href: '/care/dashboard/perfil',
+  icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM4 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H4z',
+},
 ]
 
 // ─────────────────────────────────────────────
