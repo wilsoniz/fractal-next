@@ -69,386 +69,193 @@ const DOMINIOS_BASE: Record<DomKey, number> = {
   motivacao: 50,
 };
 
+
 const ESCALA_POS: Escala = [
   { texto: "Sempre", valor: 4 },
   { texto: "Frequentemente", valor: 3 },
   { texto: "Às vezes", valor: 2 },
   { texto: "Raramente", valor: 1 },
-  { texto: "Ainda não", valor: 0 },
+  { texto: "Ainda não faz isso", valor: 0 },
 ];
-
 const ESCALA_INV: Escala = [
-  { texto: "Nunca", valor: 4 },
+  { texto: "Nunca acontece", valor: 4 },
   { texto: "Raramente", valor: 3 },
   { texto: "Às vezes", valor: 2 },
   { texto: "Frequentemente", valor: 1 },
   { texto: "Quase sempre", valor: 0 },
 ];
-
 const ESCALA_INTENSIDADE: Escala = [
   { texto: "Não acontece", valor: 4 },
-  { texto: "Pouco", valor: 3 },
-  { texto: "Às vezes atrapalha", valor: 2 },
+  { texto: "Acontece mas passa rápido", valor: 3 },
+  { texto: "Às vezes atrapalha a rotina", valor: 2 },
   { texto: "Atrapalha bastante", valor: 1 },
-  { texto: "Atrapalha muito", valor: 0 },
+  { texto: "Atrapalha muito — é difícil continuar o dia", valor: 0 },
 ];
 
-function calcularIdadeDetalhada(dataNascimento: string) {
-  const hoje = new Date();
-  const nasc = new Date(`${dataNascimento}T00:00:00`);
-
-  if (Number.isNaN(nasc.getTime())) {
-    return null;
-  }
-
-  let anos = hoje.getFullYear() - nasc.getFullYear();
-  let meses = hoje.getMonth() - nasc.getMonth();
-  let dias = hoje.getDate() - nasc.getDate();
-
-  if (dias < 0) meses--;
-  if (meses < 0) {
-    anos--;
-    meses += 12;
-  }
-
-  const idadeMeses = anos * 12 + meses;
-
-  return {
-    anos,
-    meses,
-    idadeMeses,
-    texto:
-      anos > 0
-        ? `${anos} ano${anos !== 1 ? "s" : ""} e ${meses} mes${
-            meses !== 1 ? "es" : ""
-          }`
-        : `${meses} mes${meses !== 1 ? "es" : ""}`,
-  };
-}
-
-function obterFaixa(idadeMeses: number): Faixa {
-  if (idadeMeses <= 17) return "12-17";
-  if (idadeMeses <= 23) return "18-23";
-  if (idadeMeses <= 35) return "24-35";
-  if (idadeMeses <= 47) return "36-47";
-  if (idadeMeses <= 59) return "48-59";
-  if (idadeMeses <= 71) return "60-71";
-  return "72-96";
-}
-
-function dentroDaFaixa(
-  idadeMeses: number,
-  min?: number,
-  max?: number
-): boolean {
-  if (min !== undefined && idadeMeses < min) return false;
-  if (max !== undefined && idadeMeses > max) return false;
-  return true;
-}
-
-function idadeMinimaPergunta(idadeMeses: number) {
-  if (idadeMeses <= 17) return 12;
-  if (idadeMeses <= 23) return 18;
-  if (idadeMeses <= 35) return 24;
-  if (idadeMeses <= 47) return 36;
-  if (idadeMeses <= 59) return 48;
-  if (idadeMeses <= 71) return 60;
-  return 72;
-}
-
-function fatorIdade(idadeMeses: number, pergunta: Pergunta) {
-  const base = pergunta.idadeMinMeses ?? idadeMinimaPergunta(idadeMeses);
-  const delta = Math.max(0, idadeMeses - base);
-  return 1 + Math.min(delta * 0.015, 0.35);
-}
-
-function criarTriagemFlags(respostas: Respostas): TriagemFlags {
-  const tela = respostas["triagem_telas_tempo"] ?? 4;
-  const transicao = respostas["triagem_transicoes"] ?? 4;
-  const frustracao = respostas["triagem_frustracao"] ?? 4;
-  const comunicacao = respostas["triagem_pedir"] ?? 4;
-  const nome = respostas["triagem_responde_nome"] ?? 4;
-  const brincar = respostas["triagem_brinca_com_pessoas"] ?? 4;
-  const foco = respostas["triagem_foco"] ?? 4;
-
-  return {
-    aprofundarComunicacao: comunicacao <= 2,
-    aprofundarSocial: nome <= 2 || brincar <= 2,
-    aprofundarAtencao: foco <= 2,
-    aprofundarRegulacao: frustracao <= 2,
-    aprofundarFlexibilidade: transicao <= 2,
-    aprofundarTelas: tela <= 2,
-  };
-}
-
 const PERGUNTAS_BASE: Pergunta[] = [
-  {
-    id: "triagem_pedir",
-    dominio: "Comunicação funcional",
-    domKey: "comunicacao",
-    peso: 1.3,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} consegue pedir o que quer de alguma forma?`,
-    exemplo: "Por gesto, olhar, apontar, som, palavra ou frase.",
-  },
-  {
-    id: "triagem_responde_nome",
-    dominio: "Interação social",
-    domKey: "social",
-    peso: 1.1,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `Quando você chama ${n} pelo nome, ele costuma responder?`,
-    exemplo: "Olha, vira, para o que está fazendo ou responde de algum jeito.",
-  },
-  {
-    id: "triagem_foco",
-    dominio: "Atenção",
-    domKey: "atencao",
-    peso: 1.0,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} consegue ficar envolvido por alguns minutos em uma atividade?`,
-    exemplo: "Brincar, folhear livro, encaixar, desenhar ou explorar algo.",
-  },
-  {
-    id: "triagem_frustracao",
-    dominio: "Regulação",
-    domKey: "regulacao",
-    peso: 1.1,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `Quando algo não acontece como ${n} queria, ele consegue se reorganizar depois de um tempo?`,
-    exemplo: "Aceita ajuda, muda de foco ou se acalma com apoio.",
-  },
-  {
-    id: "triagem_brinca_com_pessoas",
-    dominio: "Engajamento social",
-    domKey: "social",
-    peso: 1.0,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} gosta de brincar com você ou com outras pessoas?`,
-    exemplo: "Procura interação, ri junto, compartilha a brincadeira.",
-  },
-  {
-    id: "triagem_explora_brinquedos",
-    dominio: "Brincadeira",
-    domKey: "brincadeira",
-    peso: 1.0,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} explora brinquedos e objetos de formas diferentes?`,
-    exemplo: "Empilha, encaixa, finge, testa possibilidades.",
-  },
-  {
-    id: "triagem_transicoes",
-    dominio: "Flexibilidade",
-    domKey: "flexibilidade",
-    peso: 1.0,
-    idadeMinMeses: 18,
-    escala: ESCALA_INV,
-    texto: (n) => `Mudanças pequenas na rotina costumam deixar ${n} muito irritado?`,
-    exemplo: "Trocar de atividade, mudar o caminho, parar algo que estava gostando.",
-  },
-  {
-    id: "triagem_autonomia",
-    dominio: "Autonomia",
-    domKey: "autonomia",
-    peso: 1.0,
-    idadeMinMeses: 18,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} tenta fazer pequenas coisas sozinho no dia a dia?`,
-    exemplo: "Pegar objetos, guardar brinquedos, comer, participar da rotina.",
-  },
-  {
-    id: "triagem_curiosidade",
-    dominio: "Motivação",
-    domKey: "motivacao",
-    peso: 1.0,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} demonstra curiosidade por atividades, brinquedos ou pessoas?`,
-    exemplo: "Se aproxima, observa, explora, tenta participar.",
-  },
-  {
-    id: "triagem_telas_tempo",
-    dominio: "Rotina e telas",
-    domKey: "atencao",
-    peso: 0.7,
-    idadeMinMeses: 12,
-    tipo: "escolha",
-    texto: (n) => `Em média, quanto tempo por dia ${n} passa em telas?`,
-    opcoes: [
-      { texto: "Quase nada ou menos de 30 minutos", valor: 4 },
-      { texto: "30 a 60 minutos", valor: 3 },
-      { texto: "1 a 2 horas", valor: 2 },
-      { texto: "2 a 3 horas", valor: 1 },
-      { texto: "Mais de 3 horas", valor: 0 },
-    ],
-  },
-  {
-    id: "triagem_queixa_principal",
-    dominio: "Prioridade da família",
-    domKey: "motivacao",
-    peso: 0.6,
-    tipo: "escolha",
-    texto: () => "O que mais tem pesado para vocês hoje?",
-    opcoes: [
-      { texto: "Quero ajudar meu filho a aprender novas habilidades", valor: 4 },
-      { texto: "Quero melhorar comunicação e interação", valor: 3 },
-      { texto: "Quero lidar melhor com momentos difíceis do dia a dia", valor: 2 },
-      { texto: "Quero mais previsibilidade sobre como estimular em casa", valor: 3 },
-    ],
-  },
+  // ── COMUNICAÇÃO ──
+  { id:"com_mando_basico", dominio:"Comunicação — Mando", domKey:"comunicacao", peso:1.4, idadeMinMeses:12, idadeMaxMeses:23, escala:ESCALA_POS,
+    texto:(n)=>`${n} consegue pedir o que quer de alguma forma — mesmo sem palavras?`,
+    exemplo:"Aponta, leva sua mão, olha para o objeto e para você, vocaliza, faz gesto." },
+  { id:"com_mando_verbal", dominio:"Comunicação — Mando verbal", domKey:"comunicacao", peso:1.4, idadeMinMeses:24, escala:ESCALA_POS,
+    texto:(n)=>`${n} usa palavras ou frases para pedir o que quer?`,
+    exemplo:"24m: 'água', 'mais', 'quero'; 36m: 'quero suco'; 48m+: frases completas." },
+  { id:"com_tato_objetos", dominio:"Comunicação — Nomeação", domKey:"comunicacao", peso:1.2, idadeMinMeses:18, idadeMaxMeses:47, escala:ESCALA_POS,
+    texto:(n)=>`${n} nomeia objetos, pessoas ou imagens que conhece?`,
+    exemplo:"18m: 5-10 palavras; 24m: 50+ palavras; 36m: nomeia categorias." },
+  { id:"com_intraverbal", dominio:"Comunicação — Conversa", domKey:"comunicacao", peso:1.1, idadeMinMeses:36, escala:ESCALA_POS,
+    texto:(n)=>`${n} responde perguntas simples sobre o dia a dia?`,
+    exemplo:"'O que você comeu?' 'Onde está o cachorro?' 'O que aconteceu no parque?'" },
+  { id:"com_atencao_conjunta", dominio:"Comunicação — Atenção conjunta", domKey:"comunicacao", peso:1.3, idadeMinMeses:12, idadeMaxMeses:35, escala:ESCALA_POS,
+    texto:(n)=>`${n} tenta chamar sua atenção para mostrar algo interessante?`,
+    exemplo:"Aponta para avião no céu, mostra brinquedo, olha para você para compartilhar." },
+  // ── SOCIAL ──
+  { id:"soc_responde_nome", dominio:"Social — Orientação", domKey:"social", peso:1.4, idadeMinMeses:12, escala:ESCALA_POS,
+    texto:(n)=>`Quando você chama ${n} pelo nome, ele responde de alguma forma?`,
+    exemplo:"Olha, vira, para o que está fazendo, fala 'hã' ou se aproxima." },
+  { id:"soc_imitacao", dominio:"Social — Imitação", domKey:"social", peso:1.3, idadeMinMeses:12, idadeMaxMeses:47, escala:ESCALA_POS,
+    texto:(n)=>`${n} imita ações ou gestos que você faz?`,
+    exemplo:"12-18m: bater palmas, dar tchau; 24m: imita ações com objetos; 36m: sequências." },
+  { id:"soc_jogo_paralelo", dominio:"Social — Jogo", domKey:"social", peso:1.1, idadeMinMeses:18, idadeMaxMeses:47, escala:ESCALA_POS,
+    texto:(n)=>`${n} brinca perto de outras crianças sem precisar interagir o tempo todo?`,
+    exemplo:"Jogo paralelo — cada um brinca do seu jeito mas aceita a presença do outro." },
+  { id:"soc_jogo_cooperativo", dominio:"Social — Jogo cooperativo", domKey:"social", peso:1.2, idadeMinMeses:36, escala:ESCALA_POS,
+    texto:(n)=>`${n} brinca junto com outras crianças seguindo uma lógica compartilhada?`,
+    exemplo:"Faz de conta com papéis, brincadeira com turnos, jogo de regra simples." },
+  { id:"soc_empatia", dominio:"Social — Empatia", domKey:"social", peso:1.0, idadeMinMeses:24, escala:ESCALA_POS,
+    texto:(n)=>`${n} reage quando alguém está triste ou machucado?`,
+    exemplo:"Olha, se aproxima, oferece objeto, expressa preocupação." },
+  // ── ATENÇÃO ──
+  { id:"aten_sustentada", dominio:"Atenção — Sustentada", domKey:"atencao", peso:1.2, idadeMinMeses:12, escala:ESCALA_POS,
+    texto:(n)=>`${n} consegue se manter engajado em uma atividade por tempo adequado para a idade?`,
+    exemplo:"12-18m: 2-3 min; 24m: 5-8 min; 36m: 10-15 min; 48m+: 15-20 min." },
+  { id:"aten_instrucao_simples", dominio:"Atenção — Seguir instrução", domKey:"atencao", peso:1.3, idadeMinMeses:12, escala:ESCALA_POS,
+    texto:(n)=>`${n} segue instruções simples no contexto da rotina?`,
+    exemplo:"12-18m: 'vem cá', 'dá'; 24m: 2 partes; 36m+: 3 etapas." },
+  { id:"aten_telas", dominio:"Atenção — Telas", domKey:"atencao", peso:0.8, idadeMinMeses:12, tipo:"escolha",
+    texto:(n)=>`Em média, quanto tempo por dia ${n} passa em telas?`,
+    opcoes:[
+      {texto:"Menos de 30 minutos",valor:4},{texto:"30 a 60 minutos",valor:3},
+      {texto:"1 a 2 horas",valor:2},{texto:"2 a 3 horas",valor:1},{texto:"Mais de 3 horas",valor:0}] },
+  // ── REGULAÇÃO ──
+  { id:"reg_frustracao", dominio:"Regulação — Frustração", domKey:"regulacao", peso:1.3, idadeMinMeses:12, escala:ESCALA_INV,
+    texto:(n)=>`Quando algo não acontece como ${n} quer, a reação é muito intensa ou demorada?`,
+    exemplo:"Choro prolongado, gritos, jogar-se no chão, agressão, demora mais de 15 min." },
+  { id:"reg_espera", dominio:"Regulação — Espera", domKey:"regulacao", peso:1.2, idadeMinMeses:18, escala:ESCALA_POS,
+    texto:(n)=>`${n} consegue esperar alguns segundos quando você sinaliza que já vai atender?`,
+    exemplo:"Espera por água, colo, comida, atenção quando há um sinal claro de 'já vou'." },
+  { id:"reg_transicao", dominio:"Regulação — Transições", domKey:"regulacao", peso:1.1, idadeMinMeses:18, escala:ESCALA_INV,
+    texto:(n)=>`Mudanças de atividade ou rotina costumam gerar reações muito difíceis em ${n}?`,
+    exemplo:"Parar telas, sair do parque, trocar de ambiente, mudar planos." },
+  { id:"reg_aceita_nao", dominio:"Regulação — Tolerância ao não", domKey:"regulacao", peso:1.2, idadeMinMeses:24, escala:ESCALA_INV,
+    texto:(n)=>`Ouvir "não" ou "agora não" gera reações muito intensas em ${n}?`,
+    exemplo:"Choro intenso, agressão, gritos, recusa prolongada." },
+  // ── BRINCADEIRA ──
+  { id:"bri_exploratoria", dominio:"Brincadeira — Exploração", domKey:"brincadeira", peso:1.1, idadeMinMeses:12, idadeMaxMeses:35, escala:ESCALA_POS,
+    texto:(n)=>`${n} explora objetos e brinquedos de formas variadas?`,
+    exemplo:"Empilha, derruba, encaixa, abre, fecha — vai além de uso repetitivo." },
+  { id:"bri_simbolica", dominio:"Brincadeira — Simbólica", domKey:"brincadeira", peso:1.2, idadeMinMeses:18, idadeMaxMeses:59, escala:ESCALA_POS,
+    texto:(n)=>`${n} faz brincadeiras de faz de conta?`,
+    exemplo:"18-24m: alimenta boneca; 36m: cria cenas; 48m+: personagens e histórias." },
+  { id:"bri_com_par", dominio:"Brincadeira — Com parceiro", domKey:"brincadeira", peso:1.1, idadeMinMeses:12, escala:ESCALA_POS,
+    texto:(n)=>`${n} amplia a brincadeira quando você participa com ele?`,
+    exemplo:"Fica mais engajado, aceita variações, cria novas ideias." },
+  // ── FLEXIBILIDADE ──
+  { id:"fle_rotina", dominio:"Flexibilidade — Rotina", domKey:"flexibilidade", peso:1.2, idadeMinMeses:18, escala:ESCALA_INV,
+    texto:(n)=>`${n} fica muito perturbado quando algo na rotina muda inesperadamente?`,
+    exemplo:"Caminho diferente, pessoa diferente, ordem das coisas mudou." },
+  { id:"fle_interesses", dominio:"Flexibilidade — Interesses", domKey:"flexibilidade", peso:1.0, idadeMinMeses:24, escala:ESCALA_INV,
+    texto:(n)=>`${n} tem interesses muito restritos que dominam a maior parte do tempo?`,
+    exemplo:"Só quer falar de um tema, rejeita qualquer outra proposta." },
+  { id:"fle_erro", dominio:"Flexibilidade — Tolerância ao erro", domKey:"flexibilidade", peso:1.0, idadeMinMeses:30, escala:ESCALA_INV,
+    texto:(n)=>`${n} reage de forma muito intensa quando erra ou algo não sai como planejou?`,
+    exemplo:"Apaga tudo, destrói o que fez, recusa tentar de novo." },
+  // ── AUTONOMIA ──
+  { id:"aut_autocuidado", dominio:"Autonomia — Autocuidado", domKey:"autonomia", peso:1.1, idadeMinMeses:18, escala:ESCALA_POS,
+    texto:(n)=>`${n} participa das rotinas de cuidado pessoal de forma adequada para a idade?`,
+    exemplo:"18m: coopera no banho; 24m: lava mãos; 36m: veste roupas simples; 48m+: independente." },
+  { id:"aut_alimentacao", dominio:"Autonomia — Alimentação", domKey:"autonomia", peso:1.0, idadeMinMeses:18, escala:ESCALA_POS,
+    texto:(n)=>`${n} come uma variedade razoável de alimentos sem grande resistência?`,
+    exemplo:"Aceita diferentes texturas e sabores — sem rituais muito rígidos." },
+  { id:"aut_iniciativa", dominio:"Autonomia — Iniciativa", domKey:"autonomia", peso:1.0, idadeMinMeses:24, escala:ESCALA_POS,
+    texto:(n)=>`${n} tenta fazer coisas sozinho antes de pedir ajuda?`,
+    exemplo:"Tenta abrir embalagem, montar brinquedo, se vestir." },
+  // ── MOTIVAÇÃO ──
+  { id:"mot_curiosidade", dominio:"Motivação — Curiosidade", domKey:"motivacao", peso:1.1, idadeMinMeses:12, escala:ESCALA_POS,
+    texto:(n)=>`${n} demonstra curiosidade genuína por atividades, objetos ou situações novas?`,
+    exemplo:"Se aproxima, observa, toca, explora — não evita o novo por padrão." },
+  { id:"mot_persistencia", dominio:"Motivação — Persistência", domKey:"motivacao", peso:1.0, idadeMinMeses:24, escala:ESCALA_POS,
+    texto:(n)=>`Quando algo é difícil, ${n} tenta mais de uma vez antes de desistir?`,
+    exemplo:"Repete tentativas, busca estratégias, pede ajuda e tenta de novo." },
+  { id:"mot_aprendizagem", dominio:"Motivação — Aprendizagem", domKey:"motivacao", peso:1.2, idadeMinMeses:18, escala:ESCALA_POS,
+    texto:(n)=>`${n} aprende melhor quando a atividade é significativa ou divertida para ele?`,
+    exemplo:"Engaja mais, aprende mais rápido, generaliza com motivação." },
+  // ── COMPORTAMENTO PROBLEMA ──
+  { id:"cp_agressao", dominio:"Comportamento — Agressão", domKey:"regulacao", peso:1.3, idadeMinMeses:18, escala:ESCALA_INTENSIDADE, tipo:"escala",
+    texto:(n)=>`Com que frequência ${n} bate, morde, arranha ou machuca outras pessoas?`,
+    exemplo:"Inclui reações a frustração, transições ou quando contrariado." },
+  { id:"cp_autolesao", dominio:"Comportamento — Autolesão", domKey:"regulacao", peso:1.5, idadeMinMeses:12, escala:ESCALA_INTENSIDADE, tipo:"escala",
+    texto:(n)=>`${n} bate a cabeça, morde a si mesmo ou se machuca quando frustrado?`,
+    exemplo:"Qualquer forma de autolesão durante episódios difíceis." },
+  { id:"cp_movimentos", dominio:"Comportamento — Estereotipias", domKey:"flexibilidade", peso:1.0, idadeMinMeses:18, escala:ESCALA_INTENSIDADE, tipo:"escala",
+    texto:(n)=>`${n} apresenta movimentos repetitivos frequentes — balançar, girar, agitar as mãos?`,
+    exemplo:"Estereotipias que ocorrem com frequência ao longo do dia." },
+  { id:"cp_rigidez", dominio:"Comportamento — Rigidez", domKey:"flexibilidade", peso:1.1, idadeMinMeses:24, escala:ESCALA_INTENSIDADE, tipo:"escala",
+    texto:(n)=>`${n} insiste em rituais muito rígidos ao ponto de travar o dia?`,
+    exemplo:"Mesma ordem, mesmo lugar, mesma sequência — recusa qualquer variação." },
+  // ── FINAL ──
+  { id:"queixa_principal", dominio:"Prioridade da família", domKey:"motivacao", peso:0.5, tipo:"escolha",
+    texto:()=>"O que mais tem pesado para a família hoje?",
+    opcoes:[
+      {texto:"Quero ajudar meu filho a aprender novas habilidades",valor:4},
+      {texto:"Quero melhorar comunicação e interação social",valor:3},
+      {texto:"Quero lidar com momentos difíceis — birras, agressão, rigidez",valor:2},
+      {texto:"Quero entender meu filho melhor e saber como estimulá-lo",valor:3},
+      {texto:"Estou preocupado com o desenvolvimento e quero avaliação completa",valor:2}] },
 ];
 
 const PERGUNTAS_APROFUNDAMENTO: Pergunta[] = [
-  {
-    id: "aprof_com_pede_ajuda",
-    dominio: "Comunicação",
-    domKey: "comunicacao",
-    peso: 1.2,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `Quando precisa de ajuda, ${n} tenta se comunicar com você?`,
-    exemplo: "Olha, aponta, leva até o local, vocaliza ou fala.",
-    gatilho: ({ triagem }) => triagem.aprofundarComunicacao,
-  },
-  {
-    id: "aprof_com_nomeia",
-    dominio: "Comunicação",
-    domKey: "comunicacao",
-    peso: 1.0,
-    idadeMinMeses: 18,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} nomeia, aponta ou mostra o que quer compartilhar?`,
-    exemplo: "Brinquedos, comidas, animais, coisas da rotina.",
-    gatilho: ({ triagem }) => triagem.aprofundarComunicacao,
-  },
-  {
-    id: "aprof_soc_atencao_compartilhada",
-    dominio: "Social",
-    domKey: "social",
-    peso: 1.2,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} compartilha interesse com você em momentos do dia a dia?`,
-    exemplo: "Mostra algo, aponta para ver sua reação, tenta dividir a experiência.",
-    gatilho: ({ triagem }) => triagem.aprofundarSocial,
-  },
-  {
-    id: "aprof_soc_imitacao",
-    dominio: "Social",
-    domKey: "social",
-    peso: 1.0,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} gosta de imitar ações, gestos ou brincadeiras?`,
-    exemplo: "Bater palmas, fazer caretas, copiar movimentos ou ações simples.",
-    gatilho: ({ triagem }) => triagem.aprofundarSocial,
-  },
-  {
-    id: "aprof_aten_retoma",
-    dominio: "Atenção",
-    domKey: "atencao",
-    peso: 1.1,
-    idadeMinMeses: 18,
-    escala: ESCALA_POS,
-    texto: (n) => `Depois de se distrair, ${n} consegue voltar para a atividade com pouca ajuda?`,
-    exemplo: "Retoma a brincadeira, volta ao livro, reconecta com a proposta.",
-    gatilho: ({ triagem }) => triagem.aprofundarAtencao,
-  },
-  {
-    id: "aprof_aten_telas_impacto",
-    dominio: "Atenção e telas",
-    domKey: "atencao",
-    peso: 1.0,
-    idadeMinMeses: 18,
-    escala: ESCALA_INV,
-    texto: (n) => `Depois das telas, ${n} costuma ficar mais difícil de engajar em outras atividades?`,
-    exemplo: "Mais irritado, agitado, disperso ou com dificuldade de transição.",
-    gatilho: ({ triagem }) => triagem.aprofundarAtencao || triagem.aprofundarTelas,
-  },
-  {
-    id: "aprof_reg_espera",
-    dominio: "Regulação",
-    domKey: "regulacao",
-    peso: 1.1,
-    idadeMinMeses: 18,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} consegue esperar alguns segundos quando você sinaliza que já vai atender?`,
-    exemplo: 'Espera breve para água, colo, comida, brinquedo ou atenção.',
-    gatilho: ({ triagem }) => triagem.aprofundarRegulacao,
-  },
-  {
-    id: "aprof_reg_intensidade",
-    dominio: "Regulação",
-    domKey: "regulacao",
-    peso: 1.2,
-    idadeMinMeses: 12,
-    escala: ESCALA_INTENSIDADE,
-    texto: (n) => `Quando ${n} se frustra, isso costuma atrapalhar bastante a rotina da casa?`,
-    exemplo: "Demora a se reorganizar, fica muito difícil continuar o dia.",
-    gatilho: ({ triagem }) => triagem.aprofundarRegulacao,
-  },
-  {
-    id: "aprof_flex_transicao",
-    dominio: "Flexibilidade",
-    domKey: "flexibilidade",
-    peso: 1.1,
-    idadeMinMeses: 18,
-    escala: ESCALA_POS,
-    texto: (n) => `Com aviso e apoio, ${n} consegue fazer transições com mais tranquilidade?`,
-    exemplo: "Ir do brincar para o banho, da tela para a refeição, de um ambiente para outro.",
-    gatilho: ({ triagem }) => triagem.aprofundarFlexibilidade,
-  },
-  {
-    id: "aprof_flex_nao",
-    dominio: "Flexibilidade",
-    domKey: "flexibilidade",
-    peso: 1.0,
-    idadeMinMeses: 24,
-    escala: ESCALA_INV,
-    texto: (n) => `Ouvir um “agora não” costuma gerar uma reação muito difícil em ${n}?`,
-    exemplo: "Choro intenso, gritos, jogar-se no chão, agressão ou recusa prolongada.",
-    gatilho: ({ triagem }) => triagem.aprofundarFlexibilidade || triagem.aprofundarRegulacao,
-  },
+  { id:"ap_com_ecoico", dominio:"Comunicação — Imitação vocal", domKey:"comunicacao", peso:1.3, idadeMinMeses:12, idadeMaxMeses:47, escala:ESCALA_POS,
+    texto:(n)=>`${n} repete sons, sílabas ou palavras quando você fala para ele imitar?`,
+    exemplo:"Ecoico — base fundamental para aquisição de linguagem verbal.",
+    gatilho:({triagem})=>triagem.aprofundarComunicacao },
+  { id:"ap_com_pedido_ajuda", dominio:"Comunicação — Pedir ajuda", domKey:"comunicacao", peso:1.2, idadeMinMeses:18, escala:ESCALA_POS,
+    texto:(n)=>`Quando não consegue fazer algo, ${n} pede ajuda de alguma forma?`,
+    exemplo:"Leva até você, vocaliza, fala 'ajuda', olha alternando entre objeto e você.",
+    gatilho:({triagem})=>triagem.aprofundarComunicacao },
+  { id:"ap_soc_contato_olho", dominio:"Social — Contato visual", domKey:"social", peso:1.3, idadeMinMeses:12, escala:ESCALA_POS,
+    texto:(n)=>`${n} usa o olhar para se comunicar — olha para você quando quer algo ou para compartilhar?`,
+    exemplo:"Não apenas olho no olho passivo — uso ativo do olhar como comunicação.",
+    gatilho:({triagem})=>triagem.aprofundarSocial },
+  { id:"ap_soc_isolamento", dominio:"Social — Isolamento", domKey:"social", peso:1.2, idadeMinMeses:24, escala:ESCALA_INV,
+    texto:(n)=>`${n} prefere brincar sozinho a maior parte do tempo, mesmo com outras crianças disponíveis?`,
+    exemplo:"Afasta ativamente ou ignora completamente a presença de outras crianças.",
+    gatilho:({triagem})=>triagem.aprofundarSocial },
+  { id:"ap_aten_distrai", dominio:"Atenção — Distractibilidade", domKey:"atencao", peso:1.1, idadeMinMeses:30, escala:ESCALA_INTENSIDADE,
+    texto:(n)=>`${n} se distrai com tanta facilidade que não consegue terminar atividades?`,
+    exemplo:"Qualquer barulho ou movimento interrompe — dificuldade de retornar à tarefa.",
+    gatilho:({triagem})=>triagem.aprofundarAtencao },
+  { id:"ap_aten_pos_tela", dominio:"Atenção — Impacto das telas", domKey:"atencao", peso:1.0, idadeMinMeses:18, escala:ESCALA_INTENSIDADE,
+    texto:(n)=>`Após usar telas, ${n} fica mais difícil de engajar em atividades sem tela?`,
+    exemplo:"Mais irritado, agitado, recusa atividades, chora ao desligar.",
+    gatilho:({triagem})=>triagem.aprofundarTelas||triagem.aprofundarAtencao },
+  { id:"ap_reg_duracao", dominio:"Regulação — Duração da crise", domKey:"regulacao", peso:1.2, idadeMinMeses:18, tipo:"escolha",
+    texto:(n)=>`Quando ${n} entra em crise, quanto tempo costuma durar até se reorganizar?`,
+    opcoes:[
+      {texto:"Alguns segundos a 2 minutos",valor:4},{texto:"2 a 5 minutos",valor:3},
+      {texto:"5 a 15 minutos",valor:2},{texto:"15 a 30 minutos",valor:1},
+      {texto:"Mais de 30 minutos ou não consegue se reorganizar",valor:0}],
+    gatilho:({triagem})=>triagem.aprofundarRegulacao },
+  { id:"ap_reg_frequencia", dominio:"Regulação — Frequência", domKey:"regulacao", peso:1.1, idadeMinMeses:18, tipo:"escolha",
+    texto:(n)=>`Com que frequência ${n} tem episódios de crise?`,
+    opcoes:[
+      {texto:"Raramente — menos de 1 vez por semana",valor:4},
+      {texto:"1 a 2 vezes por semana",valor:3},{texto:"3 a 5 vezes por semana",valor:2},
+      {texto:"1 a 2 vezes por dia",valor:1},{texto:"Várias vezes por dia",valor:0}],
+    gatilho:({triagem})=>triagem.aprofundarRegulacao },
 ];
 
-const PERGUNTAS_CUSPIDE: Pergunta[] = [
-  {
-    id: "cuspide_pivotal_aprender",
-    dominio: "Aprendizagem",
-    domKey: "motivacao",
-    peso: 1.0,
-    idadeMinMeses: 18,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} costuma aprender melhor quando a atividade é divertida e significativa para ele?`,
-    exemplo: "Com brincadeira, participação do adulto e objetivo claro.",
-  },
-  {
-    id: "cuspide_iniciativa_social",
-    dominio: "Iniciativa social",
-    domKey: "social",
-    peso: 0.9,
-    idadeMinMeses: 18,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} inicia interações para conseguir algo ou para compartilhar algo bom?`,
-    exemplo: "Chama, mostra, leva até você, pede para brincar junto.",
-  },
-  {
-    id: "cuspide_brincadeira_funcional",
-    dominio: "Brincadeira",
-    domKey: "brincadeira",
-    peso: 1.0,
-    idadeMinMeses: 12,
-    escala: ESCALA_POS,
-    texto: (n) => `${n} amplia a brincadeira quando você participa com ele?`,
-    exemplo: "Fica mais tempo, aceita novas ideias, imita, cria variações.",
-  },
-];
+const PERGUNTAS_CUSPIDE: Pergunta[] = [];
 
 function montarPerguntasDinamicas(idadeMeses: number, respostas: Respostas) {
   const triagem = criarTriagemFlags(respostas);
