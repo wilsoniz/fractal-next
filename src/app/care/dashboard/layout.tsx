@@ -94,6 +94,12 @@ const ABAS = [
     icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   },
   {
+  key: 'aprendizado',
+  label: 'Guia-Familiar',
+  href: '/care/dashboard/aprendizado',
+  icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+},
+  {
   key: 'perfil',
   label: 'Meu Perfil',
   href: '/care/dashboard/perfil',
