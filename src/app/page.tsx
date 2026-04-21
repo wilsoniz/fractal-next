@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { NavBar } from "@/components/fracta/NavBar";
 import { FractaLogo } from "@/components/fracta/FractaLogo";
-import { FractalTriangle } from "@/components/fracta/FractalTriangle";
+
 
 
 const platforms = [
@@ -116,7 +116,7 @@ export default function Home() {
               background: "radial-gradient(ellipse at center, rgba(43,191,164,.1) 0%, transparent 70%)",
               borderRadius: "50%",
             }} />
-            <FractalTriangle size={300} animate style={{ position: "relative" }} />
+            <FractaLogo logo="fb" height={120} alt="Fracta Behavior" style={{ position: "relative" }} />
           </div>
         </div>
       </section>
@@ -230,7 +230,7 @@ export default function Home() {
         borderTop: "1px solid rgba(0,0,0,0.05)",
       }}>
         <div style={{ maxWidth: 560, margin: "0 auto" }}>
-          <FractalTriangle size={80} animate style={{ margin: "0 auto 28px" }} />
+          <FractaLogo logo="fb" height={56} alt="Fracta Behavior" style={{ margin: "0 auto 28px", display: "block" }} />
           <h2 style={{ fontSize: "clamp(1.8rem,3.5vw,2.8rem)", fontWeight: 800, letterSpacing: "-.02em", color: "#0f1f3d", marginBottom: 16 }}>
             Pronto para começar?
           </h2>
