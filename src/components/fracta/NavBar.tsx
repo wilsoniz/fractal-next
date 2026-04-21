@@ -32,7 +32,7 @@ export function NavBar() {
       transition: "all .3s",
     }}>
       <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-        <FractaLogo logo="fb" height={30} alt="Fracta Behavior" />
+        <FractaLogo logo="fb" height={44} alt="Fracta Behavior" />
       </Link>
 
       {/* Desktop nav */}
