@@ -254,9 +254,66 @@ const PERGUNTAS_APROFUNDAMENTO: Pergunta[] = [
       {texto:"1 a 2 vezes por dia",valor:1},{texto:"Várias vezes por dia",valor:0}],
     gatilho:({triagem})=>triagem.aprofundarRegulacao },
 ];
+function calcularIdadeDetalhada(dataNascimento: string) {
+  const hoje = new Date();
+  const nasc = new Date(`${dataNascimento}T00:00:00`);
+  if (Number.isNaN(nasc.getTime())) return null;
+  let anos = hoje.getFullYear() - nasc.getFullYear();
+  let meses = hoje.getMonth() - nasc.getMonth();
+  let dias = hoje.getDate() - nasc.getDate();
+  if (dias < 0) meses--;
+  if (meses < 0) { anos--; meses += 12; }
+  const idadeMeses = anos * 12 + meses;
+  return {
+    anos, meses, idadeMeses,
+    texto: anos > 0
+      ? `${anos} ano${anos !== 1 ? "s" : ""} e ${meses} mes${meses !== 1 ? "es" : ""}`
+      : `${meses} mes${meses !== 1 ? "es" : ""}`,
+  };
+}
 
+function obterFaixa(idadeMeses: number): Faixa {
+  if (idadeMeses <= 17) return "12-17";
+  if (idadeMeses <= 23) return "18-23";
+  if (idadeMeses <= 35) return "24-35";
+  if (idadeMeses <= 47) return "36-47";
+  if (idadeMeses <= 59) return "48-59";
+  if (idadeMeses <= 71) return "60-71";
+  return "72-96";
+}
+
+function dentroDaFaixa(idadeMeses: number, min?: number, max?: number): boolean {
+  if (min !== undefined && idadeMeses < min) return false;
+  if (max !== undefined && idadeMeses > max) return false;
+  return true;
+}
+
+function idadeMinimaPergunta(idadeMeses: number) {
+  if (idadeMeses <= 17) return 12;
+  if (idadeMeses <= 23) return 18;
+  if (idadeMeses <= 35) return 24;
+  if (idadeMeses <= 47) return 36;
+  if (idadeMeses <= 59) return 48;
+  if (idadeMeses <= 71) return 60;
+  return 72;
+}
+
+function fatorIdade(idadeMeses: number, pergunta: Pergunta) {
+  const base = pergunta.idadeMinMeses ?? idadeMinimaPergunta(idadeMeses);
+  const delta = Math.max(0, idadeMeses - base);
+  return 1 + Math.min(delta * 0.015, 0.35);
+}
 const PERGUNTAS_CUSPIDE: Pergunta[] = [];
-
+function criarTriagemFlags(respostas: Respostas): TriagemFlags {
+  return {
+    aprofundarComunicacao: (respostas["com_mando_basico"] ?? 4) <= 2 || (respostas["com_mando_verbal"] ?? 4) <= 2 || (respostas["com_atencao_conjunta"] ?? 4) <= 1,
+    aprofundarSocial: (respostas["soc_responde_nome"] ?? 4) <= 2 || (respostas["soc_imitacao"] ?? 4) <= 1,
+    aprofundarAtencao: (respostas["aten_sustentada"] ?? 4) <= 1 || (respostas["aten_instrucao_simples"] ?? 4) <= 1,
+    aprofundarRegulacao: (respostas["reg_frustracao"] ?? 4) <= 1 || (respostas["cp_agressao"] ?? 4) <= 2 || (respostas["cp_autolesao"] ?? 4) <= 2,
+    aprofundarFlexibilidade: (respostas["fle_rotina"] ?? 4) <= 1 || (respostas["cp_rigidez"] ?? 4) <= 1,
+    aprofundarTelas: (respostas["aten_telas"] ?? 4) <= 1,
+  };
+}
 function montarPerguntasDinamicas(idadeMeses: number, respostas: Respostas) {
   const triagem = criarTriagemFlags(respostas);
 
