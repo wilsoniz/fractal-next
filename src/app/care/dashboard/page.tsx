@@ -11,6 +11,7 @@ import FractaForecastCard from './components/FractaForecastCard'
 import { useCareContext } from './layout'
 import FractaRadarChart from '@/components/fracta/FractaRadarChart'
 import type { ScoresRadar } from '@/components/fracta/FractaRadarChart'
+import GamificationWidget from '@/components/fracta/GamificationWidget'
 
 type DomKey = 'comunicacao' | 'social' | 'atencao' | 'regulacao' | 'brincadeira' | 'flexibilidade' | 'autonomia' | 'motivacao'
 
@@ -63,16 +64,8 @@ export default function CareDashboardPage() {
   const [atividades,  setAtividades]  = useState<{ id: string; nome: string; dominio: string; tempo: string; cor: string; icon: string }[]>([])
   const [barsVisible, setBarsVisible] = useState(false)
   const [loading,     setLoading]     = useState(true)
-  const [isMobile,    setIsMobile]    = useState(false)
 
  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
-    check()
-    window.addEventListener("resize", check)
-    return () => window.removeEventListener("resize", check)
-  }, [])
-
-  useEffect(() => {
   if (!criancaAtiva) return
 
   async function carregarDados() {
@@ -190,7 +183,7 @@ export default function CareDashboardPage() {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
         <div style={{ textAlign: 'center' }}>
-          <FractaLogo logo="care" height={60} alt="FractaCare" />
+          <FractaLogo logo="care" height={60} alt="FractaCare" style={{ opacity: 0.8 }} />
           <p style={{ color: '#8a9ab8', fontSize: '.85rem', marginTop: 12 }}>Carregando painel...</p>
         </div>
       </div>
@@ -230,7 +223,7 @@ export default function CareDashboardPage() {
       </div>
 
       {/* ── STATS */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
         {[
           { label: 'Atividades realizadas', val: sessoes.toString() || '0', sub: 'desde o início',            acc: true  },
           { label: 'Média geral',           val: `${Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 8)}%`, sub: 'no mapa de habilidades', acc: true  },
@@ -245,7 +238,7 @@ export default function CareDashboardPage() {
       </div>
 
       {/* ── GRID PRINCIPAL */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
         {/* RADAR */}
         <div style={card}>
@@ -292,7 +285,15 @@ export default function CareDashboardPage() {
               nomeCrianca={primeiroNome}
             />
           )}
-
+<GamificationWidget
+  pontos={sessoes * 10}
+  streak={3}
+  streakMax={7}
+  atividades={sessoes}
+  trilhasConcluidas={0}
+  avaliacoes={1}
+  compact={true}
+/>
           {/* ATIVIDADES DO DIA */}
           <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid rgba(43,191,164,.08)' }}>

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useCareContext } from '../layout'
-
+import GamificationWidget from '@/components/fracta/GamificationWidget'
 type Perfil = {
   id: string
   nome: string
@@ -169,7 +169,15 @@ export default function PerfilPage() {
           }}>{salvando ? 'Salvando...' : 'Salvar alterações'}</button>
         </div>
       )}
-
+<GamificationWidget
+  pontos={120}
+  streak={3}
+  streakMax={7}
+  atividades={12}
+  trilhasConcluidas={0}
+  avaliacoes={1}
+  compact={false}
+/>
       {/* Tab: Notificações */}
       {tab === 'notificacoes' && (
         <div style={card}>
