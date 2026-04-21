@@ -11,7 +11,7 @@ const platforms = [
     label: "Para famílias",
     title: "FractaCare",
     desc: "Avaliação de desenvolvimento, atividades práticas diárias e acompanhamento do progresso em linguagem acessível para pais e responsáveis.",
-    href: "/care",
+    href: "/captura",
     cta: "Fazer avaliação gratuita",
     accent: "#2BBFA4",
     features: ["Radar de habilidades em 8 domínios","Atividades personalizadas por dia","Progresso e conquistas ao longo do tempo","Conexão com terapeuta via FractaEngine"],
@@ -81,7 +81,7 @@ export default function Home() {
             </p>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <Link href="/care" style={{
+              <Link href="/captura" style={{
                 padding: "14px 30px", borderRadius: 10,
                 background: "linear-gradient(135deg,#2BBFA4,#1e9e88)",
                 color: "white", fontWeight: 800, fontSize: ".9rem",
@@ -116,7 +116,7 @@ export default function Home() {
               background: "radial-gradient(ellipse at center, rgba(43,191,164,.1) 0%, transparent 70%)",
               borderRadius: "50%",
             }} />
-            <FractaLogo logo="fb" height={120} alt="Fracta Behavior" style={{ position: "relative" }} />
+            <FractaLogo logo="fb" height={390} alt="Fracta Behavior" style={{ position: "relative" }} />
           </div>
         </div>
       </section>
@@ -238,7 +238,7 @@ export default function Home() {
             Faça a avaliação gratuita em 2 minutos e receba o mapa de habilidades do seu filho.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/care/dashboard" style={{
+            <Link href="/captura" style={{
               padding: "14px 32px", borderRadius: 10,
               background: "linear-gradient(135deg,#2BBFA4,#1e9e88)",
               color: "white", fontWeight: 800, fontSize: ".9rem",
@@ -274,7 +274,7 @@ export default function Home() {
             </div>
             <div style={{ display: "flex", gap: 56 }}>
               {[
-                { title: "Plataformas", links: [{href:"/care",l:"FractaCare"},{href:"/clinic",l:"FractaClinic"},{href:"/captura/avaliacao",l:"Avaliação gratuita"}] },
+                { title: "Plataformas", links: [{href:"/care/dashboard",l:"FractaCare"},{href:"/clinic-landing",l:"FractaClinic"},{href:"/captura/avaliacao",l:"Avaliação gratuita"}] },
                 { title: "Empresa", links: [{href:"#",l:"Sobre a Fracta"},{href:"#",l:"Base científica"},{href:"#",l:"Privacidade"}] },
               ].map(col => (
                 <div key={col.title}>
