@@ -11,7 +11,7 @@ const platforms = [
     label: "Para famílias",
     title: "FractaCare",
     desc: "Avaliação de desenvolvimento, atividades práticas diárias e acompanhamento do progresso em linguagem acessível para pais e responsáveis.",
-    href: "/care-landing",
+    href: "/care",
     cta: "Fazer avaliação gratuita",
     accent: "#2BBFA4",
     features: ["Radar de habilidades em 8 domínios","Atividades personalizadas por dia","Progresso e conquistas ao longo do tempo","Conexão com terapeuta via FractaEngine"],
@@ -238,7 +238,7 @@ export default function Home() {
             Faça a avaliação gratuita em 2 minutos e receba o mapa de habilidades do seu filho.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/care" style={{
+            <Link href="/care/dashboard" style={{
               padding: "14px 32px", borderRadius: 10,
               background: "linear-gradient(135deg,#2BBFA4,#1e9e88)",
               color: "white", fontWeight: 800, fontSize: ".9rem",
