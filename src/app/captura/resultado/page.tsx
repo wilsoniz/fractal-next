@@ -185,7 +185,7 @@ export default function ResultadoPage() {
 
     setLoading(false);
     setCadastrado(true);
-    setTimeout(() => router.push("/care"), 1500);
+    setTimeout(() => window.location.href = "/care/dashboard", 1500);
   }
 
   if (!scores) return (
