@@ -81,15 +81,15 @@ export default function Home() {
             </p>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <Link href="/captura/avaliacao" style={{
+              <Link href="/care" style={{
                 padding: "14px 30px", borderRadius: 10,
                 background: "linear-gradient(135deg,#2BBFA4,#1e9e88)",
                 color: "white", fontWeight: 800, fontSize: ".9rem",
                 textDecoration: "none", boxShadow: "0 4px 20px rgba(43,191,164,.3)",
               }}>
-                Sou responsável →
+                Fazer avaliação gratuita →
               </Link>
-              <Link href="/clinic" style={{
+              <Link href="/clinic-landing" style={{
                 padding: "14px 30px", borderRadius: 10,
                 border: "1.5px solid rgba(42,123,168,.3)",
                 color: "#2A7BA8", fontWeight: 700, fontSize: ".9rem",
@@ -116,7 +116,7 @@ export default function Home() {
               background: "radial-gradient(ellipse at center, rgba(43,191,164,.1) 0%, transparent 70%)",
               borderRadius: "50%",
             }} />
-            <FractaLogo logo="fb" height={160} alt="Fracta Behavior" style={{ position: "relative" }} />
+            <FractaLogo logo="fb" height={120} alt="Fracta Behavior" style={{ position: "relative" }} />
           </div>
         </div>
       </section>
@@ -155,7 +155,7 @@ export default function Home() {
               }}
               >
                 <div>
-                  <FractaLogo logo={p.logo} height={52} alt={p.title} />
+                  <FractaLogo logo={p.logo} height={42} alt={p.title} />
                   <div style={{ fontSize: ".65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em", color: "#8a9ab8", marginTop: 8 }}>{p.label}</div>
                 </div>
                 <p style={{ fontSize: ".88rem", color: "#5a7a9a", lineHeight: 1.75 }}>{p.desc}</p>
@@ -196,7 +196,7 @@ export default function Home() {
                 O cérebro do ecossistema. Avalia o repertório do aprendiz, identifica cúspides comportamentais emergentes, recomenda intervenções e conecta famílias ao terapeuta compatível.
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <FractaLogo logo="engine" height={44} alt="FractaEngine" />
+                <FractaLogo logo="engine" height={42} alt="FractaEngine" />
                 <span style={{ fontSize: ".78rem", color: "#8a9ab8" }}>Fracta Behavior · Motor proprietário</span>
               </div>
             </div>
@@ -230,7 +230,7 @@ export default function Home() {
         borderTop: "1px solid rgba(0,0,0,0.05)",
       }}>
         <div style={{ maxWidth: 560, margin: "0 auto" }}>
-          <FractaLogo logo="fb" height={80} alt="Fracta Behavior" style={{ margin: "0 auto 28px", display: "block" }} />
+          <FractaLogo logo="fb" height={56} alt="Fracta Behavior" style={{ margin: "0 auto 28px", display: "block" }} />
           <h2 style={{ fontSize: "clamp(1.8rem,3.5vw,2.8rem)", fontWeight: 800, letterSpacing: "-.02em", color: "#0f1f3d", marginBottom: 16 }}>
             Pronto para começar?
           </h2>
@@ -238,15 +238,15 @@ export default function Home() {
             Faça a avaliação gratuita em 2 minutos e receba o mapa de habilidades do seu filho.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/captura/avaliacao" style={{
+            <Link href="/care" style={{
               padding: "14px 32px", borderRadius: 10,
               background: "linear-gradient(135deg,#2BBFA4,#1e9e88)",
               color: "white", fontWeight: 800, fontSize: ".9rem",
               textDecoration: "none", boxShadow: "0 4px 20px rgba(43,191,164,.3)",
             }}>
-              Sou responsável
+              Fazer avaliação gratuita
             </Link>
-            <Link href="/clinic" style={{
+            <Link href="/clinic-landing" style={{
               padding: "14px 32px", borderRadius: 10,
               border: "1.5px solid rgba(42,123,168,.3)",
               color: "#2A7BA8", fontWeight: 700, fontSize: ".9rem",
@@ -267,7 +267,7 @@ export default function Home() {
         <div style={{ maxWidth: 1040, margin: "0 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 32, marginBottom: 40 }}>
             <div>
-              <FractaLogo logo="fb" height={40} alt="Fracta Behavior" />
+              <FractaLogo logo="fb" height={42} alt="Fracta Behavior" />
               <p style={{ fontSize: ".78rem", color: "#8a9ab8", marginTop: 10, maxWidth: 240, lineHeight: 1.7 }}>
                 Desenvolvimento infantil guiado por ciência e amor.
               </p>
