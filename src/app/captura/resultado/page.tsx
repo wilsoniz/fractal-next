@@ -148,7 +148,7 @@ export default function ResultadoPage() {
 
   async function finalizarCadastro(userId: string) {
     // 2. Cria perfil
-    await supabase.from("perfis").upsert({ id: userId, nome: cadNome, email: cadEmail });
+    await supabase.from("profiles").upsert({ id: userId, nome: cadNome, email: cadEmail });
 
     // 3. Cria criança
     const idadeNum = parseInt(idade) || 3;
