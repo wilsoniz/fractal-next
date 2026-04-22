@@ -250,23 +250,25 @@ function AvaliarPageInner() {
   const [scores, setScores] = useState<Record<DomKey, number> | null>(null)
 
   useEffect(() => {
-    async function carregar() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/care/login'); return }
+  async function carregar() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/care/login'); return }
 
-      const baseQ = supabase.from('criancas').select('id, nome, idade_anos, data_nascimento, genero')
-        .eq('responsavel_id', session.user.id).eq('ativo', true)
+    const baseQ = supabase.from('criancas')
+      .select('id, nome, idade_anos, data_nascimento, genero')
+      .eq('responsavel_id', user.id)
+      .eq('ativo', true)
 
-      const { data } = await (criancaIdParam
-        ? baseQ.eq('id', criancaIdParam)
-        : baseQ.order('criado_em', { ascending: true }).limit(1)
-      ).single()
+    const { data } = await (criancaIdParam
+      ? baseQ.eq('id', criancaIdParam)
+      : baseQ.order('criado_em', { ascending: true }).limit(1)
+    ).single()
 
-      if (data) setCrianca(data)
-      setFase("confirmacao")
-    }
-    carregar()
-  }, [router, criancaIdParam])
+    if (data) setCrianca(data)
+    setFase("confirmacao")
+  }
+  carregar()
+}, [router, criancaIdParam])
 
   const idadeMeses = calcularIdadeMeses(crianca?.data_nascimento ?? null, crianca?.idade_anos ?? null)
   const { perguntas } = montarPerguntas(idadeMeses, respostas)
