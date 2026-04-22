@@ -55,15 +55,14 @@ function gerarMensagemEngine(scores: Record<DomKey, number>, nome: string): stri
 }
 
 export default function CareDashboardPage() {
-  const { criancaAtiva, nomeResp } = useCareContext()
-const [isMobile, setIsMobile] = useState(false)
-
-useEffect(() => {
-  const check = () => setIsMobile(window.innerWidth < 768)
-  check()
-  window.addEventListener('resize', check)
-  return () => window.removeEventListener('resize', check)
-}, [])
+const { criancaAtiva, nomeResp } = useCareContext()
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
   const [scores, setScores] = useState<Record<DomKey, number>>({
     comunicacao: 50, social: 50, atencao: 50, regulacao: 50,
     brincadeira: 50, flexibilidade: 50, autonomia: 50, motivacao: 50,
@@ -163,18 +162,19 @@ useEffect(() => {
       )
     }
 
-    setLoading(false)
+setLoading(false)
     // Buscar gamificação real
-const { data: { user } } = await supabase.auth.getUser()
-if (user) {
-  const gam = await buscarGamificacao(user.id)
-  setGamificacao(gam)
-  const conq = await buscarConquistas(user.id)
-  setConquistas(conq)
-}
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const gam = await buscarGamificacao(user.id)
+      setGamificacao(gam)
+      const conq = await buscarConquistas(user.id)
+      setConquistas(conq)
+    }
     setTimeout(() => setBarsVisible(true), 300)
-  }
-    carregarDados()
+  }    
+  
+  carregarDados()
 
     function handleVisibility() {
       if (document.visibilityState === 'visible') carregarDados()
