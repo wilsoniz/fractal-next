@@ -106,7 +106,9 @@ const ABAS = [
   icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM4 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H4z',
 },
 ]
-
+const ABAS_MOBILE = ABAS.filter(a => 
+  ['home', 'atividades', 'avaliacao', 'aprendizado', 'meu-filho'].includes(a.key)
+)
 // ─────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────
@@ -566,7 +568,7 @@ export default function CareDashboardLayout({
           zIndex: 100,
         }} className="tab-bar-mobile">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)' }}>
-            {ABAS.map((aba) => {
+            {ABAS_MOBILE.map((aba) => {
               const ativa = aba.exact
                 ? pathname === aba.href
                 : pathname === aba.href || pathname.startsWith(aba.href + '/')

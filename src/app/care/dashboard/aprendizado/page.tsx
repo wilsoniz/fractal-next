@@ -129,7 +129,7 @@ export default function AprendizadoPage() {
   // ── Tela de aula ──
   if (aula && trilha) {
     return (
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 0 40px' }}>
+      <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 16px 40px', boxSizing: 'border-box' as const, width: '100%' }}>
         <button onClick={() => setAulaAberta(null)} style={{
           display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
           cursor: 'pointer', color: '#2BBFA4', fontWeight: 600, fontSize: '.82rem',
@@ -177,7 +177,7 @@ export default function AprendizadoPage() {
   if (trilha) {
     const progPct = Math.round((trilha.concluidas / trilha.total) * 100)
     return (
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 0 40px' }}>
+      <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 16px 40px', boxSizing: 'border-box' as const, width: '100%' }}>
         <button onClick={() => setTrilhaAberta(null)} style={{
           display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
           cursor: 'pointer', color: '#2BBFA4', fontWeight: 600, fontSize: '.82rem',
@@ -233,7 +233,7 @@ export default function AprendizadoPage() {
 
   // ── Tela principal ──
   return (
-    <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 0 40px' }}>
+    <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 16px 40px', boxSizing: 'border-box' as const, width: '100%' }}>
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -242,7 +242,7 @@ export default function AprendizadoPage() {
       </div>
 
       {/* Progresso geral */}
-      <div style={{ background: 'linear-gradient(135deg,#1E3A5F,#2A7BA8)', borderRadius: 20, padding: '20px', marginBottom: 24, color: 'white' }}>
+      <div style={{ background: 'linear-gradient(135deg,#1E3A5F,#2A7BA8)', borderRadius: 20, padding: '20px', marginBottom: 24, color: 'white', width: '100%', boxSizing: 'border-box' as const }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: '.72rem', color: 'rgba(255,255,255,.6)', marginBottom: 2 }}>Seu progresso</div>
