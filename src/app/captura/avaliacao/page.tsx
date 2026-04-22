@@ -502,34 +502,29 @@ export default function AvaliacaoPage() {
     setFase("perguntas");
   }
 
-  function responder(valor: number) {
-    if (!perg) return;
+function responder(valor: number) {
+  if (!perg) return;
+  const novasRespostas = {
+    ...respostas,
+    [perg.id]: valor,
+  };
 
-    const novasRespostas = {
-      ...respostas,
-      [perg.id]: valor,
-    };
+  // Salva resposta imediatamente para mostrar feedback visual
+  setRespostas(novasRespostas);
 
-    const proximaEstrutura = montarPerguntasDinamicas(
-      idadeMeses,
-      novasRespostas
-    );
+  // Aguarda 350ms antes de avançar
+  setTimeout(() => {
+    const proximaEstrutura = montarPerguntasDinamicas(idadeMeses, novasRespostas);
     const novasPerguntas = proximaEstrutura.perguntas;
-    const indiceAtualNaNovaLista = novasPerguntas.findIndex(
-      (p) => p.id === perg.id
-    );
-
-    setRespostas(novasRespostas);
-
+    const indiceAtualNaNovaLista = novasPerguntas.findIndex(p => p.id === perg.id);
     const ultimoIndice = indiceAtualNaNovaLista;
     if (ultimoIndice < novasPerguntas.length - 1) {
       setPergAtual(ultimoIndice + 1);
       return;
     }
-
     void irParaResultado(novasRespostas, novasPerguntas);
-  }
-
+  }, 350);
+}
   function voltar() {
     if (pergAtual === 0) {
       setFase("intro");
@@ -756,7 +751,7 @@ export default function AvaliacaoPage() {
         {fase === "intro" && (
           <div style={S.card}>
             <div style={{ textAlign: "center", marginBottom: 28 }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>👶</div>
+              <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>➢</div>
               <h2
                 style={{
                   fontSize: "1.4rem",
@@ -812,7 +807,7 @@ export default function AvaliacaoPage() {
                       background: generoCrianca === g ? "rgba(43,191,164,.08)" : "white",
                       color: generoCrianca === g ? "#2BBFA4" : "#5a7a9a",
                       fontWeight:700, fontSize:".88rem", cursor:"pointer", fontFamily:"var(--font-sans)",
-                    }}>{g === "M" ? "👦 Menino" : "👧 Menina"}</button>
+                    }}>{g === "M" ? "Menino" : "Menina"}</button>
                   ))}
                 </div>
               </div>

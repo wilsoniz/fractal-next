@@ -55,7 +55,14 @@ function gerarMensagemEngine(scores: Record<DomKey, number>, nome: string): stri
 
 export default function CareDashboardPage() {
   const { criancaAtiva, nomeResp } = useCareContext()
+const [isMobile, setIsMobile] = useState(false)
 
+useEffect(() => {
+  const check = () => setIsMobile(window.innerWidth < 768)
+  check()
+  window.addEventListener('resize', check)
+  return () => window.removeEventListener('resize', check)
+}, [])
   const [scores, setScores] = useState<Record<DomKey, number>>({
     comunicacao: 50, social: 50, atencao: 50, regulacao: 50,
     brincadeira: 50, flexibilidade: 50, autonomia: 50, motivacao: 50,
@@ -223,7 +230,7 @@ export default function CareDashboardPage() {
       </div>
 
       {/* ── STATS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 16 }}>
         {[
           { label: 'Atividades realizadas', val: sessoes.toString() || '0', sub: 'desde o início',            acc: true  },
           { label: 'Média geral',           val: `${Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 8)}%`, sub: 'no mapa de habilidades', acc: true  },
@@ -238,7 +245,7 @@ export default function CareDashboardPage() {
       </div>
 
       {/* ── GRID PRINCIPAL */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
 
         {/* RADAR */}
         <div style={card}>
