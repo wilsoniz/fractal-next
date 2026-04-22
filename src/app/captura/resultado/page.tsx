@@ -82,6 +82,100 @@ function gerarInterpretacao(scores: Record<DomKey, number>, nome: string): strin
   return `${nome} apresenta boas bases em ${maiores.join(" e ")} — ótimos pontos de apoio para o desenvolvimento. Algumas habilidades de ${menores.join(" e ")} parecem prontas para crescer ainda mais com pequenas práticas no dia a dia.`;
 }
 
+
+function calcularProgramas(
+  scores: Record<string, number>,
+  respostas: Record<string, number>,
+  idadeMeses: number
+): {titulo:string;dominio:string;prioridade:string;descricao:string;estrategia:string}[] {
+  const progs: {titulo:string;dominio:string;prioridade:string;descricao:string;estrategia:string}[] = [];
+
+  if (scores.comunicacao < 55) {
+    if (idadeMeses < 24 || (respostas["com_mando_basico"] ?? 4) <= 1) {
+      progs.push({ titulo:"Ensino de Mando", dominio:"Comunicação", prioridade:"alta",
+        descricao:"Ensinar formas funcionais de pedir — gestos, sons ou palavras — para objetos e atividades preferidas.",
+        estrategia:"Ofereça itens desejados apenas após uma tentativa comunicativa. Modele e reforce qualquer aproximação." });
+    }
+    if (idadeMeses >= 18 && (respostas["com_tato_objetos"] ?? 4) <= 2) {
+      progs.push({ titulo:"Nomeação de Objetos", dominio:"Comunicação", prioridade:"alta",
+        descricao:"Expandir vocabulário funcional — nomear objetos, pessoas e ações do cotidiano.",
+        estrategia:"Comece com objetos de alta preferência. Use contextos naturais e reforce a nomeação espontânea." });
+    }
+    if ((respostas["com_atencao_conjunta"] ?? 4) <= 2) {
+      progs.push({ titulo:"Atenção Conjunta", dominio:"Comunicação", prioridade:"alta",
+        descricao:"Desenvolver o apontar para compartilhar e o olhar alternado entre objeto e pessoa.",
+        estrategia:"Siga o interesse da criança, pause para criar expectativa e reforce o olhar alternado." });
+    }
+  }
+
+  if (scores.social < 55) {
+    if ((respostas["soc_imitacao"] ?? 4) <= 2) {
+      progs.push({ titulo:"Imitação Motora e Vocal", dominio:"Social", prioridade:"alta",
+        descricao:"Desenvolver imitação como base para aprendizagem social e linguagem.",
+        estrategia:"Imite a criança primeiro (imitação mútua), depois introduza novos modelos com reforço." });
+    }
+    if (idadeMeses >= 30 && (respostas["soc_jogo_paralelo"] ?? 4) <= 2) {
+      progs.push({ titulo:"Jogo Social", dominio:"Social", prioridade:"media",
+        descricao:"Ampliar tolerância e interesse pela presença de outras pessoas durante brincadeiras.",
+        estrategia:"Aproximação gradual, atividades de alta preferência compartilhadas, reforço da proximidade." });
+    }
+  }
+
+  if (scores.regulacao < 50) {
+    progs.push({ titulo:"Regulação Emocional", dominio:"Regulação", prioridade:"alta",
+      descricao:"Desenvolver tolerância à frustração e espera em situações do dia a dia.",
+      estrategia:"Use antecipação verbal, ofereça escolhas controladas e ensine comunicação alternativa à crise." });
+  }
+
+  if (scores.atencao < 50 && idadeMeses >= 30) {
+    progs.push({ titulo:"Atenção Sustentada", dominio:"Atenção", prioridade:"media",
+      descricao:"Aumentar gradualmente o tempo de engajamento em atividades.",
+      estrategia:"Comece com atividades de alta preferência e aumente a duração progressivamente." });
+  }
+
+  if (scores.autonomia < 50 && idadeMeses >= 24) {
+    progs.push({ titulo:"Habilidades de Autocuidado", dominio:"Autonomia", prioridade:"media",
+      descricao:"Desenvolver independência nas rotinas de higiene, alimentação e organização.",
+      estrategia:"Divida as tarefas em etapas pequenas e reforce as tentativas independentes." });
+  }
+
+  return progs.slice(0, 4);
+}
+
+function calcularComportamentos(respostas: Record<string, number>): {tipo:string;nivel:string;descricao:string;estrategia:string;alerta:boolean}[] {
+  const comps: {tipo:string;nivel:string;descricao:string;estrategia:string;alerta:boolean}[] = [];
+
+  const agressao = respostas["cp_agressao"] ?? 4;
+  if (agressao <= 2) comps.push({
+    tipo:"Agressão", nivel: agressao === 0 ? "severo" : agressao === 1 ? "moderado" : "leve",
+    descricao:"Comportamentos de bater, morder ou agredir outras pessoas.",
+    estrategia:"Identifique quando e por que acontece. Ensine uma forma diferente de comunicar a mesma necessidade.",
+    alerta: agressao <= 1 });
+
+  const autolesao = respostas["cp_autolesao"] ?? 4;
+  if (autolesao <= 2) comps.push({
+    tipo:"Autolesão", nivel: autolesao === 0 ? "severo" : autolesao === 1 ? "moderado" : "leve",
+    descricao:"Comportamentos de bater a cabeça, morder a si mesmo ou se machucar.",
+    estrategia:"Este comportamento precisa de avaliação por um profissional ABA o quanto antes.",
+    alerta: true });
+
+  const rigidez = respostas["cp_rigidez"] ?? 4;
+  if (rigidez <= 1) comps.push({
+    tipo:"Rigidez e rituais", nivel: rigidez === 0 ? "severo" : "moderado",
+    descricao:"Insistência em rotinas rígidas que impedem o funcionamento do dia a dia.",
+    estrategia:"Introduza variações pequenas e gradualmente. Antecipe mudanças com clareza.",
+    alerta: rigidez === 0 });
+
+  const movimentos = respostas["cp_movimentos"] ?? 4;
+  if (movimentos <= 1) comps.push({
+    tipo:"Movimentos repetitivos", nivel: movimentos === 0 ? "severo" : "moderado",
+    descricao:"Movimentos repetitivos frequentes que podem interferir na aprendizagem.",
+    estrategia:"Enriqueça o ambiente e garanta atividade física adequada ao longo do dia.",
+    alerta: false });
+
+  return comps;
+}
+
 export default function ResultadoPage() {
   const router = useRouter();
   const [scores,    setScores]    = useState<Record<DomKey, number> | null>(null);
@@ -95,6 +189,9 @@ export default function ResultadoPage() {
   const [loading,   setLoading]   = useState(false);
   const [erro,      setErro]      = useState("");
   const [cadastrado, setCadastrado] = useState(false);
+  const [programas,  setProgramas]  = useState<{titulo:string;dominio:string;prioridade:string;descricao:string;estrategia:string}[]>([]);
+  const [comportamentos, setComportamentos] = useState<{tipo:string;nivel:string;descricao:string;estrategia:string;alerta:boolean}[]>([]);
+  const [genero, setGenero] = useState<"M"|"F"|"">("");
 
   useEffect(() => {
     const r    = sessionStorage.getItem("fracta_radar");
@@ -116,6 +213,18 @@ export default function ResultadoPage() {
     const prioridades = sorted.slice(0, 3).map(d => d.key);
     const selecionadas = prioridades.map(key => ATIVIDADES.find(a => a.domKey === key)).filter(Boolean) as typeof ATIVIDADES;
     setAtividades(selecionadas);
+
+    // Output clínico
+    const gen = sessionStorage.getItem("fracta_genero") as "M"|"F"|"" ?? "";
+    setGenero(gen);
+    const respsRaw = sessionStorage.getItem("fracta_resps");
+    const idadeMesesRaw = sessionStorage.getItem("fracta_idade_meses");
+    if (respsRaw && idadeMesesRaw) {
+      const resps = JSON.parse(respsRaw) as Record<string, number>;
+      const idadeMeses = parseInt(idadeMesesRaw);
+      setProgramas(calcularProgramas(parsed, resps, idadeMeses));
+      setComportamentos(calcularComportamentos(resps));
+    }
   }, [router]);
 
   async function cadastrar() {
@@ -283,6 +392,85 @@ export default function ResultadoPage() {
             })}
           </div>
         </div>
+
+
+        {/* PROGRAMAS DE ENSINO */}
+        {programas.length > 0 && (
+          <div style={{ ...card, padding: "22px 24px" }}>
+            <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em", color: "#2BBFA4", marginBottom: 6 }}>📋 Habilidades prioritárias</div>
+            <h2 style={{ fontSize: "1rem", fontWeight: 800, color: "#1E3A5F", marginBottom: 4 }}>O que trabalhar com {nome}</h2>
+            <p style={{ fontSize: ".78rem", color: "#8a9ab8", marginBottom: 16, lineHeight: 1.6 }}>
+              Com base na avaliação, estas são as habilidades com maior potencial de avanço agora.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {programas.map((p, i) => (
+                <div key={p.titulo} style={{
+                  padding: "16px", borderRadius: 14,
+                  background: i === 0 ? "rgba(43,191,164,.06)" : "#f8faff",
+                  border: `1px solid ${i === 0 ? "rgba(43,191,164,.25)" : "rgba(0,0,0,.06)"}`,
+                  borderLeft: `3px solid ${i === 0 ? "#2BBFA4" : "#4FC3D8"}`,
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                    <div style={{ fontSize: ".88rem", fontWeight: 800, color: "#1E3A5F" }}>{p.titulo}</div>
+                    <span style={{
+                      fontSize: ".6rem", fontWeight: 700, padding: "2px 8px", borderRadius: 50, flexShrink: 0, marginLeft: 8,
+                      background: p.prioridade === "alta" ? "rgba(43,191,164,.15)" : "rgba(79,195,216,.12)",
+                      color: p.prioridade === "alta" ? "#1a7a6a" : "#2A7BA8",
+                    }}>{p.prioridade === "alta" ? "Prioritário" : "Importante"}</span>
+                  </div>
+                  <div style={{ fontSize: ".68rem", fontWeight: 600, color: "#2BBFA4", marginBottom: 6 }}>{p.dominio}</div>
+                  <p style={{ fontSize: ".78rem", color: "#5a7a9a", lineHeight: 1.65, margin: "0 0 8px" }}>{p.descricao}</p>
+                  <div style={{ background: "rgba(43,191,164,.06)", borderRadius: 8, padding: "8px 12px" }}>
+                    <div style={{ fontSize: ".65rem", fontWeight: 700, color: "#2BBFA4", marginBottom: 3 }}>💡 Como começar</div>
+                    <p style={{ fontSize: ".75rem", color: "#3a5a7a", lineHeight: 1.6, margin: 0 }}>{p.estrategia}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* COMPORTAMENTOS PROBLEMA */}
+        {comportamentos.length > 0 && (
+          <div style={{ ...card, padding: "22px 24px" }}>
+            <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em", color: "#E05A4B", marginBottom: 6 }}>⚠️ Atenção especial</div>
+            <h2 style={{ fontSize: "1rem", fontWeight: 800, color: "#1E3A5F", marginBottom: 4 }}>Comportamentos que merecem cuidado</h2>
+            <p style={{ fontSize: ".78rem", color: "#8a9ab8", marginBottom: 16, lineHeight: 1.6 }}>
+              A avaliação identificou alguns comportamentos que precisam de estratégias específicas.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {comportamentos.map(c => (
+                <div key={c.tipo} style={{
+                  padding: "16px", borderRadius: 14,
+                  background: c.alerta ? "rgba(224,90,75,.04)" : "#f8faff",
+                  border: `1px solid ${c.alerta ? "rgba(224,90,75,.2)" : "rgba(0,0,0,.06)"}`,
+                  borderLeft: `3px solid ${c.alerta ? "#E05A4B" : "#EF9F27"}`,
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                    <div style={{ fontSize: ".88rem", fontWeight: 800, color: "#1E3A5F" }}>{c.tipo}</div>
+                    <span style={{
+                      fontSize: ".6rem", fontWeight: 700, padding: "2px 8px", borderRadius: 50, flexShrink: 0, marginLeft: 8,
+                      background: c.nivel === "severo" ? "rgba(224,90,75,.12)" : c.nivel === "moderado" ? "rgba(239,159,39,.12)" : "rgba(0,0,0,.06)",
+                      color: c.nivel === "severo" ? "#E05A4B" : c.nivel === "moderado" ? "#c47d0a" : "#5a7a9a",
+                    }}>{c.nivel.charAt(0).toUpperCase()+c.nivel.slice(1)}</span>
+                  </div>
+                  <p style={{ fontSize: ".78rem", color: "#5a7a9a", lineHeight: 1.65, margin: "0 0 8px" }}>{c.descricao}</p>
+                  {c.alerta && (
+                    <div style={{ background: "rgba(224,90,75,.06)", border: "1px solid rgba(224,90,75,.15)", borderRadius: 8, padding: "8px 12px", marginBottom: 8 }}>
+                      <p style={{ fontSize: ".75rem", color: "#E05A4B", fontWeight: 600, lineHeight: 1.6, margin: 0 }}>
+                        🚨 Este comportamento precisa de acompanhamento profissional especializado.
+                      </p>
+                    </div>
+                  )}
+                  <div style={{ background: "rgba(239,159,39,.06)", borderRadius: 8, padding: "8px 12px" }}>
+                    <div style={{ fontSize: ".65rem", fontWeight: 700, color: "#c47d0a", marginBottom: 3 }}>💡 Estratégia inicial</div>
+                    <p style={{ fontSize: ".75rem", color: "#3a5a7a", lineHeight: 1.6, margin: 0 }}>{c.estrategia}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* CTA */}
         <div style={{ background: "linear-gradient(135deg,#1E3A5F,#2A7BA8)", borderRadius: 22, padding: "28px", textAlign: "center", color: "white" }}>
