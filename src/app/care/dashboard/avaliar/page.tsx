@@ -49,14 +49,16 @@ function AvaliarPageInner() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/care/login'); return }
 
-      const query = supabase
+const baseQuery = supabase
   .from('criancas')
   .select('id, nome, idade_anos')
   .eq('responsavel_id', session.user.id)
   .eq('ativo', true)
-if (criancaIdParam) query.eq('id', criancaIdParam)
-const { data } = await query.order('criado_em', { ascending: true }).limit(1).single()
 
+const { data } = await (criancaIdParam
+  ? baseQuery.eq('id', criancaIdParam)
+  : baseQuery.order('criado_em', { ascending: true }).limit(1)
+).single()
       if (data) setCrianca(data)
       setCarregando(false)
     }
