@@ -1,7 +1,7 @@
 'use client'
-
+import { Suspense } from 'react'
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
   PERGUNTAS,
@@ -32,9 +32,10 @@ type Passo =
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────
 
-export default function AvaliarPage() {
+function AvaliarPageInner() {
   const router = useRouter()
-
+  const searchParams = useSearchParams()
+  const criancaIdParam = searchParams.get('criancaId')
   const [crianca, setCrianca] = useState<Crianca | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [passo, setPasso] = useState<Passo>({ tipo: 'confirmacao' })
@@ -48,14 +49,13 @@ export default function AvaliarPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/care/login'); return }
 
-      const { data } = await supabase
-        .from('criancas')
-        .select('id, nome, idade_anos')
-        .eq('responsavel_id', session.user.id)
-        .eq('ativo', true)
-        .order('criado_em', { ascending: true })
-        .limit(1)
-        .single()
+      const query = supabase
+  .from('criancas')
+  .select('id, nome, idade_anos')
+  .eq('responsavel_id', session.user.id)
+  .eq('ativo', true)
+if (criancaIdParam) query.eq('id', criancaIdParam)
+const { data } = await query.order('criado_em', { ascending: true }).limit(1).single()
 
       if (data) setCrianca(data)
       setCarregando(false)
@@ -582,5 +582,12 @@ function SemCrianca({ onVoltar }: { onVoltar: () => void }) {
         </button>
       </div>
     </div>
+  )
+}
+export default function AvaliarPage() {
+  return (
+    <Suspense fallback={null}>
+      <AvaliarPageInner />
+    </Suspense>
   )
 }
