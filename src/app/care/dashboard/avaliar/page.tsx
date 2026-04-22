@@ -79,23 +79,29 @@ export default function AvaliarPage() {
       setResultado(calc)
 
       try {
-        const res = await fetch('/api/avaliacoes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            crianca_id: crianca.id,
-            idade_anos: crianca.idade_anos,
-            respostas: todasRespostas,
-            origem: 'care_internal',
-          }),
-        })
-        if (!res.ok) {
-          const data = await res.json()
-          setErro(data.error ?? 'Erro ao salvar. Seus dados foram calculados.')
-        }
-      } catch {
-        setErro('Sem conexão. Seus resultados foram calculados mas não salvos.')
-      } finally {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) { setErro('Não autenticado. Faça login para continuar.'); return }
+  await supabase.from('avaliacoes').insert({
+    crianca_id: crianca.id,
+    responsavel_id: user.id,
+    idade_crianca: crianca.idade_anos,
+    respostas: todasRespostas,
+    score_comunicacao: calc.scores.comunicacao,
+    score_social: calc.scores.social,
+    score_atencao: calc.scores.atencao,
+    score_regulacao: calc.scores.regulacao,
+    score_brincadeira: calc.scores.brincadeira,
+    score_flexibilidade: calc.scores.flexibilidade,
+    score_autonomia: calc.scores.autonomia,
+    score_motivacao: calc.scores.motivacao,
+    score_geral: calc.score_geral,
+    tipo: 'care_internal',
+    origem: 'web',
+    convertido: true,
+  })
+} catch {
+  setErro('Erro ao salvar. Seus dados foram calculados.')
+} finally {
         setSalvando(false)
         setTimeout(() => setPasso({ tipo: 'resultado' }), 1800)
       }
