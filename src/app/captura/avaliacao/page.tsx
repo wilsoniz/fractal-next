@@ -39,7 +39,7 @@ type Pergunta = {
   idadeMaxMeses?: number;
   escala?: Escala;
   tipo?: "escala" | "escolha";
-  texto: (nome: string) => string;
+  texto: (nome: string, genero?: "M"|"F"|"") => string;
   exemplo?: string;
   opcoes?: EscalaItem[];
   gatilho?: (ctx: {
@@ -99,23 +99,23 @@ const PERGUNTAS_BASE: Pergunta[] = [
     exemplo:"Aponta, leva sua mão, olha para o objeto e para você, vocaliza, faz gesto." },
   { id:"com_mando_verbal", dominio:"Comunicação — Mando verbal", domKey:"comunicacao", peso:1.4, idadeMinMeses:24, escala:ESCALA_POS,
     texto:(n)=>`${n} usa palavras ou frases para pedir o que quer?`,
-    exemplo:"24m: 'água', 'mais', 'quero'; 36m: 'quero suco'; 48m+: frases completas." },
+    exemplo:"Palavras soltas, frases curtas ou frases completas — dependendo da idade." },
   { id:"com_tato_objetos", dominio:"Comunicação — Nomeação", domKey:"comunicacao", peso:1.2, idadeMinMeses:18, idadeMaxMeses:47, escala:ESCALA_POS,
     texto:(n)=>`${n} nomeia objetos, pessoas ou imagens que conhece?`,
-    exemplo:"18m: 5-10 palavras; 24m: 50+ palavras; 36m: nomeia categorias." },
+    exemplo:"Nomeia objetos do dia a dia, pessoas próximas ou imagens em livros." },
   { id:"com_intraverbal", dominio:"Comunicação — Conversa", domKey:"comunicacao", peso:1.1, idadeMinMeses:36, escala:ESCALA_POS,
     texto:(n)=>`${n} responde perguntas simples sobre o dia a dia?`,
     exemplo:"'O que você comeu?' 'Onde está o cachorro?' 'O que aconteceu no parque?'" },
   { id:"com_atencao_conjunta", dominio:"Comunicação — Atenção conjunta", domKey:"comunicacao", peso:1.3, idadeMinMeses:12, idadeMaxMeses:35, escala:ESCALA_POS,
     texto:(n)=>`${n} tenta chamar sua atenção para mostrar algo interessante?`,
-    exemplo:"Aponta para avião no céu, mostra brinquedo, olha para você para compartilhar." },
+    exemplo:"Mostra algo interessante, aponta para coisas, olha para você para compartilhar a experiência." },
   // ── SOCIAL ──
   { id:"soc_responde_nome", dominio:"Social — Orientação", domKey:"social", peso:1.4, idadeMinMeses:12, escala:ESCALA_POS,
     texto:(n)=>`Quando você chama ${n} pelo nome, ele responde de alguma forma?`,
     exemplo:"Olha, vira, para o que está fazendo, fala 'hã' ou se aproxima." },
   { id:"soc_imitacao", dominio:"Social — Imitação", domKey:"social", peso:1.3, idadeMinMeses:12, idadeMaxMeses:47, escala:ESCALA_POS,
     texto:(n)=>`${n} imita ações ou gestos que você faz?`,
-    exemplo:"12-18m: bater palmas, dar tchau; 24m: imita ações com objetos; 36m: sequências." },
+    exemplo:"Imita gestos, expressões, ações com brinquedos ou sequências de movimentos." },
   { id:"soc_jogo_paralelo", dominio:"Social — Jogo", domKey:"social", peso:1.1, idadeMinMeses:18, idadeMaxMeses:47, escala:ESCALA_POS,
     texto:(n)=>`${n} brinca perto de outras crianças sem precisar interagir o tempo todo?`,
     exemplo:"Jogo paralelo — cada um brinca do seu jeito mas aceita a presença do outro." },
@@ -128,10 +128,10 @@ const PERGUNTAS_BASE: Pergunta[] = [
   // ── ATENÇÃO ──
   { id:"aten_sustentada", dominio:"Atenção — Sustentada", domKey:"atencao", peso:1.2, idadeMinMeses:12, escala:ESCALA_POS,
     texto:(n)=>`${n} consegue se manter engajado em uma atividade por tempo adequado para a idade?`,
-    exemplo:"12-18m: 2-3 min; 24m: 5-8 min; 36m: 10-15 min; 48m+: 15-20 min." },
+    exemplo:"Consegue brincar, folhear livro, montar peças ou explorar algo por alguns minutos." },
   { id:"aten_instrucao_simples", dominio:"Atenção — Seguir instrução", domKey:"atencao", peso:1.3, idadeMinMeses:12, escala:ESCALA_POS,
     texto:(n)=>`${n} segue instruções simples no contexto da rotina?`,
-    exemplo:"12-18m: 'vem cá', 'dá'; 24m: 2 partes; 36m+: 3 etapas." },
+    exemplo:"Instruções simples como 'vem cá', 'pega o sapato', ou sequências com mais de uma etapa." },
   { id:"aten_telas", dominio:"Atenção — Telas", domKey:"atencao", peso:0.8, idadeMinMeses:12, tipo:"escolha",
     texto:(n)=>`Em média, quanto tempo por dia ${n} passa em telas?`,
     opcoes:[
@@ -140,7 +140,7 @@ const PERGUNTAS_BASE: Pergunta[] = [
   // ── REGULAÇÃO ──
   { id:"reg_frustracao", dominio:"Regulação — Frustração", domKey:"regulacao", peso:1.3, idadeMinMeses:12, escala:ESCALA_INV,
     texto:(n)=>`Quando algo não acontece como ${n} quer, a reação é muito intensa ou demorada?`,
-    exemplo:"Choro prolongado, gritos, jogar-se no chão, agressão, demora mais de 15 min." },
+    exemplo:"Choro intenso, gritos, jogar-se no chão ou agressão que demora para passar." },
   { id:"reg_espera", dominio:"Regulação — Espera", domKey:"regulacao", peso:1.2, idadeMinMeses:18, escala:ESCALA_POS,
     texto:(n)=>`${n} consegue esperar alguns segundos quando você sinaliza que já vai atender?`,
     exemplo:"Espera por água, colo, comida, atenção quando há um sinal claro de 'já vou'." },
@@ -173,7 +173,7 @@ const PERGUNTAS_BASE: Pergunta[] = [
   // ── AUTONOMIA ──
   { id:"aut_autocuidado", dominio:"Autonomia — Autocuidado", domKey:"autonomia", peso:1.1, idadeMinMeses:18, escala:ESCALA_POS,
     texto:(n)=>`${n} participa das rotinas de cuidado pessoal de forma adequada para a idade?`,
-    exemplo:"18m: coopera no banho; 24m: lava mãos; 36m: veste roupas simples; 48m+: independente." },
+    exemplo:"Coopera no banho, lava as mãos, tenta se vestir ou é independente nas rotinas básicas." },
   { id:"aut_alimentacao", dominio:"Autonomia — Alimentação", domKey:"autonomia", peso:1.0, idadeMinMeses:18, escala:ESCALA_POS,
     texto:(n)=>`${n} come uma variedade razoável de alimentos sem grande resistência?`,
     exemplo:"Aceita diferentes texturas e sabores — sem rituais muito rígidos." },
@@ -217,7 +217,7 @@ const PERGUNTAS_BASE: Pergunta[] = [
 const PERGUNTAS_APROFUNDAMENTO: Pergunta[] = [
   { id:"ap_com_ecoico", dominio:"Comunicação — Imitação vocal", domKey:"comunicacao", peso:1.3, idadeMinMeses:12, idadeMaxMeses:47, escala:ESCALA_POS,
     texto:(n)=>`${n} repete sons, sílabas ou palavras quando você fala para ele imitar?`,
-    exemplo:"Ecoico — base fundamental para aquisição de linguagem verbal.",
+    exemplo:"Repete quando você fala devagar e pede para imitar — sons, sílabas ou palavras simples.",
     gatilho:({triagem})=>triagem.aprofundarComunicacao },
   { id:"ap_com_pedido_ajuda", dominio:"Comunicação — Pedir ajuda", domKey:"comunicacao", peso:1.2, idadeMinMeses:18, escala:ESCALA_POS,
     texto:(n)=>`Quando não consegue fazer algo, ${n} pede ajuda de alguma forma?`,
@@ -233,7 +233,7 @@ const PERGUNTAS_APROFUNDAMENTO: Pergunta[] = [
     gatilho:({triagem})=>triagem.aprofundarSocial },
   { id:"ap_aten_distrai", dominio:"Atenção — Distractibilidade", domKey:"atencao", peso:1.1, idadeMinMeses:30, escala:ESCALA_INTENSIDADE,
     texto:(n)=>`${n} se distrai com tanta facilidade que não consegue terminar atividades?`,
-    exemplo:"Qualquer barulho ou movimento interrompe — dificuldade de retornar à tarefa.",
+    exemplo:"Qualquer coisa ao redor tira o foco e é difícil voltar para o que estava fazendo.",
     gatilho:({triagem})=>triagem.aprofundarAtencao },
   { id:"ap_aten_pos_tela", dominio:"Atenção — Impacto das telas", domKey:"atencao", peso:1.0, idadeMinMeses:18, escala:ESCALA_INTENSIDADE,
     texto:(n)=>`Após usar telas, ${n} fica mais difícil de engajar em atividades sem tela?`,
@@ -338,6 +338,13 @@ function montarPerguntasDinamicas(idadeMeses: number, respostas: Respostas) {
   };
 }
 
+
+function pronome(genero: "M"|"F"|"", tipo: "ele"|"ela"|"do"|"da"|"o"|"a") {
+  const masc: Record<string, string> = { ele:"ele", ela:"ele", do:"do", da:"do", o:"o", a:"o" };
+  const fem: Record<string, string>  = { ele:"ela", ela:"ela", do:"da", da:"da", o:"a", a:"a" };
+  return genero === "F" ? fem[tipo] : masc[tipo];
+}
+
 function calcularScores(
   perguntas: Pergunta[],
   respostas: Respostas,
@@ -438,6 +445,7 @@ export default function AvaliacaoPage() {
 
   const [fase, setFase] = useState<"intro" | "perguntas" | "loading">("intro");
   const [nomeCrianca, setNomeCrianca] = useState("");
+  const [generoCrianca, setGeneroCrianca] = useState<"M"|"F"|"">("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [nomeResp, setNomeResp] = useState("");
   const [emailResp, setEmailResp] = useState("");
@@ -474,6 +482,7 @@ export default function AvaliacaoPage() {
 
   function validarIntro() {
     if (!nomeCrianca.trim()) return "Por favor, informe o nome da criança.";
+    if (!generoCrianca) return "Por favor, selecione o sexo da criança.";
     if (!dataNascimento) return "Por favor, informe a data de nascimento.";
     if (!idadeInfo) return "Data de nascimento inválida.";
     if (idadeInfo.idadeMeses < 12 || idadeInfo.idadeMeses > 96) {
@@ -540,6 +549,7 @@ export default function AvaliacaoPage() {
 
     // Compatibilidade com o fluxo atual
     sessionStorage.setItem("fracta_nome", nomeCrianca);
+    sessionStorage.setItem("fracta_genero", generoCrianca);
     sessionStorage.setItem("fracta_idade", String(idadeAnosInteira));
     sessionStorage.setItem("fracta_resp", nomeResp || "você");
     sessionStorage.setItem("fracta_email", emailResp);
@@ -792,6 +802,22 @@ export default function AvaliacaoPage() {
               </div>
 
               <div>
+                <label style={{ display:"block", fontSize:".82rem", fontWeight:700, color:"#1E3A5F", marginBottom:6 }}>
+                  Sexo da criança
+                </label>
+                <div style={{ display:"flex", gap:10 }}>
+                  {(["M","F"] as const).map(g => (
+                    <button key={g} type="button" onClick={() => setGeneroCrianca(g)} style={{
+                      flex:1, padding:"11px", borderRadius:12, border: generoCrianca === g ? "2px solid #2BBFA4" : "1.5px solid rgba(43,191,164,.2)",
+                      background: generoCrianca === g ? "rgba(43,191,164,.08)" : "white",
+                      color: generoCrianca === g ? "#2BBFA4" : "#5a7a9a",
+                      fontWeight:700, fontSize:".88rem", cursor:"pointer", fontFamily:"var(--font-sans)",
+                    }}>{g === "M" ? "👦 Menino" : "👧 Menina"}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
                 <label
                   style={{
                     display: "block",
@@ -924,7 +950,7 @@ export default function AvaliacaoPage() {
                   marginBottom: 10,
                 }}
               >
-                {perg.texto(nomeCrianca || "seu filho")}
+                {perg.texto(nomeCrianca || "seu filho", generoCrianca)}
               </h2>
 
               {perg.exemplo && (
