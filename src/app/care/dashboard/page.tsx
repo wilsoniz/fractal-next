@@ -12,6 +12,7 @@ import { useCareContext } from './layout'
 import FractaRadarChart from '@/components/fracta/FractaRadarChart'
 import type { ScoresRadar } from '@/components/fracta/FractaRadarChart'
 import GamificationWidget from '@/components/fracta/GamificationWidget'
+import { buscarGamificacao, buscarConquistas } from '@/lib/fracta/gamification-supabase'
 
 type DomKey = 'comunicacao' | 'social' | 'atencao' | 'regulacao' | 'brincadeira' | 'flexibilidade' | 'autonomia' | 'motivacao'
 
@@ -71,8 +72,10 @@ useEffect(() => {
   const [atividades,  setAtividades]  = useState<{ id: string; nome: string; dominio: string; tempo: string; cor: string; icon: string }[]>([])
   const [barsVisible, setBarsVisible] = useState(false)
   const [loading,     setLoading]     = useState(true)
-
- useEffect(() => {
+  const [gamificacao, setGamificacao] = useState({ pontos: 0, streak_atual: 0, streak_max: 0 })
+  const [conquistas, setConquistas] = useState<string[]>([])
+ 
+  useEffect(() => {
   if (!criancaAtiva) return
 
   async function carregarDados() {
@@ -161,6 +164,14 @@ useEffect(() => {
     }
 
     setLoading(false)
+    // Buscar gamificação real
+const { data: { user } } = await supabase.auth.getUser()
+if (user) {
+  const gam = await buscarGamificacao(user.id)
+  setGamificacao(gam)
+  const conq = await buscarConquistas(user.id)
+  setConquistas(conq)
+}
     setTimeout(() => setBarsVisible(true), 300)
   }
     carregarDados()
@@ -293,11 +304,11 @@ useEffect(() => {
             />
           )}
 <GamificationWidget
-  pontos={sessoes * 10}
-  streak={3}
-  streakMax={7}
+  pontos={gamificacao.pontos}
+  streak={gamificacao.streak_atual}
+  streakMax={gamificacao.streak_max}
   atividades={sessoes}
-  trilhasConcluidas={0}
+  trilhasConcluidas={conquistas.filter(c => c === 'trilha-concluida').length}
   avaliacoes={1}
   compact={true}
 />
