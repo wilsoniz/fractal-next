@@ -397,12 +397,13 @@ export default function CareDashboardLayout({
         </nav>
 
         {/* ── LAYOUT PRINCIPAL */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '220px 1fr',
-          minHeight: 'calc(100vh - 60px)',
-        }} className="desktop-grid">
-
+<div style={{
+  display: 'grid',
+  gridTemplateColumns: '220px 1fr',
+  minHeight: 'calc(100vh - 60px)',
+  overflow: 'hidden',
+  width: '100%',
+}} className="desktop-grid">
           {/* ── SIDEBAR DESKTOP */}
           <aside style={{
             background: 'rgba(255,255,255,.55)',
