@@ -220,7 +220,7 @@ setLoading(false)
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Link href="/care/atividade" style={{
+          <Link href={`/care/atividade?criancaId=${criancaAtiva?.id}`} style={{
             padding: '12px 24px', borderRadius: 50, border: 'none',
             background: 'linear-gradient(135deg,#2BBFA4,#7AE040)',
             color: 'white', fontWeight: 800, fontSize: '.85rem',
@@ -323,7 +323,7 @@ setLoading(false)
             {(atividades.length > 0 ? atividades : ATIVIDADES_DEFAULT).map(a => (
               <Link
                 key={a.id}
-                href={`/care/atividade?planoId=${a.id}`}
+                href={`/care/atividade?planoId=${a.id}&criancaId=${criancaAtiva?.id}`}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', borderBottom: '1px solid rgba(43,191,164,.06)', textDecoration: 'none', transition: 'background .15s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(43,191,164,.04)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}

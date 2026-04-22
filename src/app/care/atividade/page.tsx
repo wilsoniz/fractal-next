@@ -116,16 +116,13 @@ function AtividadePageInner() {
     setUserId(user.id);
 
     // 2. Criança
-    const { data: crianca } = await supabase
-      .from("criancas")
-      .select("id, nome")
-      .eq("responsavel_id", user.id)
-      .eq("ativo", true)
-      .single();
-
+    const criancaIdParam = searchParams.get("criancaId");
+    const query = supabase.from("criancas").select("id, nome").eq("responsavel_id", user.id).eq("ativo", true);
+    if (criancaIdParam) query.eq("id", criancaIdParam);
+    const { data: crianca } = await query.limit(1).single();
     if (!crianca) { router.replace("/care"); return; }
-    setCriancaId(crianca.id);
-    setNomeCrianca(crianca.nome);
+      setCriancaId(crianca.id);
+      setNomeCrianca(crianca.nome);
 
     // 3. Busca ou cria plano para o programa selecionado
     let planoAtivo: Plano | null = null;
