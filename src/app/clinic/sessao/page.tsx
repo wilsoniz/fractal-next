@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -207,11 +206,18 @@ function fmt(s: number) {
 function uid() { return Math.random().toString(36).slice(2,9); }
 
 // ─── PAGE ────────────────────────────────────────────────────────────────────
-export default function ClinicSessaoPage() {
+function ClinicSessaoPageInner() {
   const { terapeuta }    = useClinicContext();
   const nivel: Senioridade = terapeuta?.nivel ?? "coordenador";
   const modo             = MODO_CONFIG[nivel];
+  const searchParams     = useSearchParams();
+  const pacienteIdParam  = searchParams.get("pacienteId");
 
+  // Estado real do paciente
+  const [pacienteReal, setPacienteReal] = useState<{
+    id: string; nome: string; primeiroNome: string; init: string;
+    gradient: string; idade: string; cuidadorAtivo: boolean; temSupervisor: boolean; taxaMedia: number;
+  } | null>(null);
   // Fases e dados
   const [fase,         setFase]         = useState<Fase>("preparacao");
   const [programas,    setProgramas]    = useState<Programa[]>(PROGRAMAS_MOCK);
@@ -1157,4 +1163,12 @@ export default function ClinicSessaoPage() {
       </div>
     </div>
   );
+}
+
+export default function ClinicSessaoPage() {
+  return (
+    <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#07111f', color: 'rgba(160,200,235,.9)', fontSize: 13 }}>Carregando sessão...</div>}>
+      <ClinicSessaoPageInner />
+    </Suspense>
+  )
 }
