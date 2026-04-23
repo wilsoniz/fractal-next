@@ -331,15 +331,16 @@ export default function AvaliacaoPage() {
             <p style={{ color: '#8a9ab8', fontSize: 14, marginBottom: 16 }}>
               {nomeFilho} ainda não tem avaliações registradas.
             </p>
-            <Link href="/care/dashboard/avaliar" style={{
-              display: 'inline-block', padding: '12px 28px',
-              background: 'linear-gradient(135deg,#2BBFA4,#7AE040)',
-              color: 'white', borderRadius: 50, textDecoration: 'none',
-              fontWeight: 700, fontSize: '.85rem',
-              boxShadow: '0 4px 16px rgba(43,191,164,.35)',
-            }}>
+            <button onClick={() => window.location.href = `/care/dashboard/avaliar?criancaId=${criancaAtiva?.id}`} style={{
+  padding: '12px 28px',
+  background: 'linear-gradient(135deg,#2BBFA4,#7AE040)',
+  color: 'white', borderRadius: 50, border: 'none',
+  fontWeight: 700, fontSize: '.85rem', cursor: 'pointer',
+  fontFamily: 'var(--font-sans)',
+  boxShadow: '0 4px 16px rgba(43,191,164,.35)',
+}}>
               Fazer primeira avaliação
-            </Link>
+            </button>
           </div>
         ) : (
           <div>
@@ -404,15 +405,15 @@ export default function AvaliacaoPage() {
 
             {/* CTA nova avaliação */}
             <div style={{ marginTop: 20, textAlign: 'center' }}>
-              <Link href="/care/dashboard/avaliar" style={{
-                display: 'inline-block', padding: '10px 24px',
-                border: '1.5px solid rgba(43,191,164,.4)',
-                background: 'rgba(255,255,255,.7)',
-                color: '#2BBFA4', borderRadius: 50, textDecoration: 'none',
-                fontWeight: 700, fontSize: '.82rem', backdropFilter: 'blur(8px)',
-              }}>
-                Nova avaliação rápida
-              </Link>
+<button onClick={() => window.location.href = `/care/dashboard/avaliar?criancaId=${criancaAtiva?.id}`} style={{
+  padding: '10px 24px',
+  border: '1.5px solid rgba(43,191,164,.4)',
+  background: 'rgba(255,255,255,.7)',
+  color: '#2BBFA4', borderRadius: 50, cursor: 'pointer',
+  fontWeight: 700, fontSize: '.82rem', fontFamily: 'var(--font-sans)',
+}}>
+  Nova avaliação rápida
+</button>
             </div>
           </div>
         )}
