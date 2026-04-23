@@ -519,7 +519,7 @@ export default function CareDashboardLayout({
           </aside>
 
           {/* ── CONTEÚDO DA PÁGINA */}
-          <main style={{ padding: '28px 28px 80px', minHeight: 'calc(100vh - 60px)' }}>
+          <main style={{ padding: '28px 28px 80px', minHeight: 'calc(100vh - 60px)', overflow: 'hidden', width: '100%', boxSizing: 'border-box' as const }}>
             {criancaAtiva ? children : (
               <div style={{
                 display: 'flex',
@@ -623,7 +623,7 @@ export default function CareDashboardLayout({
           .sidebar-desktop { display:none !important; }
           .tab-bar-mobile { display:block !important; }
           .hide-mobile { display:none !important; }
-          main { padding:16px 14px 84px !important; }
+          main { padding:16px 14px 84px !important; overflow:hidden !important; width:100% !important; box-sizing:border-box !important; }
         }
       `}</style>
     </CareContext.Provider>
