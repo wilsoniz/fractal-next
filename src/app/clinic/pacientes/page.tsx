@@ -1,13 +1,12 @@
 "use client";
-
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 import { useClinicContext } from "../layout";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type StatusPaciente = "ativo" | "alerta" | "pausado";
 type FiltroAtivo    = "todos" | "alerta" | "hoje" | "pausado";
-
 interface Paciente {
   id: string;
   nome: string;
@@ -28,151 +27,192 @@ interface Paciente {
   cuidadorAtivo: boolean;
 }
 
-// ─── MOCK ─────────────────────────────────────────────────────────────────────
-const PACIENTES: Paciente[] = [
-  {
-    id: "1",
-    nome: "Lucas Carvalho",
-    iniciais: "LC",
-    gradient: "linear-gradient(135deg,#1D9E75,#378ADD)",
-    idade: 4,
-    diagnostico: "TEA — Nível 2",
-    taxaGeral: 78,
-    sessoesMes: 8,
-    programasAtivos: 3,
-    dominios: ["Comunicação", "Espera", "Tato"],
-    ultimaSessao: "hoje",
-    proximaSessao: "09:00",
-    status: "alerta",
-    alertas: [
-      { nivel: "high",   texto: "Sem evolução em Espera há 3 sessões" },
-      { nivel: "medium", texto: "Mando próximo de critério — avaliar avanço" },
-    ],
-    radarMini: [
-      { label: "Com", val: 78 }, { label: "Soc", val: 65 },
-      { label: "Ate", val: 55 }, { label: "Reg", val: 42 },
-    ],
-    semSupervisor: false,
-    cuidadorAtivo: true,
-  },
-  {
-    id: "2",
-    nome: "Maria Santos",
-    iniciais: "MS",
-    gradient: "linear-gradient(135deg,#378ADD,#8B7FE8)",
-    idade: 6,
-    diagnostico: "TEA — Nível 1",
-    taxaGeral: 61,
-    sessoesMes: 6,
-    programasAtivos: 2,
-    dominios: ["Prontidão", "Mando"],
-    ultimaSessao: "2 dias atrás",
-    proximaSessao: "14:00",
-    status: "ativo",
-    alertas: [
-      { nivel: "low", texto: "Atenção em crescimento — boa janela para novos programas" },
-    ],
-    radarMini: [
-      { label: "Com", val: 61 }, { label: "Soc", val: 70 },
-      { label: "Ate", val: 58 }, { label: "Reg", val: 50 },
-    ],
-    semSupervisor: true,
-    cuidadorAtivo: true,
-  },
-  {
-    id: "3",
-    nome: "Rafael Pinto",
-    iniciais: "RP",
-    gradient: "linear-gradient(135deg,#8B7FE8,#E05A4B)",
-    idade: 5,
-    diagnostico: "TEA — Nível 2",
-    taxaGeral: 85,
-    sessoesMes: 10,
-    programasAtivos: 4,
-    dominios: ["Atenção", "Tato", "Social"],
-    ultimaSessao: "ontem",
-    proximaSessao: "16:30",
-    status: "ativo",
-    alertas: [],
-    radarMini: [
-      { label: "Com", val: 85 }, { label: "Soc", val: 80 },
-      { label: "Ate", val: 75 }, { label: "Reg", val: 68 },
-    ],
-    semSupervisor: false,
-    cuidadorAtivo: false,
-  },
-  {
-    id: "4",
-    nome: "Beatriz Lima",
-    iniciais: "BL",
-    gradient: "linear-gradient(135deg,#4d6d8a,#378ADD)",
-    idade: 7,
-    diagnostico: "TEA — Nível 3",
-    taxaGeral: 52,
-    sessoesMes: 4,
-    programasAtivos: 2,
-    dominios: ["Fuga", "NET"],
-    ultimaSessao: "5 dias atrás",
-    proximaSessao: null,
-    status: "pausado",
-    alertas: [
-      { nivel: "high",   texto: "Programa travado há 4 sessões — revisar protocolo" },
-      { nivel: "high",   texto: "Baixa adesão da família — 4 sessões no mês" },
-    ],
-    radarMini: [
-      { label: "Com", val: 38 }, { label: "Soc", val: 45 },
-      { label: "Ate", val: 32 }, { label: "Reg", val: 28 },
-    ],
-    semSupervisor: true,
-    cuidadorAtivo: false,
-  },
-  {
-    id: "5",
-    nome: "Pedro Gomes",
-    iniciais: "PG",
-    gradient: "linear-gradient(135deg,#EF9F27,#E05A4B)",
-    idade: 3,
-    diagnostico: "TEA — Nível 2",
-    taxaGeral: 91,
-    sessoesMes: 9,
-    programasAtivos: 3,
-    dominios: ["Mando", "Imitação", "Regulação"],
-    ultimaSessao: "hoje",
-    proximaSessao: null,
-    status: "ativo",
-    alertas: [
-      { nivel: "medium", texto: "2 programas próximos de critério — planejar próxima fase" },
-    ],
-    radarMini: [
-      { label: "Com", val: 91 }, { label: "Soc", val: 88 },
-      { label: "Ate", val: 82 }, { label: "Reg", val: 79 },
-    ],
-    semSupervisor: false,
-    cuidadorAtivo: true,
-  },
-];
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const GRADIENTS = [
+  "linear-gradient(135deg,#1D9E75,#378ADD)",
+  "linear-gradient(135deg,#378ADD,#8B7FE8)",
+  "linear-gradient(135deg,#8B7FE8,#E05A4B)",
+  "linear-gradient(135deg,#EF9F27,#1D9E75)",
+  "linear-gradient(135deg,#E05A4B,#EF9F27)",
+]
+const DOMINIO_LABELS: Record<string, string> = {
+  comunicacao: "Comunicação", social: "Social", atencao: "Atenção",
+  regulacao: "Regulação", brincadeira: "Brincadeira",
+  flexibilidade: "Flexibilidade", autonomia: "Autonomia", motivacao: "Motivação",
+}
+const RADAR_KEYS = [
+  { key: "score_comunicacao", label: "Com" },
+  { key: "score_social",      label: "Soc" },
+  { key: "score_atencao",     label: "Ate" },
+  { key: "score_regulacao",   label: "Reg" },
+]
+function iniciais(nome: string) {
+  const p = nome.trim().split(" ")
+  return p.length >= 2
+    ? `${p[0][0]}${p[p.length - 1][0]}`.toUpperCase()
+    : nome.slice(0, 2).toUpperCase()
+}
+function idadeAnos(dataNasc: string) {
+  const diff = Date.now() - new Date(dataNasc).getTime()
+  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25))
+}
+function ultimaSessaoLabel(data: string | null) {
+  if (!data) return "Nunca"
+  const diff = Date.now() - new Date(data).getTime()
+  const d = Math.floor(diff / 86400000)
+  if (d === 0) return "hoje"
+  if (d === 1) return "ontem"
+  return `${d} dias atrás`
+}
 
-// ─── CONSTANTES ──────────────────────────────────────────────────────────────
-const STATUS_CONFIG = {
-  ativo:   { label: "Ativo",   cor: "#1D9E75", bg: "rgba(29,158,117,.1)",  borda: "rgba(29,158,117,.25)" },
-  alerta:  { label: "Alerta",  cor: "#EF9F27", bg: "rgba(239,159,39,.1)",  borda: "rgba(239,159,39,.25)" },
-  pausado: { label: "Pausado", cor: "#4d6d8a", bg: "rgba(77,109,138,.1)",  borda: "rgba(26,58,92,.4)"    },
-};
-const ALERTA_COR = { high: "#E05A4B", medium: "#EF9F27", low: "#1D9E75" };
-
-// ─── PAGE ────────────────────────────────────────────────────────────────────
+// ─── COMPONENTE ───────────────────────────────────────────────────────────────
 export default function PacientesPage() {
   const { terapeuta } = useClinicContext();
   const nivel = terapeuta?.nivel ?? "coordenador";
+  const [busca,     setBusca]     = useState("");
+  const [filtro,    setFiltro]    = useState<FiltroAtivo>("todos");
+  const [pacientes, setPacientes] = useState<Paciente[]>([]);
+  const [loading,   setLoading]   = useState(true);
 
-  const [busca,   setBusca]   = useState("");
-  const [filtro,  setFiltro]  = useState<FiltroAtivo>("todos");
+  useEffect(() => {
+    if (!terapeuta) return;
+    async function carregar() {
+      setLoading(true);
+      try {
+        // 1. Planos do terapeuta com criança e programa
+        const { data: planos } = await supabase
+          .from("planos")
+          .select(`
+            id, status, score_atual, criado_em,
+            criancas ( id, nome, data_nascimento, diagnostico ),
+            programas ( id, nome, dominio )
+          `)
+          .eq("terapeuta_id", terapeuta!.id)
+          .order("criado_em", { ascending: false });
+
+        if (!planos || planos.length === 0) {
+          setPacientes([]);
+          setLoading(false);
+          return;
+        }
+
+        // Agrupar planos por criança
+        const criancaMap = new Map<string, { crianca: any; planos: any[] }>();
+        for (const pl of planos) {
+          const c = pl.criancas as any;
+          if (!c) continue;
+          if (!criancaMap.has(c.id)) criancaMap.set(c.id, { crianca: c, planos: [] });
+          criancaMap.get(c.id)!.planos.push(pl);
+        }
+
+        const criancaIds = Array.from(criancaMap.keys());
+
+        // 2. Radar mais recente de cada criança
+        const { data: radares } = await supabase
+          .from("radar_snapshots")
+          .select("crianca_id, score_comunicacao, score_social, score_atencao, score_regulacao, score_brincadeira, score_flexibilidade, score_autonomia, score_motivacao, criado_em")
+          .in("crianca_id", criancaIds)
+          .order("criado_em", { ascending: false });
+
+        const radarMap = new Map<string, any>();
+        for (const r of (radares ?? [])) {
+          if (!radarMap.has(r.crianca_id)) radarMap.set(r.crianca_id, r);
+        }
+
+        // 3. Última sessão clínica de cada criança
+        const { data: sessoes } = await supabase
+          .from("sessoes_clinicas")
+          .select("crianca_id, criado_em, concluida")
+          .in("crianca_id", criancaIds)
+          .order("criado_em", { ascending: false });
+
+        const ultimaSessaoMap = new Map<string, string>();
+        for (const s of (sessoes ?? [])) {
+          if (!ultimaSessaoMap.has(s.crianca_id)) {
+            ultimaSessaoMap.set(s.crianca_id, s.criado_em);
+          }
+        }
+
+        // 4. Montar pacientes
+        const result: Paciente[] = Array.from(criancaMap.values()).map(({ crianca, planos: cPlanos }, i) => {
+          const radar  = radarMap.get(crianca.id);
+          const ultima = ultimaSessaoMap.get(crianca.id) ?? null;
+
+          // Score geral médio
+          const scores = radar ? RADAR_KEYS.map(k => radar[k.key]).filter(Boolean) : [];
+          const taxaGeral = scores.length > 0
+            ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length)
+            : 0;
+
+          // Domínios prioritários (mais baixos)
+          const dominiosFoco = radar
+            ? Object.entries(DOMINIO_LABELS)
+                .map(([k, v]) => ({ nome: v, val: radar[`score_${k}`] ?? 100 }))
+                .sort((a, b) => a.val - b.val)
+                .slice(0, 3)
+                .map(d => d.nome)
+            : [];
+
+          // Alertas automáticos
+          const alertas: { nivel: "high" | "medium" | "low"; texto: string }[] = [];
+          for (const pl of cPlanos) {
+            const score = pl.score_atual ?? 0;
+            const prog  = pl.programas as any;
+            if (!prog) continue;
+            if (score > 0 && score < 50) {
+              alertas.push({ nivel: "high", texto: `Score baixo em ${prog.nome} (${score}%)` });
+            } else if (score >= 75) {
+              alertas.push({ nivel: "low", texto: `${prog.nome} próximo de critério` });
+            }
+          }
+
+          // Status
+          const temAlertaHigh = alertas.some(a => a.nivel === "high");
+          const pausado       = cPlanos.every(pl => pl.status === "pausado");
+          const status: StatusPaciente = pausado ? "pausado" : temAlertaHigh ? "alerta" : "ativo";
+
+          // Sessões no mês
+          const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0,0,0,0);
+          const sessoesMes = (sessoes ?? []).filter(s =>
+            s.crianca_id === crianca.id && new Date(s.criado_em) >= inicioMes
+          ).length;
+
+          return {
+            id:              crianca.id,
+            nome:            crianca.nome,
+            iniciais:        iniciais(crianca.nome),
+            gradient:        GRADIENTS[i % GRADIENTS.length],
+            idade:           crianca.data_nascimento ? idadeAnos(crianca.data_nascimento) : 0,
+            diagnostico:     crianca.diagnostico ?? "Não informado",
+            taxaGeral,
+            sessoesMes,
+            programasAtivos: cPlanos.filter(pl => pl.status === "ativo").length,
+            dominios:        dominiosFoco,
+            ultimaSessao:    ultimaSessaoLabel(ultima),
+            proximaSessao:   null,
+            status,
+            alertas,
+            radarMini:       RADAR_KEYS.map(k => ({ label: k.label, val: radar?.[k.key] ?? 0 })),
+            semSupervisor:   false,
+            cuidadorAtivo:   true,
+          };
+        });
+
+        setPacientes(result);
+      } catch (err) {
+        console.error("Erro ao carregar pacientes:", err);
+      }
+      setLoading(false);
+    }
+    carregar();
+  }, [terapeuta]);
 
   const pacientesFiltrados = useMemo(() => {
-    return PACIENTES.filter(p => {
-      const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) ||
-                         p.diagnostico.toLowerCase().includes(busca.toLowerCase()) ||
-                         p.dominios.some(d => d.toLowerCase().includes(busca.toLowerCase()));
+    return pacientes.filter(p => {
+      const matchBusca =
+        p.nome.toLowerCase().includes(busca.toLowerCase()) ||
+        p.diagnostico.toLowerCase().includes(busca.toLowerCase()) ||
+        p.dominios.some(d => d.toLowerCase().includes(busca.toLowerCase()));
       const matchFiltro =
         filtro === "todos"   ? true :
         filtro === "alerta"  ? p.alertas.some(a => a.nivel === "high" || a.nivel === "medium") :
@@ -180,16 +220,15 @@ export default function PacientesPage() {
         filtro === "pausado" ? p.status === "pausado" : true;
       return matchBusca && matchFiltro;
     });
-  }, [busca, filtro]);
+  }, [busca, filtro, pacientes]);
 
   const stats = useMemo(() => ({
-    total:   PACIENTES.length,
-    alertas: PACIENTES.filter(p => p.alertas.some(a => a.nivel === "high")).length,
-    hoje:    PACIENTES.filter(p => p.ultimaSessao === "hoje").length,
-    pausados:PACIENTES.filter(p => p.status === "pausado").length,
-  }), []);
+    total:    pacientes.length,
+    alertas:  pacientes.filter(p => p.alertas.some(a => a.nivel === "high")).length,
+    hoje:     pacientes.filter(p => p.ultimaSessao === "hoje").length,
+    pausados: pacientes.filter(p => p.status === "pausado").length,
+  }), [pacientes]);
 
-  // ── CSS ────────────────────────────────────────────────────────────────────
   const card: React.CSSProperties = {
     background: "rgba(13,32,53,.75)",
     border: "1px solid rgba(70,120,180,.5)",
@@ -197,14 +236,23 @@ export default function PacientesPage() {
     backdropFilter: "blur(8px)",
   };
 
+  if (loading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
+        <div style={{ fontSize: 13, color: "rgba(160,200,235,.9)" }}>Carregando pacientes...</div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
       {/* ── HEADER ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#e8f0f8", margin: 0, marginBottom: 4 }}>Pacientes</h1>
-          <div style={{ fontSize: ".75rem", color: "rgba(138,168,200,.5)" }}>{stats.total} pacientes · {stats.hoje} com sessão hoje</div>
+          <div style={{ fontSize: ".75rem", color: "rgba(138,168,200,.5)" }}>
+            {stats.total} pacientes · {stats.hoje} com sessão hoje
+          </div>
         </div>
         {nivel === "supervisor" && (
           <button style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
@@ -213,188 +261,121 @@ export default function PacientesPage() {
         )}
       </div>
 
-      {/* ── KPIs ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10 }}>
+      {/* ── STATS ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
         {[
-          { l: "Total",          v: stats.total,    c: "#e8f0f8", filtro: "todos"   as FiltroAtivo },
-          { l: "Com alerta",     v: stats.alertas,  c: "#E05A4B", filtro: "alerta"  as FiltroAtivo },
-          { l: "Sessão hoje",    v: stats.hoje,     c: "#1D9E75", filtro: "hoje"    as FiltroAtivo },
-          { l: "Pausados",       v: stats.pausados, c: "#4d6d8a", filtro: "pausado" as FiltroAtivo },
-        ].map(k => (
-          <button key={k.l} onClick={() => setFiltro(filtro === k.filtro ? "todos" : k.filtro)} style={{
-            ...card,
-            padding: "14px 16px", border: `1px solid ${filtro === k.filtro ? k.c + "44" : "rgba(26,58,92,.5)"}`,
-            background: filtro === k.filtro ? `${k.c}11` : "rgba(13,32,53,.75)",
-            cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)",
-            transition: "all .15s",
-          }}>
-            <div style={{ fontSize: ".65rem", color: "rgba(170,210,245,.88)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>{k.l}</div>
-            <div style={{ fontSize: "1.6rem", fontWeight: 800, color: k.c, letterSpacing: "-.02em", lineHeight: 1 }}>{k.v}</div>
+          { label: "Total",    val: stats.total,    cor: "#378ADD", filtroId: "todos"   },
+          { label: "Alertas",  val: stats.alertas,  cor: "#E05A4B", filtroId: "alerta"  },
+          { label: "Hoje",     val: stats.hoje,     cor: "#1D9E75", filtroId: "hoje"    },
+          { label: "Pausados", val: stats.pausados, cor: "#EF9F27", filtroId: "pausado" },
+        ].map(s => (
+          <button
+            key={s.filtroId}
+            onClick={() => setFiltro(s.filtroId as FiltroAtivo)}
+            style={{ ...card, padding: "14px 16px", cursor: "pointer", border: filtro === s.filtroId ? `1px solid ${s.cor}55` : "1px solid rgba(70,120,180,.5)", background: filtro === s.filtroId ? `${s.cor}11` : "rgba(13,32,53,.75)", textAlign: "left" }}
+          >
+            <div style={{ fontSize: "1.4rem", fontWeight: 800, color: s.cor }}>{s.val}</div>
+            <div style={{ fontSize: ".7rem", color: "rgba(138,168,200,.5)", marginTop: 2 }}>{s.label}</div>
           </button>
         ))}
       </div>
 
-      {/* ── BUSCA + FILTROS ── */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-          <svg style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", opacity: .4 }} width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#e8f0f8" strokeWidth="1.5"><circle cx="6.5" cy="6.5" r="5"/><path d="M11 11l3 3"/></svg>
-          <input
-            value={busca}
-            onChange={e => setBusca(e.target.value)}
-            placeholder="Buscar por nome, diagnóstico ou domínio..."
-            style={{
-              width: "100%", boxSizing: "border-box" as const,
-              background: "rgba(13,32,53,.75)", border: "1px solid rgba(70,120,180,.5)",
-              borderRadius: 9, padding: "9px 12px 9px 32px",
-              color: "#e8f0f8", fontFamily: "var(--font-sans)", fontSize: ".82rem",
-              outline: "none",
-            }}
-          />
-        </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          {(["todos","alerta","hoje","pausado"] as FiltroAtivo[]).map(f => (
-            <button key={f} onClick={() => setFiltro(f)} style={{
-              padding: "8px 14px", borderRadius: 8,
-              border: `1px solid ${filtro === f ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.5)"}`,
-              background: filtro === f ? "rgba(29,158,117,.1)" : "transparent",
-              color: filtro === f ? "#1D9E75" : "rgba(138,168,200,.5)",
-              fontFamily: "var(--font-sans)", fontWeight: filtro === f ? 600 : 400,
-              fontSize: ".78rem", cursor: "pointer",
-            }}>
-              {f === "todos" ? "Todos" : f === "alerta" ? "Com alerta" : f === "hoje" ? "Hoje" : "Pausados"}
-            </button>
-          ))}
-        </div>
+      {/* ── BUSCA ── */}
+      <div style={{ position: "relative" }}>
+        <input
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar por nome, diagnóstico ou domínio..."
+          style={{ width: "100%", padding: "11px 16px 11px 38px", borderRadius: 10, border: "1px solid rgba(70,120,180,.3)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".82rem", fontFamily: "var(--font-sans)", boxSizing: "border-box", outline: "none" }}
+        />
+        <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: .4 }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e8f0f8" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </div>
 
-      {/* ── RESULTADO ── */}
+      {/* ── LISTA ── */}
       {pacientesFiltrados.length === 0 ? (
-        <div style={{ ...card, padding: 40, textAlign: "center" }}>
-          <div style={{ fontSize: "2rem", marginBottom: 12 }}>🔍</div>
-          <div style={{ fontSize: ".88rem", color: "rgba(138,168,200,.5)" }}>Nenhum paciente encontrado para "{busca}"</div>
+        <div style={{ ...card, padding: "48px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,.3)" }}>
+            {pacientes.length === 0
+              ? "Nenhum paciente vinculado ainda. Vincule-os pela tabela de planos no Supabase."
+              : "Nenhum paciente encontrado para esse filtro."}
+          </div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14 }}>
-          {pacientesFiltrados.map(p => {
-            const st = STATUS_CONFIG[p.status];
-            const temAlertaAlto = p.alertas.some(a => a.nivel === "high");
-            return (
-              <div key={p.id} style={{
-                ...card,
-                border: `1px solid ${temAlertaAlto ? "rgba(224,90,75,.3)" : "rgba(26,58,92,.5)"}`,
-                display: "flex", flexDirection: "column",
-                transition: "border-color .15s",
-              }}>
-
-                {/* Topo do card */}
-                <div style={{ padding: "18px 18px 14px", display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: p.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".78rem", fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {pacientesFiltrados.map(p => (
+            <Link key={p.id} href={`/clinic/paciente/${p.id}`} style={{ textDecoration: "none" }}>
+              <div style={{ ...card, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s" }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(55,138,221,.5)")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(70,120,180,.5)")}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+                  {/* Avatar */}
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: p.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
                     {p.iniciais}
                   </div>
+
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                      <span style={{ fontSize: ".92rem", fontWeight: 700, color: "#e8f0f8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.nome}</span>
-                      <span style={{ flexShrink: 0, fontSize: ".6rem", background: st.bg, border: `1px solid ${st.borda}`, color: st.cor, borderRadius: 20, padding: "2px 7px", fontWeight: 600 }}>{st.label}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+                      <span style={{ fontSize: ".9rem", fontWeight: 700, color: "#e8f0f8" }}>{p.nome}</span>
+                      <span style={{ fontSize: ".7rem", color: "rgba(138,168,200,.5)" }}>{p.idade} anos · {p.diagnostico}</span>
+                      {/* Status badge */}
+                      <span style={{
+                        fontSize: ".65rem", fontWeight: 700, padding: "2px 8px", borderRadius: 6,
+                        background: p.status === "alerta" ? "rgba(224,90,75,.15)" : p.status === "pausado" ? "rgba(239,159,39,.12)" : "rgba(29,158,117,.12)",
+                        color:      p.status === "alerta" ? "#E05A4B"              : p.status === "pausado" ? "#EF9F27"              : "#1D9E75",
+                        border:     `1px solid ${p.status === "alerta" ? "#E05A4B33" : p.status === "pausado" ? "#EF9F2733" : "#1D9E7533"}`,
+                      }}>
+                        {p.status === "alerta" ? "Atenção" : p.status === "pausado" ? "Pausado" : "Ativo"}
+                      </span>
                     </div>
-                    <div style={{ fontSize: ".72rem", color: "rgba(138,168,200,.5)" }}>{p.idade} anos · {p.diagnostico}</div>
-                  </div>
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontSize: "1.4rem", fontWeight: 800, color: p.taxaGeral >= 80 ? "#1D9E75" : p.taxaGeral >= 60 ? "#EF9F27" : "#E05A4B", lineHeight: 1 }}>{p.taxaGeral}%</div>
-                    <div style={{ fontSize: ".6rem", color: "rgba(160,200,235,.75)", marginTop: 2 }}>taxa geral</div>
-                  </div>
-                </div>
 
-                {/* Barra de progresso */}
-                <div style={{ padding: "0 18px", marginBottom: 14 }}>
-                  <div style={{ height: 4, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${p.taxaGeral}%`, background: p.taxaGeral >= 80 ? "#1D9E75" : p.taxaGeral >= 60 ? "#EF9F27" : "#E05A4B", transition: "width .5s ease" }} />
-                  </div>
-                </div>
-
-                {/* Mini radar bars */}
-                <div style={{ padding: "0 18px", marginBottom: 14, display: "flex", gap: 8 }}>
-                  {p.radarMini.map(r => (
-                    <div key={r.label} style={{ flex: 1, textAlign: "center" }}>
-                      <div style={{ height: 28, background: "rgba(20,55,110,.55)", borderRadius: 4, overflow: "hidden", display: "flex", alignItems: "flex-end", marginBottom: 3 }}>
-                        <div style={{ width: "100%", height: `${r.val}%`, background: r.val >= 70 ? "rgba(29,158,117,.6)" : r.val >= 50 ? "rgba(239,159,39,.6)" : "rgba(224,90,75,.5)", transition: "height .5s" }} />
+                    {/* Domínios */}
+                    {p.dominios.length > 0 && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                        {p.dominios.map(d => (
+                          <span key={d} style={{ fontSize: ".65rem", padding: "2px 8px", borderRadius: 5, background: "rgba(55,138,221,.1)", color: "rgba(138,168,200,.8)", border: "1px solid rgba(55,138,221,.2)" }}>{d}</span>
+                        ))}
                       </div>
-                      <div style={{ fontSize: ".68rem", color: "rgba(180,215,245,.9)", fontWeight: 700 }}>{r.label}</div>
-                    </div>
-                  ))}
-                </div>
+                    )}
 
-                {/* Domínios */}
-                <div style={{ padding: "0 18px", marginBottom: 14, display: "flex", gap: 5, flexWrap: "wrap" }}>
-                  {p.dominios.map(d => (
-                    <span key={d} style={{ fontSize: ".65rem", background: "rgba(20,55,110,.65)", border: "1px solid rgba(26,58,92,.6)", color: "rgba(180,215,245,.92)", borderRadius: 20, padding: "2px 8px" }}>{d}</span>
-                  ))}
-                  <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.82)", padding: "2px 4px" }}>{p.programasAtivos} prog. · {p.sessoesMes} sessões/mês</span>
-                </div>
-
-                {/* Alertas */}
-                {p.alertas.length > 0 && (
-                  <div style={{ padding: "0 18px", marginBottom: 14, display: "flex", flexDirection: "column", gap: 5 }}>
-                    {p.alertas.slice(0, nivel === "terapeuta" ? 1 : 2).map((a, i) => (
-                      <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "6px 10px", background: `${ALERTA_COR[a.nivel]}0d`, border: `1px solid ${ALERTA_COR[a.nivel]}33`, borderRadius: 8 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: ALERTA_COR[a.nivel], flexShrink: 0, marginTop: 4 }} />
-                        <span style={{ fontSize: ".72rem", color: "rgba(138,168,200,.75)", lineHeight: 1.45 }}>{a.texto}</span>
+                    {/* Alertas */}
+                    {p.alertas.slice(0, 2).map((a, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                        <div style={{ width: 5, height: 5, borderRadius: "50%", background: a.nivel === "high" ? "#E05A4B" : a.nivel === "medium" ? "#EF9F27" : "#1D9E75", flexShrink: 0 }} />
+                        <span style={{ fontSize: ".72rem", color: "rgba(200,220,240,.6)" }}>{a.texto}</span>
                       </div>
                     ))}
                   </div>
-                )}
 
-                {/* Info sessão */}
-                <div style={{ padding: "0 18px", marginBottom: 16, display: "flex", gap: 14 }}>
-                  <div>
-                    <div style={{ fontSize: ".58rem", color: "rgba(138,168,200,.35)", marginBottom: 2 }}>Última sessão</div>
-                    <div style={{ fontSize: ".75rem", color: p.ultimaSessao === "hoje" ? "#1D9E75" : "#e8f0f8", fontWeight: p.ultimaSessao === "hoje" ? 600 : 400 }}>{p.ultimaSessao}</div>
-                  </div>
-                  {p.proximaSessao && (
-                    <div>
-                      <div style={{ fontSize: ".58rem", color: "rgba(138,168,200,.35)", marginBottom: 2 }}>Próxima</div>
-                      <div style={{ fontSize: ".75rem", color: "#378ADD", fontWeight: 600 }}>{p.proximaSessao}</div>
+                  {/* Métricas direita */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+                    <div style={{ fontSize: "1.3rem", fontWeight: 800, color: p.taxaGeral >= 70 ? "#1D9E75" : p.taxaGeral >= 50 ? "#EF9F27" : "#E05A4B" }}>
+                      {p.taxaGeral > 0 ? `${p.taxaGeral}%` : "—"}
                     </div>
-                  )}
-                  <div style={{ marginLeft: "auto", display: "flex", gap: 5, alignItems: "center" }}>
-                    {p.cuidadorAtivo && (
-                      <span style={{ fontSize: ".6rem", background: "rgba(55,138,221,.1)", border: "1px solid rgba(55,138,221,.2)", color: "#378ADD", borderRadius: 20, padding: "2px 7px" }}>Care ativo</span>
-                    )}
-                    {p.semSupervisor && nivel !== "terapeuta" && (
-                      <span style={{ fontSize: ".6rem", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", color: "#EF9F27", borderRadius: 20, padding: "2px 7px" }}>Sem supervisor</span>
-                    )}
+                    <div style={{ fontSize: ".65rem", color: "rgba(138,168,200,.4)", textAlign: "right" }}>
+                      {p.programasAtivos} programas · {p.sessoesMes} sessões/mês
+                    </div>
+                    <div style={{ fontSize: ".65rem", color: "rgba(138,168,200,.4)" }}>
+                      Última: {p.ultimaSessao}
+                    </div>
+                    {/* Radar mini */}
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {p.radarMini.map(r => (
+                        <div key={r.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                          <div style={{ width: 4, height: 28, background: "rgba(255,255,255,.08)", borderRadius: 2, position: "relative", overflow: "hidden" }}>
+                            <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${r.val}%`, background: r.val >= 70 ? "#1D9E75" : r.val >= 50 ? "#EF9F27" : "#E05A4B", borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontSize: ".55rem", color: "rgba(138,168,200,.4)" }}>{r.label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-
-                {/* Ações */}
-                <div style={{ padding: "12px 18px", borderTop: "1px solid rgba(26,58,92,.3)", display: "flex", gap: 8 }}>
-                  <Link href={`/clinic/paciente/${p.id}`} style={{
-                    flex: 1, padding: "8px", borderRadius: 8,
-                    border: "1px solid rgba(80,140,200,.5)", background: "rgba(20,55,100,.5)",
-                    color: "#c8e4f8", fontFamily: "var(--font-sans)",
-                    fontWeight: 600, fontSize: ".78rem", textDecoration: "none",
-                    textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                  }}>
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="6" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>
-                    Ver perfil
-                  </Link>
-                  <Link href={`/clinic/sessao?pacienteId=${p.id}`} style={{
-                    flex: 1, padding: "8px", borderRadius: 8,
-                    border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)",
-                    color: "#07111f", fontFamily: "var(--font-sans)",
-                    fontWeight: 700, fontSize: ".78rem", textDecoration: "none",
-                    textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                  }}>
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg>
-                    Iniciar sessão
-                  </Link>
-                </div>
-
               </div>
-            );
-          })}
+            </Link>
+          ))}
         </div>
       )}
-
     </div>
   );
 }
