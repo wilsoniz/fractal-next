@@ -16,6 +16,8 @@ import { calcularForecast } from '@/lib/fracta/forecast'
 import type { RadarSnapshot as ForecastRadarSnapshot, DadosSessao } from '@/lib/fracta/forecast'
 import { DOMINIO_LABELS, DOMINIO_CORES } from '@/lib/fracta/scoring'
 import type { Dominio } from '@/lib/fracta/scoring'
+import { Suspense } from "react";
+
 
 type Crianca = {
   id: string
@@ -79,7 +81,7 @@ const CORES_AVATAR = [
   'linear-gradient(135deg,#34D399,#7AE040)',
 ]
 
-export default function MeuFilhoPage() {
+function MeuFilhoPageInner() {
   const { criancaAtiva, criancas, setCriancaAtiva, recarregarCriancas } = useCareContext()
   const searchParams = useSearchParams()
 
@@ -94,7 +96,12 @@ export default function MeuFilhoPage() {
   const [formFilho, setFormFilho] = useState({ nome: '', data_nascimento: '', idade_anos: '', diagnostico: '' })
   const [salvandoFilho, setSalvandoFilho] = useState(false)
   const [forecast, setForecast] = useState<ReturnType<typeof calcularForecast> | null>(null)
-
+  const [conviteCodigo, setConviteCodigo] = useState<string | null>(null)
+  const [gerandoConvite, setGerandoConvite] = useState(false)
+  const [conviteCopiado, setConviteCopiado] = useState(false)
+  const [responsaveis, setResponsaveis] = useState<{id:string;email:string;tipo:string}[]>([])
+ 
+ 
   useEffect(() => {
     if (!criancaAtiva) return
     carregarDados()
@@ -163,6 +170,30 @@ export default function MeuFilhoPage() {
     setFormFilho({ nome: '', data_nascimento: '', idade_anos: '', diagnostico: '' })
     setSalvandoFilho(false)
   }
+
+async function gerarConvite() {
+  if (!criancaAtiva) return
+  setGerandoConvite(true)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  const { data } = await supabase
+    .from('convites')
+    .insert({ crianca_id: criancaAtiva.id, criado_por: user.id })
+    .select('codigo')
+    .single()
+  if (data) setConviteCodigo(data.codigo)
+  setGerandoConvite(false)
+}
+
+async function copiarConvite() {
+  if (!conviteCodigo) return
+  const link = `${window.location.origin}/care/convite/${conviteCodigo}`
+  await navigator.clipboard.writeText(link)
+  setConviteCopiado(true)
+  setTimeout(() => setConviteCopiado(false), 3000)
+}
+
+
 
   const snapshotAtual = snapshots[0]
   const scoresAtuais: ScoresRadar = snapshotAtual ? {
@@ -537,7 +568,49 @@ export default function MeuFilhoPage() {
           </div>
         </div>
       )}
-
+{/* ── COMPARTILHAR ACESSO */}
+<div style={card}>
+  <div style={{ padding:'20px' }}>
+    <div style={{ fontSize:'.88rem', fontWeight:800, color:'#1E3A5F', marginBottom:4 }}>
+      Compartilhar acesso
+    </div>
+    <div style={{ fontSize:'.72rem', color:'#8a9ab8', marginBottom:16 }}>
+      Convide outro responsável para acompanhar {criancaAtiva.nome.split(' ')[0]}
+    </div>
+    {!conviteCodigo ? (
+      <button onClick={gerarConvite} disabled={gerandoConvite} style={{
+        width:'100%', padding:'11px', borderRadius:10, border:'none',
+        background:'linear-gradient(135deg,#2BBFA4,#1e9e88)',
+        color:'white', fontWeight:700, fontSize:'.85rem',
+        cursor:'pointer', fontFamily:'var(--font-sans)',
+      }}>
+        {gerandoConvite ? 'Gerando...' : '+ Gerar link de convite'}
+      </button>
+    ) : (
+      <div>
+        <div style={{ background:'rgba(43,191,164,.06)', border:'1px solid rgba(43,191,164,.2)', borderRadius:10, padding:'12px 14px', marginBottom:10 }}>
+          <div style={{ fontSize:'.65rem', fontWeight:700, color:'#2BBFA4', marginBottom:4 }}>Link de convite (válido por 7 dias)</div>
+          <div style={{ fontSize:'.78rem', color:'#1E3A5F', wordBreak:'break-all', fontFamily:'monospace' }}>
+            {`${typeof window !== 'undefined' ? window.location.origin : ''}/care/convite/${conviteCodigo}`}
+          </div>
+        </div>
+        <button onClick={copiarConvite} style={{
+          width:'100%', padding:'11px', borderRadius:10,
+          border:'1.5px solid rgba(43,191,164,.3)', background:'white',
+          color:'#2BBFA4', fontWeight:700, fontSize:'.85rem',
+          cursor:'pointer', fontFamily:'var(--font-sans)',
+        }}>
+          {conviteCopiado ? '✓ Copiado!' : 'Copiar link'}
+        </button>
+      </div>
+    )}
+  </div>
+</div>
     </div>
   )
 }
+
+export default function MeuFilhoPage() {
+  return <Suspense fallback={null}><MeuFilhoPageInner /></Suspense>;
+}
+
