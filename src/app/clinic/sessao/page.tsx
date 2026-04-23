@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { useClinicContext } from "../layout";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
@@ -223,6 +225,109 @@ export default function ClinicSessaoPage() {
   const [emPausa,      setEmPausa]      = useState(false);
   const [pausas,       setPausas]       = useState<Pausa[]>([]);
   const [segPausados,  setSegPausados]  = useState(0); // total acumulado de pausa
+  // Carregar paciente e programas reais
+  useEffect(() => {
+    if (!pacienteIdParam) return;
+    async function carregarPaciente() {
+      try {
+        const { data: crianca } = await supabase
+          .from("criancas")
+          .select("id, nome, data_nascimento")
+          .eq("id", pacienteIdParam)
+          .single();
+        if (!crianca) return;
+
+        const { data: planos } = await supabase
+          .from("planos")
+          .select("id, programas ( id, nome, dominio, objetivo )")
+          .eq("crianca_id", pacienteIdParam)
+          .eq("status", "ativo")
+          .limit(5);
+
+        if (planos && planos.length > 0) {
+          const progsReais: Programa[] = planos
+            .filter((pl: any) => pl.programas)
+            .map((pl: any) => {
+              const prog = pl.programas as any;
+              return {
+                id: pl.id,
+                nome: prog.nome,
+                operante: prog.dominio ?? "Operante",
+                objetivo: prog.objetivo ?? `Trabalhar ${prog.nome}`,
+                sd: "Estímulo discriminativo conforme programa",
+                criterio: "80% em 2 sessões consecutivas",
+                nivel_dica: ["Independente","Gestual","Modelo","Física"],
+                nivel_atual: 0,
+                estimulos: ["Tentativa 1","Tentativa 2","Tentativa 3","Tentativa 4","Tentativa 5"],
+                total_tentativas: 10,
+                tentativas: [],
+              };
+            });
+          setProgramas(progsReais);
+        }
+
+        const idade = crianca.data_nascimento
+          ? `${Math.floor((Date.now() - new Date(crianca.data_nascimento).getTime()) / (1000*60*60*24*365.25))} anos`
+          : "Idade não informada";
+
+        const { data: radar } = await supabase
+          .from("radar_snapshots")
+          .select("score_comunicacao, score_social, score_atencao, score_regulacao")
+          .eq("crianca_id", pacienteIdParam)
+          .order("criado_em", { ascending: false })
+          .limit(1)
+          .single();
+
+        const scores = radar
+          ? [radar.score_comunicacao, radar.score_social, radar.score_atencao, radar.score_regulacao].filter(Boolean)
+          : [];
+        const taxaMedia = scores.length > 0
+          ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length)
+          : 0;
+
+        const partes = crianca.nome.trim().split(" ");
+        const init = partes.length >= 2
+          ? `${partes[0][0]}${partes[partes.length-1][0]}`.toUpperCase()
+          : crianca.nome.slice(0,2).toUpperCase();
+
+        setPacienteReal({
+          id: crianca.id, nome: crianca.nome, primeiroNome: partes[0], init,
+          gradient: "linear-gradient(135deg,#1D9E75,#378ADD)",
+          idade, cuidadorAtivo: true, temSupervisor: false, taxaMedia,
+        });
+      } catch (err) {
+        console.error("Erro ao carregar paciente:", err);
+      }
+    }
+    carregarPaciente();
+  }, [pacienteIdParam]);
+
+  const pacienteAtivo = pacienteReal ?? PACIENTE_MOCK;
+
+  const salvarSessaoSupabase = useCallback(async () => {
+    if (!pacienteReal || !terapeuta) return;
+    try {
+      const totalTent   = programas.reduce((a, p) => a + p.tentativas.length, 0);
+      const acertosTot  = programas.reduce((a, p) => a + p.tentativas.filter(t => t.resultado === "correta").length, 0);
+      const taxaFinal   = totalTent > 0 ? Math.round((acertosTot / totalTent) * 100) : 0;
+      const planoId     = programas[0]?.id ?? null;
+      await supabase.from("sessoes_clinicas").insert({
+        crianca_id:       pacienteReal.id,
+        responsavel_id:   terapeuta.id,
+        plano_id:         planoId,
+        tentativas:       programas.flatMap(p => p.tentativas.map(t => t.resultado)),
+        total_tentativas: totalTent,
+        acertos:          acertosTot,
+        taxa_acerto:      taxaFinal,
+        duracao_segundos: segundos,
+        observacao:       obsGeral || null,
+        concluida:        true,
+      });
+    } catch (err) {
+      console.error("Erro ao salvar sessão:", err);
+    }
+  }, [pacienteReal, terapeuta, programas, segundos, obsGeral]);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pausaRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -342,12 +447,14 @@ export default function ClinicSessaoPage() {
         motivo: motivoEncerrar,
         aguardandoResponsavel: true,
         responsavelConfirmou: null,
-        supervisorNotificado: PACIENTE_MOCK.temSupervisor,
+        supervisorNotificado: pacienteAtivo.temSupervisor,
       });
       setModalEncerrar(false);
+      salvarSessaoSupabase();
       setFase("encerramento");
     } else {
       setModalEncerrar(false);
+      salvarSessaoSupabase();
       setFase("encerramento");
     }
   }
@@ -468,8 +575,8 @@ export default function ClinicSessaoPage() {
             <div style={{ fontSize: ".78rem", color: "#E05A4B", fontWeight: 600, marginBottom: 4 }}>Sessão com {minutosEfetivos} min — mínimo é {TEMPO_MINIMO_MIN} min</div>
             <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.92)", lineHeight: 1.55 }}>
               Como a sessão está abaixo do tempo contratado, o motivo será registrado no prontuário e o responsável receberá uma notificação para confirmar o encerramento.
-              {PACIENTE_MOCK.temSupervisor && " O supervisor também será notificado."}
-              {!PACIENTE_MOCK.temSupervisor && " (Sem supervisor vinculado neste caso)"}
+              {pacienteAtivo.temSupervisor && " O supervisor também será notificado."}
+              {!pacienteAtivo.temSupervisor && " (Sem supervisor vinculado neste caso)"}
             </div>
           </div>
         )}
@@ -515,18 +622,18 @@ export default function ClinicSessaoPage() {
 
         <div>
           <div style={{ fontSize: ".7rem", color: "rgba(170,210,245,.88)", marginBottom: 4 }}>Preparação</div>
-          <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>Sessão com {PACIENTE_MOCK.primeiroNome}</div>
+          <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>Sessão com {pacienteAtivo.primeiroNome}</div>
         </div>
 
         <div style={{ ...card, padding: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
-            <div style={{ width: 48, height: 48, borderRadius: "50%", background: PACIENTE_MOCK.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".8rem", fontWeight: 800, color: "#fff", flexShrink: 0 }}>{PACIENTE_MOCK.init}</div>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: pacienteAtivo.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".8rem", fontWeight: 800, color: "#fff", flexShrink: 0 }}>{pacienteAtivo.init}</div>
             <div>
-              <div style={{ fontSize: "1rem", fontWeight: 700 }}>{PACIENTE_MOCK.nome}</div>
-              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)", marginTop: 2 }}>{PACIENTE_MOCK.idade} · {PACIENTE_MOCK.cuidadorAtivo ? "FractaCare ativo" : "Sem Care vinculado"}</div>
+              <div style={{ fontSize: "1rem", fontWeight: 700 }}>{pacienteAtivo.nome}</div>
+              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)", marginTop: 2 }}>{pacienteAtivo.idade} · {pacienteAtivo.cuidadorAtivo ? "FractaCare ativo" : "Sem Care vinculado"}</div>
             </div>
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 8, padding: "6px 12px", fontSize: ".68rem", fontWeight: 700, color: "#1D9E75" }}>Taxa média: {PACIENTE_MOCK.taxaMedia}%</div>
+              <div style={{ background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 8, padding: "6px 12px", fontSize: ".68rem", fontWeight: 700, color: "#1D9E75" }}>Taxa média: {pacienteAtivo.taxaMedia}%</div>
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
@@ -534,7 +641,7 @@ export default function ClinicSessaoPage() {
               { l: "Duração prevista",   v: `${DURACAO_PREVISTA_MIN} min` },
               { l: "Última sessão",      v: PACIENTE_MOCK.ultimaSessao    },
               { l: "Programas",          v: `${programas.length} ativos`  },
-              { l: "Supervisor",         v: PACIENTE_MOCK.temSupervisor ? "Vinculado" : "Sem vínculo" },
+              { l: "Supervisor",         v: pacienteAtivo.temSupervisor ? "Vinculado" : "Sem vínculo" },
             ].map(i => (
               <div key={i.l} style={{ background: "rgba(20,55,110,.55)", borderRadius: 10, padding: "10px 12px" }}>
                 <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", marginBottom: 3 }}>{i.l}</div>
@@ -667,8 +774,8 @@ export default function ClinicSessaoPage() {
 
         {/* Paciente */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 26, height: 26, borderRadius: "50%", background: PACIENTE_MOCK.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".55rem", fontWeight: 800, color: "#fff" }}>{PACIENTE_MOCK.init}</div>
-          <span style={{ fontSize: ".75rem", fontWeight: 600 }}>{PACIENTE_MOCK.primeiroNome}</span>
+          <div style={{ width: 26, height: 26, borderRadius: "50%", background: pacienteAtivo.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".55rem", fontWeight: 800, color: "#fff" }}>{pacienteAtivo.init}</div>
+          <span style={{ fontSize: ".75rem", fontWeight: 600 }}>{pacienteAtivo.primeiroNome}</span>
         </div>
 
         {/* Ações */}
@@ -910,7 +1017,7 @@ export default function ClinicSessaoPage() {
           </div>
           <div style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: 6 }}>Sessão encerrada</div>
           <div style={{ fontSize: ".85rem", color: "rgba(160,200,235,.84)" }}>
-            {PACIENTE_MOCK.primeiroNome} · {fmt(segundos)} efetivos · {totalSessao} tentativas
+            {pacienteAtivo.primeiroNome} · {fmt(segundos)} efetivos · {totalSessao} tentativas
           </div>
         </div>
 
@@ -1033,7 +1140,7 @@ export default function ClinicSessaoPage() {
             FractaCare — dados sincronizados
           </div>
           <div style={{ fontSize: ".8rem", color: "rgba(160,200,235,.90)", lineHeight: 1.65 }}>
-            Os dados desta sessão alimentaram o radar de <strong style={{ color: "#e8f0f8" }}>{PACIENTE_MOCK.primeiroNome}</strong>.
+            Os dados desta sessão alimentaram o radar de <strong style={{ color: "#e8f0f8" }}>{pacienteAtivo.primeiroNome}</strong>.
             A família verá o progresso atualizado e receberá sugestões de continuidade para o dia a dia.
           </div>
         </div>
