@@ -144,11 +144,10 @@ export default function CareDashboardLayout({
     setNomeResp(user.user_metadata?.nome || user.email?.split('@')[0] || 'você')
 
     const { data } = await supabase
-      .from('criancas')
-      .select('id, nome, idade_anos, diagnostico, ativo')
-      .eq('responsavel_id', user.id)
-      .eq('ativo', true)
-      .order('criado_em', { ascending: true })
+  .from('criancas')
+  .select('id, nome, idade_anos, diagnostico, ativo')
+  .eq('ativo', true)
+  .order('criado_em', { ascending: true })
 
     if (data && data.length > 0) {
       setCriancas(data)
