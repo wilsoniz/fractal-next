@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { generateForecastFromProfile, type ForecastGoal, type ForecastResult } from "@/lib/forecast";
 import { useClinicContext } from "../../layout";
+import { supabase } from "@/lib/supabase";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type RadarSnapshot = {
@@ -100,10 +101,121 @@ export default function PerfilPacientePage() {
   const [data, setData]   = useState<LearnerProfile | null>(null);
   const [tab, setTab]     = useState<Tab>("visao-geral");
   const [loading, setLoading] = useState(true);
+  const [responsaveis, setResponsaveis] = useState<{ id: string; nome: string; email: string; tipo: string }[]>([]);
 
   useEffect(() => {
-    // Futuro: buscar do Supabase usando params.id
-    setTimeout(() => { setData(MOCK_PROFILE); setLoading(false); }, 300);
+    async function carregar() {
+      setLoading(true);
+      try {
+        const criancaId = params.id as string;
+
+        // 1. Dados da criança
+        const { data: crianca } = await supabase
+          .from("criancas")
+          .select("id, nome, data_nascimento, diagnostico")
+          .eq("id", criancaId)
+          .single();
+
+        // 2. Radar snapshots (ordenado por data)
+        const { data: radares } = await supabase
+          .from("radar_snapshots")
+          .select("score_comunicacao, score_social, score_atencao, score_regulacao, score_brincadeira, score_flexibilidade, score_autonomia, score_motivacao, criado_em")
+          .eq("crianca_id", criancaId)
+          .order("criado_em", { ascending: true });
+
+        // 3. Planos ativos com programa
+        const { data: planos } = await supabase
+          .from("planos")
+          .select("id, status, score_atual, programas ( id, nome, dominio )")
+          .eq("crianca_id", criancaId)
+          .order("criado_em", { ascending: false });
+
+        // 4. Responsáveis vinculados
+        const { data: vinculos } = await supabase
+          .from("crianca_responsaveis")
+          .select("tipo, responsavel_id")
+          .eq("crianca_id", criancaId);
+
+        if (vinculos && vinculos.length > 0) {
+          const respIds = vinculos.map((v: any) => v.responsavel_id);
+          const { data: perfis } = await supabase
+            .from("profiles")
+            .select("id, nome, email")
+            .in("id", respIds);
+          if (perfis) {
+            setResponsaveis(perfis.map((p: any) => ({
+              id: p.id,
+              nome: p.nome ?? p.email ?? "Responsável",
+              email: p.email ?? "",
+              tipo: vinculos.find((v: any) => v.responsavel_id === p.id)?.tipo ?? "primario",
+            })));
+          }
+        }
+
+        // Mapear radar
+        const radarFormatado: RadarSnapshot[] = (radares ?? []).map((r: any, i: number) => ({
+          date: `Semana ${(i + 1) * 4}`,
+          communication: r.score_comunicacao   ?? 50,
+          social:        r.score_social        ?? 50,
+          attention:     r.score_atencao       ?? 50,
+          regulation:    r.score_regulacao     ?? 50,
+          autonomy:      r.score_autonomia     ?? 50,
+          flexibility:   r.score_flexibilidade ?? 50,
+          play:          r.score_brincadeira   ?? 50,
+          motivation:    r.score_motivacao     ?? 50,
+        }));
+
+        if (radarFormatado.length === 0) {
+          radarFormatado.push({ date: "Semana 1", communication:50, social:50, attention:50, regulation:50, autonomy:50, flexibility:50, play:50, motivation:50 });
+        }
+
+        // Mapear programas
+        const programs: Program[] = (planos ?? [])
+          .filter((pl: any) => pl.programas)
+          .map((pl: any) => {
+            const prog = pl.programas as any;
+            const score = pl.score_atual ?? 50;
+            return {
+              id: pl.id,
+              name: prog.nome,
+              domain: prog.dominio,
+              status: pl.status === "pausado" ? "stalled" : score >= 80 ? "completed" : "active",
+              success: score,
+              independence: Math.max(0, score - 15),
+            };
+          });
+
+        // Alertas automáticos
+        const alerts: ClinicalAlert[] = [];
+        for (const pl of (planos ?? [])) {
+          const prog = (pl as any).programas as any;
+          if (!prog) continue;
+          const score = (pl as any).score_atual ?? 0;
+          if (score > 0 && score < 50) alerts.push({ id: pl.id + "_h", title: "Score baixo", description: `${prog.nome} com ${score}%`, level: "high" });
+          else if (score >= 80) alerts.push({ id: pl.id + "_l", title: "Próximo de critério", description: `${prog.nome} atingiu ${score}%`, level: "low" });
+        }
+
+        // Idade
+        const idade = crianca?.data_nascimento
+          ? Math.floor((Date.now() - new Date(crianca.data_nascimento).getTime()) / (1000*60*60*24*365.25))
+          : 0;
+
+        setData({
+          id:        criancaId,
+          name:      crianca?.nome ?? "Paciente",
+          age:       idade,
+          diagnosis: crianca?.diagnostico ?? "Não informado",
+          radar:     radarFormatado,
+          skills:    [],
+          programs,
+          alerts,
+        });
+      } catch (err) {
+        console.error("Erro ao carregar perfil:", err);
+      }
+      setLoading(false);
+    }
+    carregar();
   }, [params.id]);
 
   const latest = data?.radar[data.radar.length - 1];
