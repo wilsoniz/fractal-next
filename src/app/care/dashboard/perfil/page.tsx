@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useCareContext } from '../layout'
 import GamificationWidget from '@/components/fracta/GamificationWidget'
+import { buscarGamificacao, buscarConquistas } from '@/lib/fracta/gamification-supabase'
+
 type Perfil = {
   id: string
   nome: string
@@ -22,6 +24,8 @@ export default function PerfilPage() {
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [tab, setTab] = useState<'perfil' | 'notificacoes' | 'conta'>('perfil')
+  const [gamificacao, setGamificacao] = useState({ pontos: 0, streak_atual: 0, streak_max: 0 })
+  const [conquistas, setConquistas] = useState<string[]>([])
 
   useEffect(() => {
     async function carregar() {
@@ -42,6 +46,10 @@ export default function PerfilPage() {
         setNome(user.user_metadata?.nome || user.email?.split('@')[0] || '')
       }
       setLoading(false)
+      const gam = await buscarGamificacao(user.id)
+      setGamificacao(gam)
+      const conq = await buscarConquistas(user.id)
+      setConquistas(conq)
     }
     carregar()
   }, [])
@@ -170,12 +178,12 @@ export default function PerfilPage() {
         </div>
       )}
 <GamificationWidget
-  pontos={120}
-  streak={3}
-  streakMax={7}
-  atividades={12}
-  trilhasConcluidas={0}
-  avaliacoes={1}
+  pontos={gamificacao.pontos}
+  streak={gamificacao.streak_atual}
+  streakMax={gamificacao.streak_max}
+  atividades={Math.round(gamificacao.pontos / 10)}
+  trilhasConcluidas={conquistas.filter(c => c === 'trilha-concluida').length}
+  avaliacoes={conquistas.filter(c => c === 'avaliacao-2').length + 1}
   compact={false}
 />
       {/* Tab: Notificações */}
