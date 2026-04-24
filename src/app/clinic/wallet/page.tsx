@@ -43,8 +43,25 @@ interface MesHistorico {
 }
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
-const FFS_MENSAL     = 39    // R$ por paciente/mês
-const COMISSAO_CARE  = 0.05  // 5% por sessão
+const FFS_MENSAL     = 39    // legado — mantido para compatibilidade
+
+// Modelo Care — % por senioridade (sobre valor real da sessão)
+const CARE_COMISSAO: Record<string, number> = {
+  terapeuta:   0.08,  // 8%
+  coordenador: 0.10,  // 10%
+  supervisor:  0.12,  // 12%
+}
+
+// Modelo FFS — assinatura mensal por faixa de sessões
+const FFS_PLANOS = [
+  { nome: "Starter",       sessoes: 20,   valor: 49,  desc: "até 20 sessões/mês"   },
+  { nome: "Profissional",  sessoes: 60,   valor: 89,  desc: "até 60 sessões/mês"   },
+  { nome: "Clínica",       sessoes: 9999, valor: 149, desc: "sessões ilimitadas"    },
+]
+
+function planoFFS(sessoes: number) {
+  return FFS_PLANOS.find(p => sessoes <= p.sessoes) ?? FFS_PLANOS[FFS_PLANOS.length - 1]
+}
 const GRADIENTS = [
   "linear-gradient(135deg,#1D9E75,#378ADD)",
   "linear-gradient(135deg,#378ADD,#8B7FE8)",
@@ -88,11 +105,14 @@ export default function ClinicWalletPage() {
   const [loading,   setLoading]   = useState(true)
   const [pacSel,    setPacSel]    = useState<PacienteFinanceiro | null>(null)
 
-  // Simulador
-  const [simSessoes,    setSimSessoes]    = useState(8)
-  const [simValorSessao,setSimValorSessao]= useState(250)
-  const [simModelo,     setSimModelo]     = useState<"ffs"|"care">("care")
-  const [simPacientes,  setSimPacientes]  = useState(5)
+  // Simulador multi-paciente
+  type SimPaciente = { id: string; nome: string; sessoes: number; valorSessao: number; modelo: "ffs" | "care" }
+  const [simNivel,     setSimNivel]     = useState<"terapeuta"|"coordenador"|"supervisor">("coordenador")
+  const [simPacientes, setSimPacientes] = useState<SimPaciente[]>([
+    { id: "1", nome: "Paciente A", sessoes: 12, valorSessao: 250, modelo: "care" },
+    { id: "2", nome: "Paciente B", sessoes: 4,  valorSessao: 100, modelo: "ffs"  },
+  ])
+  const [simEscala,    setSimEscala]    = useState(10)
 
   useEffect(() => {
     if (!terapeuta) return
@@ -214,21 +234,42 @@ export default function ClinicWalletPage() {
     return { receitaRealizada, receitaLiquida, custoTotal, totalSessoes, totalCanceladas, pacFFS, pacCare, totalPac: pacientes.length }
   }, [pacientes])
 
-  // ── Simulador ────────────────────────────────────────────────────────────
+  // ── Simulador multi-paciente ─────────────────────────────────────────────
   const simResultado = useMemo(() => {
-    const receitaBruta     = simSessoes * simValorSessao
-    const { bruta: comBruta, efetiva: comEfetiva } = calcularComissaoCare(simSessoes, simValorSessao)
-    const custoFFS         = FFS_MENSAL
-    const custoCare        = comEfetiva
-    const lucroFFS         = receitaBruta - custoFFS
-    const lucroCare        = receitaBruta - custoCare
-    const economiaCare     = custoFFS - custoCare
-    const tetoAtingido     = comBruta > FFS_MENSAL
+    const comissao = CARE_COMISSAO[simNivel] ?? 0.10
+    const pacs = simPacientes.map(p => {
+      const receitaBruta   = p.sessoes * p.valorSessao
+      const custoFFS       = planoFFS(p.sessoes).valor
+      const custoCare      = receitaBruta * comissao
+      const lucroFFS       = receitaBruta - custoFFS
+      const lucroCare      = receitaBruta - custoCare
+      const plano          = planoFFS(p.sessoes)
+      return { ...p, receitaBruta, custoFFS, custoCare, lucroFFS, lucroCare, plano,
+        custoEfetivo: p.modelo === "ffs" ? custoFFS : custoCare,
+        lucroEfetivo: p.modelo === "ffs" ? lucroFFS : lucroCare,
+      }
+    })
+    const totalBruto       = pacs.reduce((a, p) => a + p.receitaBruta, 0)
+    const totalFFS         = pacs.reduce((a, p) => a + p.custoFFS, 0)
+    const totalCare        = pacs.reduce((a, p) => a + p.custoCare, 0)
+    const totalEfetivo     = pacs.reduce((a, p) => a + p.custoEfetivo, 0)
+    const totalLiquido     = pacs.reduce((a, p) => a + p.lucroEfetivo, 0)
+    const receitaFracta    = totalEfetivo
     // Escala
-    const receitaEscalaFFS  = simPacientes * lucroFFS
-    const receitaEscalaCare = simPacientes * lucroCare
-    return { receitaBruta, comBruta, comEfetiva, custoFFS, custoCare, lucroFFS, lucroCare, economiaCare, tetoAtingido, receitaEscalaFFS, receitaEscalaCare }
-  }, [simSessoes, simValorSessao, simPacientes])
+    const ticketMedioLiq   = pacs.length > 0 ? totalLiquido / pacs.length : 0
+    const escalaLiquido    = ticketMedioLiq * simEscala
+    const escalaFracta     = (totalEfetivo / (pacs.length || 1)) * simEscala
+    return { pacs, totalBruto, totalFFS, totalCare, totalEfetivo, totalLiquido, receitaFracta, escalaLiquido, escalaFracta, comissao }
+  }, [simPacientes, simNivel, simEscala])
+
+  function adicionarPacSim() {
+    const novo = { id: Date.now().toString(), nome: `Paciente ${simPacientes.length + 1}`, sessoes: 8, valorSessao: 200, modelo: "care" as const }
+    setSimPacientes(p => [...p, novo])
+  }
+  function removerPacSim(id: string) { setSimPacientes(p => p.filter(x => x.id !== id)) }
+  function atualizarPacSim(id: string, campo: string, val: string | number) {
+    setSimPacientes(p => p.map(x => x.id === id ? { ...x, [campo]: val } : x))
+  }
 
   // Projeção próximos 6 meses baseada em dados reais
   const projecaoMeses = useMemo(() => {
@@ -571,127 +612,142 @@ export default function ClinicWalletPage() {
       {tab === "simulador" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Explicação */}
-          <div style={{ background: "rgba(55,138,221,.06)", border: "1px solid rgba(55,138,221,.15)", borderRadius: 12, padding: "14px 18px" }}>
-            <div style={{ fontSize: ".8rem", fontWeight: 700, color: "#378ADD", marginBottom: 6 }}>Como funciona o modelo Fracta</div>
-            <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.8)", lineHeight: 1.65 }}>
-              <strong style={{ color: "#1D9E75" }}>FFS (paciente próprio):</strong> R${FFS_MENSAL}/mês por paciente — previsível, independente do volume de sessões.<br/>
-              <strong style={{ color: "#378ADD" }}>Care (paciente da plataforma):</strong> 5% por sessão — mas com teto automático de R${FFS_MENSAL}/mês. Você <strong>nunca paga mais no Care do que pagaria no FFS</strong>. Com alto volume, o custo por sessão cai automaticamente.
+          {/* Explicação do modelo */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 12, padding: "14px 18px" }}>
+              <div style={{ fontSize: ".75rem", fontWeight: 700, color: "#1D9E75", marginBottom: 8 }}>Care — Paciente da plataforma</div>
+              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.75)", lineHeight: 1.65 }}>
+                Família paga pelo FractaCare. O Fracta processa o pagamento e repassa descontando a comissão por senioridade:
+              </div>
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+                {[
+                  { n: "Terapeuta/RBT", v: "8%", cor: "#1D9E75" },
+                  { n: "Coordenador",   v: "10%", cor: "#EF9F27" },
+                  { n: "Supervisor",    v: "12%", cor: "#8B7FE8" },
+                ].map(r => (
+                  <div key={r.n} style={{ display: "flex", justifyContent: "space-between", fontSize: ".72rem" }}>
+                    <span style={{ color: "rgba(160,200,235,.6)" }}>{r.n}</span>
+                    <span style={{ fontWeight: 700, color: r.cor }}>{r.v} por sessão</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ background: "rgba(55,138,221,.06)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 12, padding: "14px 18px" }}>
+              <div style={{ fontSize: ".75rem", fontWeight: 700, color: "#378ADD", marginBottom: 8 }}>FFS — Carteira própria</div>
+              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.75)", lineHeight: 1.65, marginBottom: 10 }}>
+                Terapeuta usa o FractaClinic como SaaS de gestão. Assinatura mensal por volume de sessões:
+              </div>
+              {FFS_PLANOS.map(p => (
+                <div key={p.nome} style={{ display: "flex", justifyContent: "space-between", fontSize: ".72rem", padding: "4px 0", borderBottom: "1px solid rgba(55,138,221,.08)" }}>
+                  <span style={{ color: "rgba(160,200,235,.6)" }}>{p.nome} — {p.desc}</span>
+                  <span style={{ fontWeight: 700, color: "#378ADD" }}>R${p.valor}/mês</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Controles do simulador */}
+          {/* Configuração do simulador */}
           <div style={{ ...card, padding: 22 }}>
-            <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 16 }}>Simulador de cenário</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 20 }}>
-              <div>
-                <div style={{ ...lbl }}>Sessões por mês</div>
-                <input type="number" min={1} max={30} value={simSessoes} onChange={e => setSimSessoes(Number(e.target.value))} style={inp} />
-                <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", marginTop: 4 }}>quantas sessões você faz</div>
-              </div>
-              <div>
-                <div style={{ ...lbl }}>Valor por sessão (R$)</div>
-                <input type="number" min={50} max={1000} step={10} value={simValorSessao} onChange={e => setSimValorSessao(Number(e.target.value))} style={inp} />
-                <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", marginTop: 4 }}>o que você cobra</div>
-              </div>
-              <div>
-                <div style={{ ...lbl }}>Nº de pacientes (escala)</div>
-                <input type="number" min={1} max={50} value={simPacientes} onChange={e => setSimPacientes(Number(e.target.value))} style={inp} />
-                <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", marginTop: 4 }}>para projeção de escala</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8" }}>Monte sua carteira</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ ...lbl, marginBottom: 0 }}>Senioridade:</div>
+                <select value={simNivel} onChange={e => setSimNivel(e.target.value as any)} style={{ ...inp, width: "auto", padding: "6px 10px" }}>
+                  <option value="terapeuta">Terapeuta/RBT (8%)</option>
+                  <option value="coordenador">Coordenador (10%)</option>
+                  <option value="supervisor">Supervisor/BCBA (12%)</option>
+                </select>
               </div>
             </div>
 
-            {/* Resultado por paciente */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
-              {/* FFS */}
-              <div style={{ background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 12, padding: "16px 18px" }}>
-                <div style={{ fontSize: ".65rem", color: "#1D9E75", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Modelo FFS</div>
+            {/* Lista de pacientes */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+              {/* Header */}
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 80px 100px 80px 80px 80px 32px", gap: 8, padding: "0 4px" }}>
+                {["Paciente","Sessões/mês","Valor/sessão","Modelo","Custo","Líquido",""].map(h => (
+                  <div key={h} style={{ fontSize: ".58rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em" }}>{h}</div>
+                ))}
+              </div>
+
+              {simPacientes.map(p => {
+                const res = simResultado.pacs.find(r => r.id === p.id)
+                return (
+                  <div key={p.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 80px 100px 80px 80px 80px 32px", gap: 8, alignItems: "center", padding: "10px 4px", background: "rgba(26,58,92,.2)", borderRadius: 9 }}>
+                    <input value={p.nome} onChange={e => atualizarPacSim(p.id, "nome", e.target.value)} style={{ ...inp, padding: "5px 8px", fontSize: ".78rem" }} />
+                    <input type="number" min={1} max={200} value={p.sessoes} onChange={e => atualizarPacSim(p.id, "sessoes", Number(e.target.value))} style={{ ...inp, padding: "5px 8px", fontSize: ".78rem" }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontSize: ".72rem", color: "rgba(170,210,245,.5)" }}>R$</span>
+                      <input type="number" min={10} max={2000} step={10} value={p.valorSessao} onChange={e => atualizarPacSim(p.id, "valorSessao", Number(e.target.value))} style={{ ...inp, padding: "5px 8px", fontSize: ".78rem" }} />
+                    </div>
+                    <select value={p.modelo} onChange={e => atualizarPacSim(p.id, "modelo", e.target.value)} style={{ ...inp, padding: "5px 8px", fontSize: ".72rem" }}>
+                      <option value="care">Care</option>
+                      <option value="ffs">FFS</option>
+                    </select>
+                    <div style={{ fontSize: ".78rem", fontWeight: 600, color: "#EF9F27" }}>{res ? fmtBRL(res.custoEfetivo) : "—"}</div>
+                    <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#1D9E75" }}>{res ? fmtBRL(res.lucroEfetivo) : "—"}</div>
+                    <button onClick={() => removerPacSim(p.id)} style={{ padding: "4px 6px", borderRadius: 6, border: "1px solid rgba(224,90,75,.2)", background: "rgba(224,90,75,.06)", color: "#E05A4B", cursor: "pointer", fontSize: ".7rem" }}>✕</button>
+                  </div>
+                )
+              })}
+
+              <button onClick={adicionarPacSim} style={{ padding: "9px", borderRadius: 9, border: "1px dashed rgba(99,179,237,.2)", background: "transparent", color: "rgba(160,200,235,.5)", fontSize: ".78rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                + Adicionar paciente
+              </button>
+            </div>
+
+            {/* Totais */}
+            <div style={{ borderTop: "1px solid rgba(26,58,92,.4)", paddingTop: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
                 {[
-                  { l: "Receita bruta",    v: fmtBRL(simResultado.receitaBruta) },
-                  { l: "Custo plataforma", v: fmtBRL(simResultado.custoFFS)     },
-                  { l: "Receita líquida",  v: fmtBRL(simResultado.lucroFFS), bold: true, cor: "#1D9E75" },
-                ].map(r => (
-                  <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(29,158,117,.08)" }}>
-                    <span style={{ fontSize: ".75rem", color: "rgba(160,200,235,.6)" }}>{r.l}</span>
-                    <span style={{ fontSize: ".8rem", fontWeight: r.bold ? 800 : 600, color: r.cor ?? "#e8f0f8" }}>{r.v}</span>
+                  { l: "Receita bruta total", v: fmtBRL(simResultado.totalBruto),   c: "#e8f0f8" },
+                  { l: "Custo plataforma",    v: fmtBRL(simResultado.totalEfetivo),  c: "#EF9F27" },
+                  { l: "Receita líquida",     v: fmtBRL(simResultado.totalLiquido),  c: "#1D9E75" },
+                  { l: "Fracta recebe",       v: fmtBRL(simResultado.receitaFracta), c: "#8B7FE8" },
+                ].map(k => (
+                  <div key={k.l} style={{ background: "rgba(26,58,92,.25)", borderRadius: 9, padding: "10px 12px" }}>
+                    <div style={{ fontSize: ".58rem", color: "rgba(170,210,245,.7)", marginBottom: 5 }}>{k.l}</div>
+                    <div style={{ fontSize: "1.1rem", fontWeight: 800, color: k.c }}>{k.v}</div>
                   </div>
                 ))}
-                <div style={{ marginTop: 10, fontSize: ".68rem", color: "rgba(170,210,245,.5)" }}>
-                  Custo fixo: R${FFS_MENSAL}/mês independente de sessões
-                </div>
-              </div>
-
-              {/* Care */}
-              <div style={{ background: "rgba(55,138,221,.06)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 12, padding: "16px 18px" }}>
-                <div style={{ fontSize: ".65rem", color: "#378ADD", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Modelo Care</div>
-                {[
-                  { l: "Receita bruta",         v: fmtBRL(simResultado.receitaBruta)  },
-                  { l: "Comissão s/ teto",       v: fmtBRL(simResultado.comBruta)      },
-                  { l: "Comissão com teto",      v: fmtBRL(simResultado.comEfetiva), cor: simResultado.tetoAtingido ? "#1D9E75" : "#e8f0f8" },
-                  { l: "Receita líquida",        v: fmtBRL(simResultado.lucroCare), bold: true, cor: "#378ADD" },
-                ].map(r => (
-                  <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(55,138,221,.08)" }}>
-                    <span style={{ fontSize: ".75rem", color: "rgba(160,200,235,.6)" }}>{r.l}</span>
-                    <span style={{ fontSize: ".8rem", fontWeight: r.bold ? 800 : 600, color: r.cor ?? "#e8f0f8" }}>{r.v}</span>
-                  </div>
-                ))}
-                {simResultado.tetoAtingido && (
-                  <div style={{ marginTop: 10, padding: "6px 10px", background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 7, fontSize: ".68rem", color: "#1D9E75" }}>
-                    ✓ Teto ativado — você economiza {fmtBRL(simResultado.economiaCare)} vs Care sem teto
-                  </div>
-                )}
               </div>
             </div>
+          </div>
 
-            {/* Comparativo */}
-            <div style={{ background: "rgba(139,127,232,.06)", border: "1px solid rgba(139,127,232,.2)", borderRadius: 12, padding: "14px 18px", marginBottom: 16 }}>
-              <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#8B7FE8", marginBottom: 8 }}>Comparativo para este cenário</div>
-              <div style={{ display: "flex", gap: 24 }}>
-                <div>
-                  <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", marginBottom: 4 }}>Care vs FFS — diferença líquida</div>
-                  <div style={{ fontSize: "1.2rem", fontWeight: 800, color: simResultado.lucroCare >= simResultado.lucroFFS ? "#1D9E75" : "#EF9F27" }}>
-                    {simResultado.lucroCare >= simResultado.lucroFFS ? "+" : ""}{fmtBRL(simResultado.lucroCare - simResultado.lucroFFS)}
-                  </div>
-                  <div style={{ fontSize: ".65rem", color: "rgba(170,210,245,.5)" }}>
-                    {simResultado.lucroCare >= simResultado.lucroFFS ? "Care é mais vantajoso" : "FFS é mais vantajoso"} neste volume
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", marginBottom: 4 }}>Ponto de equilíbrio</div>
-                  <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#8B7FE8" }}>
-                    {Math.ceil(FFS_MENSAL / (simValorSessao * COMISSAO_CARE))} sessões
-                  </div>
-                  <div style={{ fontSize: ".65rem", color: "rgba(170,210,245,.5)" }}>acima disso o teto protege você</div>
-                </div>
+          {/* Projeção de escala */}
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8" }}>Projeção de escala</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: ".72rem", color: "rgba(170,210,245,.6)" }}>Nº de terapeutas:</div>
+                <input type="number" min={1} max={10000} value={simEscala} onChange={e => setSimEscala(Number(e.target.value))} style={{ ...inp, width: 80, padding: "5px 8px", fontSize: ".78rem" }} />
               </div>
             </div>
-
-            {/* Escala */}
-            <div style={{ ...lbl, marginBottom: 12 }}>Projeção de escala com {simPacientes} pacientes</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
               {[
-                { l: `FFS — ${simPacientes} pacientes/mês`, v: fmtK(simResultado.receitaEscalaFFS),  c: "#1D9E75", sub: `R$${FFS_MENSAL} × ${simPacientes} pacs` },
-                { l: `Care — ${simPacientes} pacientes/mês`, v: fmtK(simResultado.receitaEscalaCare), c: "#378ADD", sub: "5% com teto por paciente" },
+                { l: `Receita líquida total (${simEscala} terapeutas)`, v: fmtK(simResultado.escalaLiquido),  c: "#1D9E75", sub: "receita dos terapeutas" },
+                { l: `Fracta recebe (${simEscala} terapeutas)`,          v: fmtK(simResultado.escalaFracta),   c: "#8B7FE8", sub: "receita da plataforma" },
+                { l: "Ticket médio por terapeuta",                        v: fmtBRL(simResultado.totalLiquido), c: "#378ADD", sub: "líquido mensal" },
               ].map(k => (
                 <div key={k.l} style={{ background: "rgba(26,58,92,.25)", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", marginBottom: 6 }}>{k.l}</div>
-                  <div style={{ fontSize: "1.4rem", fontWeight: 800, color: k.c }}>{k.v}</div>
+                  <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.7)", marginBottom: 6, lineHeight: 1.4 }}>{k.l}</div>
+                  <div style={{ fontSize: "1.3rem", fontWeight: 800, color: k.c }}>{k.v}</div>
                   <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", marginTop: 4 }}>{k.sub}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Sugestão do sistema */}
+          {/* Sugestão do Engine */}
           <div style={{ background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 12, padding: "16px 18px" }}>
-            <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#1D9E75", marginBottom: 8 }}>
-              Sugestão do FractaEngine para este cenário
-            </div>
+            <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#1D9E75", marginBottom: 8 }}>Sugestão do FractaEngine</div>
             <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.8)", lineHeight: 1.65 }}>
-              {simSessoes >= Math.ceil(FFS_MENSAL / (simValorSessao * COMISSAO_CARE))
-                ? `Com ${simSessoes} sessões a R$${simValorSessao}, o teto do Care está ativo. O modelo Care é vantajoso — você paga R$${simResultado.comEfetiva.toFixed(0)} em vez de R$${simResultado.comBruta.toFixed(0)} sem teto. Migrar para Care neste volume é recomendado.`
-                : `Com ${simSessoes} sessões a R$${simValorSessao}, o FFS ainda é mais previsível. O ponto de equilíbrio é ${Math.ceil(FFS_MENSAL / (simValorSessao * COMISSAO_CARE))} sessões/mês. Abaixo disso, FFS garante custo fixo e previsibilidade.`
-              }
+              {simResultado.pacs.filter(p => p.modelo === "ffs" && p.sessoes <= 20).length > 0 &&
+                `${simResultado.pacs.filter(p => p.modelo === "ffs" && p.sessoes <= 20).length} paciente(s) FFS com até 20 sessões — plano Starter R$49/mês é suficiente. `}
+              {simResultado.pacs.filter(p => p.modelo === "care").length > 0 &&
+                `${simResultado.pacs.filter(p => p.modelo === "care").length} paciente(s) Care com comissão de ${(simResultado.comissao * 100).toFixed(0)}% (${simNivel}). `}
+              {simResultado.totalLiquido > 5000
+                ? "Carteira saudável — receita líquida acima de R$5.000/mês."
+                : "Considere adicionar mais pacientes Care para aumentar a receita líquida."}
             </div>
           </div>
         </div>
