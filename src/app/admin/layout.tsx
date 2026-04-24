@@ -10,7 +10,7 @@ interface AdminContextType { email: string }
 const AdminContext = createContext<AdminContextType>({ email: '' })
 export const useAdminContext = () => useContext(AdminContext)
 
-const ADMIN_EMAIL = 'wilsoniz@icloud.com'
+const ADMIN_EMAIL = 'wilson@fractabehavior.com'
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 const NAV = [
