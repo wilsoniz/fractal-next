@@ -235,7 +235,7 @@ Responda em português brasileiro, com linguagem científica mas acessível. Sej
               { l: 'Avaliações', v: contexto.total_avaliacoes },
               { l: 'Score médio', v: `${contexto.media_score_geral}%` },
               { l: 'Taxa conclusão', v: `${contexto.taxa_conclusao}%` },
-              { l: 'Média acerto', v: `${contexta.media_acerto}%` },
+              { l: 'Média acerto', v: `${contexto.media_acerto}%` },
             ].map(item => (
               <div key={item.l} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <span style={{ fontSize: 11, color: 'rgba(226,232,240,.4)' }}>{item.l}:</span>
