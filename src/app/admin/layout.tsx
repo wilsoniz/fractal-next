@@ -58,8 +58,9 @@ const NAV = [
     href: '/admin/inteligencia',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2a8 8 0 0 1 8 8c0 3-1.5 5.5-4 7l-1 5H9l-1-5C5.5 15.5 4 13 4 10a8 8 0 0 1 8-8z"/>
-        <line x1="12" y1="18" x2="12" y2="18.01"/>
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
     ),
   },
@@ -70,17 +71,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router   = useRouter()
   const pathname = usePathname()
   const [email,   setEmail]   = useState('')
-  const [loading, setLoading] = useState(true)
+  const [status,  setStatus]  = useState<'loading' | 'ok' | 'unauth'>('loading')
+
+  // Se estiver na página de login, renderiza direto sem verificar
+  if (pathname === '/admin/login') {
+    return <>{children}</>
+  }
 
   useEffect(() => {
     async function verificar() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || user.email !== ADMIN_EMAIL) {
+        setStatus('unauth')
         router.replace('/admin/login')
         return
       }
       setEmail(user.email)
-      setLoading(false)
+      setStatus('ok')
     }
     verificar()
   }, [router])
@@ -90,7 +97,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.replace('/admin/login')
   }
 
-  if (loading) {
+  if (status === 'loading' || status === 'unauth') {
     return (
       <div style={{
         minHeight: '100vh',
@@ -99,14 +106,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{
-            width: 48, height: 48, borderRadius: '50%',
+            width: 36, height: 36, borderRadius: '50%',
             border: '2px solid rgba(99,179,237,.2)',
             borderTop: '2px solid #63b3ed',
             animation: 'spin 1s linear infinite',
-            margin: '0 auto 16px',
+            margin: '0 auto 12px',
           }} />
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            Verificando acesso
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', letterSpacing: '0.08em' }}>
+            {status === 'unauth' ? 'Redirecionando...' : 'Verificando acesso'}
           </div>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
@@ -153,20 +160,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Sidebar */}
         <aside style={{
-          width: 240,
-          flexShrink: 0,
+          width: 240, flexShrink: 0,
           background: 'rgba(10,15,30,.8)',
           borderRight: '1px solid rgba(99,179,237,.08)',
           backdropFilter: 'blur(20px)',
-          display: 'flex',
-          flexDirection: 'column',
-          position: 'fixed',
-          top: 0, left: 0, bottom: 0,
+          display: 'flex', flexDirection: 'column',
+          position: 'fixed', top: 0, left: 0, bottom: 0,
           zIndex: 10,
         }}>
           {/* Logo */}
           <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(99,179,237,.08)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 8,
                 background: 'linear-gradient(135deg, #1D9E75, #63b3ed)',
@@ -225,11 +229,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Main */}
         <main style={{
-          flex: 1,
-          marginLeft: 240,
+          flex: 1, marginLeft: 240,
           padding: '32px 36px',
-          position: 'relative',
-          zIndex: 1,
+          position: 'relative', zIndex: 1,
           minHeight: '100vh',
         }}>
           {children}
