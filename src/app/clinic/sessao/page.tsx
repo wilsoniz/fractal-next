@@ -299,7 +299,7 @@ function SessaoPageInner() {
         .from("planos")
         .select("id, programas ( id, nome, dominio, objetivo )")
         .eq("crianca_id", pacienteId)
-        .eq("terapeuta_id", terapeuta.id)
+        .eq("terapeuta_id", terapeuta!.id)
         .eq("status", "ativo");
 
       if (planos) {
