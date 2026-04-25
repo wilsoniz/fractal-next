@@ -111,14 +111,18 @@ const PROGRAMA_INICIAL: Programa = {
   nivelDicas: DICAS_DEFAULT,
 };
 
-// ─── PACIENTES MOCK ──────────────────────────────────────────────────────────
-const PACIENTES_MOCK = [
-  { id: "1", nome: "Lucas Carvalho", iniciais: "LC", gradient: "linear-gradient(135deg,#1D9E75,#378ADD)" },
-  { id: "2", nome: "Maria Santos",   iniciais: "MS", gradient: "linear-gradient(135deg,#378ADD,#8B7FE8)" },
-  { id: "3", nome: "Rafael Pinto",   iniciais: "RP", gradient: "linear-gradient(135deg,#8B7FE8,#E05A4B)" },
-  { id: "4", nome: "Beatriz Lima",   iniciais: "BL", gradient: "linear-gradient(135deg,#4d6d8a,#378ADD)" },
-  { id: "5", nome: "Pedro Gomes",    iniciais: "PG", gradient: "linear-gradient(135deg,#EF9F27,#E05A4B)" },
-];
+// ─── PACIENTES — carregados do Supabase ──────────────────────────────────────
+const GRADIENTS_PAC = [
+  "linear-gradient(135deg,#1D9E75,#378ADD)",
+  "linear-gradient(135deg,#378ADD,#8B7FE8)",
+  "linear-gradient(135deg,#8B7FE8,#E05A4B)",
+  "linear-gradient(135deg,#4d6d8a,#378ADD)",
+  "linear-gradient(135deg,#EF9F27,#E05A4B)",
+]
+function iniciaisPac(nome: string) {
+  const p = nome.trim().split(" ")
+  return p.length >= 2 ? `${p[0][0]}${p[p.length-1][0]}`.toUpperCase() : nome.slice(0,2).toUpperCase()
+}
 
 // ─── PAGE ────────────────────────────────────────────────────────────────────
 export default function GoalBuilderPage() {
@@ -128,6 +132,31 @@ export default function GoalBuilderPage() {
   const [etapa,    setEtapa]    = useState<Etapa>(1);
   const [programa, setPrograma] = useState<Programa>(PROGRAMA_INICIAL);
   const [salvo,    setSalvo]    = useState(false);
+  const [pacientes, setPacientes] = useState<{ id: string; nome: string; iniciais: string; gradient: string }[]>([]);
+
+  useEffect(() => {
+    if (!terapeuta) return;
+    async function carregarPacientes() {
+      const { data: planos } = await supabase
+        .from("planos")
+        .select("criancas ( id, nome )")
+        .eq("terapeuta_id", terapeuta!.id)
+        .eq("status", "ativo");
+      if (!planos) return;
+      const criancaMap = new Map<string, string>();
+      for (const pl of planos) {
+        const c = (pl as any).criancas as any;
+        if (c && !criancaMap.has(c.id)) criancaMap.set(c.id, c.nome);
+      }
+      const result = Array.from(criancaMap.entries()).map(([id, nome], i) => ({
+        id, nome,
+        iniciais: iniciaisPac(nome),
+        gradient: GRADIENTS_PAC[i % GRADIENTS_PAC.length],
+      }));
+      setPacientes(result);
+    }
+    carregarPacientes();
+  }, [terapeuta]);
 
   const upd = useCallback(<K extends keyof Programa>(key: K, val: Programa[K]) => {
     setPrograma(prev => ({ ...prev, [key]: val }));
@@ -240,7 +269,7 @@ const lbl: React.CSSProperties = {
           <div style={{ ...card, padding: 20 }}>
             <label style={lbl}>Paciente</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {PACIENTES_MOCK.map(p => (
+              {pacientes.map(p => (
                 <button key={p.id} onClick={() => upd("pacienteId", p.id)} style={{
                   display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
                   borderRadius: 9, border: `1px solid ${programa.pacienteId === p.id ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.5)"}`,
@@ -521,7 +550,7 @@ const lbl: React.CSSProperties = {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {[
                 { l: "Nome",            v: programa.nome },
-                { l: "Paciente",        v: PACIENTES_MOCK.find(p => p.id === programa.pacienteId)?.nome ?? "—" },
+                { l: "Paciente",        v: pacientes.find(p => p.id === programa.pacienteId)?.nome ?? "—" },
                 { l: "Operante",        v: OPERANTES.find(o => o.id === programa.operante)?.label ?? "—" },
                 { l: "Nível de treino", v: NIVEIS_TREINO.find(n => n.id === programa.nivelTreino)?.label ?? "—" },
                 { l: "Estímulos",       v: `${programa.estimulos.length} pares` },
