@@ -142,32 +142,7 @@ const PROTOCOLOS: Protocolo[] = [
   },
 ];
 
-const AVALIACOES_HIST: AvaliacaoRegistrada[] = [
-  {
-    id: "av1", protocoloSigla: "VB-MAPP", protocoloCor: "#1D9E75",
-    pacienteNome: "Lucas Carvalho", pacienteIniciais: "LC",
-    gradient: "linear-gradient(135deg,#1D9E75,#378ADD)",
-    dataAplicacao: "15 Jan 2025", aplicador: "Dra. Carolina Amaral",
-    status: "concluida", pontuacaoTotal: 68, pontuacaoMaxima: 170,
-    nivelGeral: "Nível 1–2", proximaRevisao: "Jul 2025",
-  },
-  {
-    id: "av2", protocoloSigla: "PEAK-DT", protocoloCor: "#8B7FE8",
-    pacienteNome: "Rafael Pinto", pacienteIniciais: "RP",
-    gradient: "linear-gradient(135deg,#8B7FE8,#E05A4B)",
-    dataAplicacao: "08 Jan 2025", aplicador: "Dra. Carolina Amaral",
-    status: "concluida", pontuacaoTotal: 142, pontuacaoMaxima: 200,
-    nivelGeral: "Intermediário", proximaRevisao: "Jul 2025",
-  },
-  {
-    id: "av3", protocoloSigla: "VB-MAPP", protocoloCor: "#1D9E75",
-    pacienteNome: "Beatriz Lima", pacienteIniciais: "BL",
-    gradient: "linear-gradient(135deg,#4d6d8a,#378ADD)",
-    dataAplicacao: "13 Jan 2025", aplicador: "Dra. Carolina Amaral",
-    status: "em_andamento", pontuacaoTotal: 24, pontuacaoMaxima: 170,
-    nivelGeral: "Nível 1",
-  },
-];
+// AVALIACOES_HIST — carregado do Supabase no componente
 
 const REGISTROS_ABC: RegistroABC[] = [
   { id: "abc1", horario: "09:12", antecedente: "Solicitação de tarefa acadêmica (pareamento de figuras)", comportamento: "Jogou o material no chão e vocalizou loudly", consequencia: "Terapeuta removeu o material e aguardou 30s", duracao: "45s", intensidade: "moderada" },
@@ -218,6 +193,69 @@ export default function AvaliacoesPage() {
   const [tipoAF,       setTipoAF]       = useState<TipoAF>("indireta");
   const [protocoloSel, setProtocoloSel] = useState<Protocolo | null>(null);
   const [abcNovo,      setAbcNovo]      = useState({ ant: "", comp: "", cons: "", dur: "", int: "moderada" as const });
+  const [avaliacoesHist, setAvaliacoesHist] = useState<AvaliacaoRegistrada[]>([]);
+  const [pacientesAval,  setPacientesAval]  = useState<{ id: string; nome: string }[]>([]);
+
+  useEffect(() => {
+    if (!terapeuta) return;
+    async function carregar() {
+      // Pacientes do terapeuta
+      const { data: planos } = await supabase
+        .from("planos")
+        .select("criancas ( id, nome )")
+        .eq("terapeuta_id", terapeuta!.id)
+        .eq("status", "ativo");
+      if (planos) {
+        const map = new Map<string, string>();
+        for (const pl of planos) {
+          const c = (pl as any).criancas as any;
+          if (c && !map.has(c.id)) map.set(c.id, c.nome);
+        }
+        setPacientesAval(Array.from(map.entries()).map(([id, nome]) => ({ id, nome })));
+      }
+
+      // Avaliações do banco
+      const { data: avals } = await supabase
+        .from("avaliacoes")
+        .select("id, nome_crianca, criado_em, score_geral, tipo, dominio_prioritario, convertido")
+        .order("criado_em", { ascending: false })
+        .limit(20);
+
+      if (avals && avals.length > 0) {
+        const GRADIENTS_AV = [
+          "linear-gradient(135deg,#1D9E75,#378ADD)",
+          "linear-gradient(135deg,#378ADD,#8B7FE8)",
+          "linear-gradient(135deg,#8B7FE8,#E05A4B)",
+          "linear-gradient(135deg,#4d6d8a,#378ADD)",
+          "linear-gradient(135deg,#EF9F27,#E05A4B)",
+        ];
+        const result: AvaliacaoRegistrada[] = avals.map((av: any, i: number) => {
+          const nome = av.nome_crianca ?? "Paciente";
+          const partes = nome.trim().split(" ");
+          const inic = partes.length >= 2
+            ? `${partes[0][0]}${partes[partes.length-1][0]}`.toUpperCase()
+            : nome.slice(0,2).toUpperCase();
+          const scoreGeral = av.score_geral ?? 0;
+          return {
+            id:             av.id,
+            protocoloSigla: av.tipo?.toUpperCase() ?? "FRACTA",
+            protocoloCor:   "#1D9E75",
+            pacienteNome:   nome,
+            pacienteIniciais: inic,
+            gradient:       GRADIENTS_AV[i % GRADIENTS_AV.length],
+            dataAplicacao:  new Date(av.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }),
+            aplicador:      terapeuta!.nome,
+            status:         av.convertido ? "concluida" : "em_andamento" as any,
+            pontuacaoTotal: scoreGeral,
+            pontuacaoMaxima: 100,
+            nivelGeral:     av.dominio_prioritario ?? "—",
+          };
+        });
+        setAvaliacoesHist(result);
+      }
+    }
+    carregar();
+  }, [terapeuta]);
 
   const funcaoIdent = useMemo(() => funcaoIdentificada(CONDICOES_EXPERIMENTAIS), []);
   const fc          = FUNCAO_CONFIG[funcaoIdent];
@@ -260,9 +298,11 @@ export default function AvaliacoesPage() {
           <div style={{ marginBottom: 20 }}>
             <div style={{ ...lbl }}>Aplicar para qual paciente?</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {["Lucas Carvalho","Maria Santos","Rafael Pinto","Beatriz Lima","Pedro Gomes"].map(nome => (
-                <button key={nome} style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(70,120,180,.5)", background: "rgba(26,58,92,.25)", color: "rgba(160,200,235,.92)", fontFamily: "var(--font-sans)", fontSize: ".75rem", cursor: "pointer" }}>
-                  {nome.split(" ")[0]}
+              {pacientesAval.length === 0 ? (
+                <div style={{ fontSize: ".75rem", color: "rgba(255,255,255,.3)" }}>Nenhum paciente vinculado</div>
+              ) : pacientesAval.map(p => (
+                <button key={p.id} style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(70,120,180,.5)", background: "rgba(26,58,92,.25)", color: "rgba(160,200,235,.92)", fontFamily: "var(--font-sans)", fontSize: ".75rem", cursor: "pointer" }}>
+                  {p.nome.split(" ")[0]}
                 </button>
               ))}
             </div>
@@ -311,8 +351,8 @@ export default function AvaliacoesPage() {
       {/* ── KPIs ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10 }}>
         {[
-          { l: "Avaliações concluídas", v: AVALIACOES_HIST.filter(a => a.status === "concluida").length,    c: "#1D9E75" },
-          { l: "Em andamento",          v: AVALIACOES_HIST.filter(a => a.status === "em_andamento").length, c: "#EF9F27" },
+          { l: "Avaliações concluídas", v: avaliacoesHist.filter(a => a.status === "concluida").length,    c: "#1D9E75" },
+          { l: "Em andamento",          v: avaliacoesHist.filter(a => a.status === "em_andamento").length, c: "#EF9F27" },
           { l: "Protocolos disponíveis",v: PROTOCOLOS.filter(p => p.disponivel).length,                    c: "#378ADD" },
           { l: "AFs realizadas",        v: 3,                                                               c: "#8B7FE8" },
         ].map(k => (
@@ -622,7 +662,7 @@ export default function AvaliacoesPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {tab === "historico" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {AVALIACOES_HIST.map(av => {
+          {avaliacoesHist.map(av => {
             const st  = STATUS_AVAL[av.status];
             const pct = av.pontuacaoTotal && av.pontuacaoMaxima ? Math.round((av.pontuacaoTotal / av.pontuacaoMaxima) * 100) : 0;
             return (
@@ -660,7 +700,7 @@ export default function AvaliacoesPage() {
                       </button>
                     )}
                   </div>
-                  <Link href={`/clinic/paciente/1`} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: ".72rem", textDecoration: "none", flexShrink: 0 }}>
+                  <Link href={`/clinic/paciente/${avaliacoesHist.find(a => a.pacienteNome === av.pacienteNome)?.id ?? "1"}`} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: ".72rem", textDecoration: "none", flexShrink: 0 }}>
                     Ver perfil
                   </Link>
                 </div>
