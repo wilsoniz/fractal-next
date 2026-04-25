@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -83,13 +83,6 @@ function iniciais(nome: string): string {
   return p.length >= 2 ? `${p[0][0]}${p[p.length-1][0]}`.toUpperCase() : nome.slice(0,2).toUpperCase()
 }
 
-// Regra do teto: comissão Care nunca ultrapassa FFS mensal
-function calcularComissaoCare(sessoes: number, valorSessao: number): { bruta: number; efetiva: number } {
-  const bruta    = sessoes * valorSessao * COMISSAO_CARE
-  const efetiva  = Math.min(bruta, FFS_MENSAL)
-  return { bruta, efetiva }
-}
-
 const tooltipStyle = {
   contentStyle: { background: "#0d2035", border: "1px solid rgba(26,58,92,.7)", borderRadius: 10, color: "#e8f0f8", fontSize: 11 },
 }
@@ -162,7 +155,7 @@ export default function ClinicWalletPage() {
         const valorSessao  = 250 // valor padrão — futuramente vem do contrato
         const modelo: "ffs" | "care" = "ffs" // padrão FFS — futuramente configurável
 
-        const { bruta, efetiva } = calcularComissaoCare(realizadas, valorSessao)
+        const bruta = realizadas * valorSessao * (CARE_COMISSAO[terapeuta?.nivel ?? "coordenador"] ?? 0.10); const efetiva = bruta
         const receitaBruta    = realizadas * valorSessao
         const custoPlataforma = modelo === "ffs" ? FFS_MENSAL : efetiva
         const receitaLiquida  = receitaBruta - custoPlataforma

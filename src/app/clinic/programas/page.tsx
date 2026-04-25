@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useClinicContext } from "../layout";
-
+import { supabase } from "@/lib/supabase";
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type Etapa = 1 | 2 | 3 | 4;
 type NivelTreino = "basico" | "intermediario" | "avancado";
