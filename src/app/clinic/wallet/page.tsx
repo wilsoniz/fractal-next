@@ -786,3 +786,4 @@ export default function ClinicWalletPage() {
     </div>
   )
 }
+
