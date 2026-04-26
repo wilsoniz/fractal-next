@@ -277,7 +277,7 @@ function SessaoPageInner() {
 
   // ── Carregar paciente e programas ──────────────────────────────────────────
   useEffect(() => {
-    if (!pacienteId || !terapeuta) return;
+    if (!pacienteId) return;
     async function carregar() {
       setLoading(true);
       const { data: crianca } = await supabase
@@ -299,7 +299,7 @@ function SessaoPageInner() {
         .from("planos")
         .select("id, programas ( id, nome, dominio, objetivo )")
         .eq("crianca_id", pacienteId)
-        .eq("terapeuta_id", terapeuta!.id)
+        .eq("terapeuta_id", terapeuta?.id ?? "") 
         .eq("status", "ativo");
 
       if (planos) {
