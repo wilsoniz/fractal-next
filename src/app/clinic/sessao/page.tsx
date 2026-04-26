@@ -278,8 +278,11 @@ function SessaoPageInner() {
   // ── Carregar paciente e programas ──────────────────────────────────────────
   useEffect(() => {
     if (!pacienteId) return;
+    console.log("useEffect rodou — pacienteId:", pacienteId, "terapeuta:", terapeuta?.id);
     async function carregar() {
       setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser()
+      console.log("user autenticado:", user?.id, "pacienteId:", pacienteId)
       const { data: crianca } = await supabase
         .from("criancas")
         .select("id, nome, data_nascimento, diagnostico")
