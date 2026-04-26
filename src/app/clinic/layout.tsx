@@ -285,6 +285,9 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
   const [isMobile,   setIsMobile]   = useState(false)
   const [menuMaisAberto, setMenuMaisAberto] = useState(false)
   const [avatarOpen,     setAvatarOpen]     = useState(false)
+  const [seletorPaciente, setSeletorPaciente] = useState(false)
+  const [pacientesNav,    setPacientesNav]    = useState<{id:string;nome:string}[]>([])
+
   const router = useRouter()
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -333,7 +336,24 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
     }
     carregarTerapeuta()
   }, [])
-
+useEffect(() => {
+  if (!terapeuta) return
+  async function carregarPacientes() {
+    const { data: planos } = await supabase
+      .from('planos')
+      .select('criancas(id, nome)')
+      .eq('terapeuta_id', terapeuta!.id)
+      .eq('status', 'ativo')
+    if (!planos) return
+    const map = new Map<string, string>()
+    for (const pl of planos) {
+      const c = (pl as any).criancas
+      if (c && !map.has(c.id)) map.set(c.id, c.nome)
+    }
+    setPacientesNav(Array.from(map.entries()).map(([id, nome]) => ({ id, nome })))
+  }
+  carregarPacientes()
+}, [terapeuta])
   return (
     <ClinicContext.Provider value={{ terapeuta }}>
       <div style={{
@@ -401,19 +421,39 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
                 Buscar paciente
               </button>}
 
-              <Link href="/clinic/sessao" style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
-                background: '#1D9E75', color: '#fff',
-                border: 'none', fontSize: 12, fontWeight: 500,
-                textDecoration: 'none',
-              }}>
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/>
-                </svg>
-                Nova sessão
-              </Link>
-
+<div style={{ position: 'relative' }}>
+  <button onClick={() => setSeletorPaciente(v => !v)} style={{
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
+    background: '#1D9E75', color: '#fff',
+    border: 'none', fontSize: 12, fontWeight: 500,
+    fontFamily: 'var(--font-sans)',
+  }}>
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/>
+    </svg>
+    Nova sessão
+  </button>
+  {seletorPaciente && (
+    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, background: 'rgba(10,24,40,.98)', border: '1px solid rgba(26,58,92,.6)', borderRadius: 12, padding: 12, minWidth: 220, zIndex: 50, boxShadow: '0 8px 32px rgba(0,0,0,.4)' }}>
+      <div style={{ fontSize: 11, color: 'rgba(160,200,235,.4)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>Selecionar paciente</div>
+      {pacientesNav.length === 0
+        ? <div style={{ fontSize: 12, color: 'rgba(160,200,235,.3)', padding: '8px 0' }}>Nenhum paciente vinculado</div>
+        : pacientesNav.map(p => (
+          <Link key={p.id} href={`/clinic/sessao?pacienteId=${p.id}`} onClick={() => setSeletorPaciente(false)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, textDecoration: 'none', color: '#e8f0f8', fontSize: 13, cursor: 'pointer' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,58,92,.5)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#1D9E75,#378ADD)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+              {p.nome.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase()}
+            </div>
+            {p.nome}
+          </Link>
+        ))
+      }
+    </div>
+  )}
+</div>
               {/* Avatar dropdown */}
               <div style={{ position: 'relative' }}>
                 <button onClick={() => setAvatarOpen(v => !v)} style={{
