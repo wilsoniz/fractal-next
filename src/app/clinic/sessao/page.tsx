@@ -19,6 +19,7 @@ interface Acao {
   itemId: string; itemNome: string; itemDominio: string
   tipo: "intervention" | "assessment"
   operantes: Operante[]
+  totalTentativas?: number
   taxaHistorica?: number
   operanteVerbal?: string // operante do programa para derivar hierarquia
   hierarquiaTipo?: "motora" | "verbal" | "generica"
@@ -74,6 +75,7 @@ interface Operante {
 interface EventoSessao { id: string; tipo: EventType; timestamp: number }
 
 interface LibItem {
+  totalTentativas?: number
   id: string; nome: string; dominio: string
   tipo: "programa" | "avaliacao"; planejado: boolean
   planoId?: string; taxaHistorica?: number
@@ -175,7 +177,7 @@ function SessaoInner() {
       const { data: c } = await supabase.from("criancas").select("id,nome,diagnostico").eq("id", pacienteId).single()
       if (c) setPaciente({ id: c.id, nome: c.nome, iniciais: iniciais(c.nome), gradient: "linear-gradient(135deg,#1D9E75,#378ADD)", diagnostico: c.diagnostico ?? "Não informado" })
 
-      const { data: planos } = await supabase.from("planos").select("id,programas(id,nome,dominio,operante)").eq("crianca_id", pacienteId).eq("status","ativo")
+      const { data: planos } = await supabase.from("planos").select("id,programas(id,nome,dominio,operante,total_tentativas)").eq("crianca_id", pacienteId).eq("status","ativo")
       const planejados: LibItem[] = []
       if (planos) {
         for (const pl of planos) {
@@ -183,12 +185,12 @@ function SessaoInner() {
           if (!prog) continue
           const { data: ops } = await supabase.from("operants").select("correto").limit(50)
           const taxa = ops&&ops.length>0?Math.round((ops.filter((o:any)=>o.correto).length/ops.length)*100):undefined
-          planejados.push({ id: prog.id, nome: prog.nome, dominio: prog.dominio??"—", tipo:"programa", planejado:true, planoId:pl.id, taxaHistorica:taxa, operante:prog.operante })
+          planejados.push({ id: prog.id, nome: prog.nome, dominio: prog.dominio??"—", tipo:"programa", planejado:true, planoId:pl.id, taxaHistorica:taxa, operante:prog.operante, totalTentativas:(prog as any).total_tentativas??10 })
         }
       }
 
       const { data: todos } = await supabase.from("programas").select("id,nome,dominio,tipo").limit(30)
-      const libGeral: LibItem[] = (todos??[]).filter(p=>!planejados.find(pl=>pl.id===p.id)).map(p=>({ id:p.id, nome:p.nome, dominio:p.dominio??"—", tipo:"programa" as const, planejado:false, operante:(p as any).operante }))
+      const libGeral: LibItem[] = (todos??[]).filter(p=>!planejados.find(pl=>pl.id===p.id)).map(p=>({ id:p.id, nome:p.nome, dominio:p.dominio??"—", tipo:"programa" as const, planejado:false, operante:(p as any).operante, totalTentativas:(p as any).total_tentativas??10 }))
       const libAvals: LibItem[] = AVALIACOES_CAT.map(a=>({...a,tipo:"avaliacao" as const,planejado:false}))
       setBiblioteca([...planejados,...libGeral,...libAvals])
       setLoading(false)
@@ -236,7 +238,7 @@ function SessaoInner() {
   // ── Adicionar ação ─────────────────────────────────────────────────────────
   async function adicionarAcao(item: LibItem) {
     const hierTipo = deriveHierarquia(item.operante)
-    const novaAcao: Acao = { id:uid(), tipo:item.tipo==="avaliacao"?"assessment":"intervention", itemId:item.id, itemNome:item.nome, itemDominio:item.dominio, operantes:[], taxaHistorica:item.taxaHistorica, operanteVerbal:item.operante, hierarquiaTipo:hierTipo }
+    const novaAcao: Acao = { id:uid(), tipo:item.tipo==="avaliacao"?"assessment":"intervention", itemId:item.id, itemNome:item.nome, itemDominio:item.dominio, operantes:[], taxaHistorica:item.taxaHistorica, totalTentativas:item.totalTentativas??10, operanteVerbal:item.operante, hierarquiaTipo:hierTipo }
     if (sessaoDbId) {
       const stAtual = stages.find(s=>s.status==="active")
       const { data: acDb } = await supabase.from("session_actions").insert({ sessao_id:sessaoDbId, stage_id:stAtual?.dbId??null, tipo:novaAcao.tipo, programa_id:item.tipo==="programa"?item.id:null, plano_id:item.planoId??null, status:"active", iniciado_em:new Date().toISOString() }).select("id").single()
@@ -469,7 +471,7 @@ function SessaoInner() {
                       <div style={{display:"flex",alignItems:"center",gap:8,marginTop:2}}>
                         <span style={{fontSize:".62rem",color:"rgba(160,200,235,.4)"}}>{acao.itemDominio}</span>
                         {acao.taxaHistorica!==undefined&&<span style={{fontSize:".6rem",color:"#8B7FE8"}}>hist: {acao.taxaHistorica}%</span>}
-                        <span style={{fontSize:".62rem",color:"rgba(160,200,235,.35)"}}>{ops.length} operantes</span>
+                        <span style={{fontSize:".62rem",color:"rgba(160,200,235,.35)"}}>{ops.length}/{acao.totalTentativas??10} tentativas</span>{ops.length>=(acao.totalTentativas??10)&&<span style={{fontSize:".62rem",color:"#1D9E75",background:"rgba(29,158,117,.1)",borderRadius:20,padding:"1px 8px",fontWeight:700}}>✓ Critério atingido</span>}
                       </div>
                     </div>
 
