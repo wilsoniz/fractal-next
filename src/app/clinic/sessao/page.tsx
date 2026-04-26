@@ -20,6 +20,50 @@ interface Acao {
   tipo: "intervention" | "assessment"
   operantes: Operante[]
   taxaHistorica?: number
+  operanteVerbal?: string // operante do programa para derivar hierarquia
+  hierarquiaTipo?: "motora" | "verbal" | "generica"
+}
+
+// ─── HIERARQUIAS DE DICAS ─────────────────────────────────────────────────────
+const OPERANTES_VERBAIS = ["tato","mando","intraverbal","echoico","textual","transcricao"]
+const OPERANTES_MOTORES = ["imitacao","ouvinte"]
+
+function deriveHierarquia(operante?: string): "motora" | "verbal" | "generica" {
+  if (!operante) return "generica"
+  if (OPERANTES_VERBAIS.includes(operante)) return "verbal"
+  if (OPERANTES_MOTORES.includes(operante)) return "motora"
+  return "generica"
+}
+
+interface HierarquiaItem {
+  key: string; label: string; cor: string
+  correto: boolean; nivel: number
+}
+
+function getHierarquia(tipo: "motora" | "verbal" | "generica"): HierarquiaItem[] {
+  if (tipo === "verbal") return [
+    { key: "independente",  label: "Independente",  cor: "#1D9E75", correto: true,  nivel: 5 },
+    { key: "mov_oral",      label: "Mov. Oral",     cor: "#23c48f", correto: true,  nivel: 4 },
+    { key: "intraverbal",   label: "Intraverbal",   cor: "#378ADD", correto: true,  nivel: 3 },
+    { key: "ecoica",        label: "Ecóica",        cor: "#EF9F27", correto: true,  nivel: 2 },
+    { key: "erro",          label: "Erro",          cor: "#E05A4B", correto: false, nivel: 0 },
+  ]
+  if (tipo === "motora") return [
+    { key: "independente",   label: "Independente",   cor: "#1D9E75", correto: true,  nivel: 5 },
+    { key: "gestual",        label: "Gestual",        cor: "#23c48f", correto: true,  nivel: 4 },
+    { key: "fisico_parcial", label: "Fís. Parcial",   cor: "#EF9F27", correto: true,  nivel: 2 },
+    { key: "fisico_total",   label: "Fís. Total",     cor: "#E05A4B40", correto: true, nivel: 1 },
+    { key: "erro",           label: "Erro",           cor: "#E05A4B", correto: false, nivel: 0 },
+  ]
+  // generica
+  return [
+    { key: "independente",   label: "Independente",   cor: "#1D9E75", correto: true,  nivel: 5 },
+    { key: "verbal",         label: "Verbal",         cor: "#23c48f", correto: true,  nivel: 4 },
+    { key: "gestual",        label: "Gestual",        cor: "#378ADD", correto: true,  nivel: 3 },
+    { key: "fisico_parcial", label: "Fís. Parcial",   cor: "#EF9F27", correto: true,  nivel: 2 },
+    { key: "fisico_total",   label: "Fís. Total",     cor: "#8B7FE8", correto: true,  nivel: 1 },
+    { key: "erro",           label: "Erro",           cor: "#E05A4B", correto: false, nivel: 0 },
+  ]
 }
 
 interface Operante {
@@ -33,6 +77,7 @@ interface LibItem {
   id: string; nome: string; dominio: string
   tipo: "programa" | "avaliacao"; planejado: boolean
   planoId?: string; taxaHistorica?: number
+  operante?: string
 }
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
@@ -130,7 +175,7 @@ function SessaoInner() {
       const { data: c } = await supabase.from("criancas").select("id,nome,diagnostico").eq("id", pacienteId).single()
       if (c) setPaciente({ id: c.id, nome: c.nome, iniciais: iniciais(c.nome), gradient: "linear-gradient(135deg,#1D9E75,#378ADD)", diagnostico: c.diagnostico ?? "Não informado" })
 
-      const { data: planos } = await supabase.from("planos").select("id,programas(id,nome,dominio)").eq("crianca_id", pacienteId).eq("status","ativo")
+      const { data: planos } = await supabase.from("planos").select("id,programas(id,nome,dominio,tipo)").eq("crianca_id", pacienteId).eq("status","ativo")
       const planejados: LibItem[] = []
       if (planos) {
         for (const pl of planos) {
@@ -138,12 +183,12 @@ function SessaoInner() {
           if (!prog) continue
           const { data: ops } = await supabase.from("operants").select("correto").limit(50)
           const taxa = ops&&ops.length>0?Math.round((ops.filter((o:any)=>o.correto).length/ops.length)*100):undefined
-          planejados.push({ id: prog.id, nome: prog.nome, dominio: prog.dominio??"—", tipo:"programa", planejado:true, planoId:pl.id, taxaHistorica:taxa })
+          planejados.push({ id: prog.id, nome: prog.nome, dominio: prog.dominio??"—", tipo:"programa", planejado:true, planoId:pl.id, taxaHistorica:taxa, operante:prog.tipo })
         }
       }
 
-      const { data: todos } = await supabase.from("programas").select("id,nome,dominio").limit(30)
-      const libGeral: LibItem[] = (todos??[]).filter(p=>!planejados.find(pl=>pl.id===p.id)).map(p=>({ id:p.id, nome:p.nome, dominio:p.dominio??"—", tipo:"programa" as const, planejado:false }))
+      const { data: todos } = await supabase.from("programas").select("id,nome,dominio,tipo").limit(30)
+      const libGeral: LibItem[] = (todos??[]).filter(p=>!planejados.find(pl=>pl.id===p.id)).map(p=>({ id:p.id, nome:p.nome, dominio:p.dominio??"—", tipo:"programa" as const, planejado:false, operante:(p as any).tipo }))
       const libAvals: LibItem[] = AVALIACOES_CAT.map(a=>({...a,tipo:"avaliacao" as const,planejado:false}))
       setBiblioteca([...planejados,...libGeral,...libAvals])
       setLoading(false)
@@ -190,7 +235,8 @@ function SessaoInner() {
 
   // ── Adicionar ação ─────────────────────────────────────────────────────────
   async function adicionarAcao(item: LibItem) {
-    const novaAcao: Acao = { id:uid(), tipo:item.tipo==="avaliacao"?"assessment":"intervention", itemId:item.id, itemNome:item.nome, itemDominio:item.dominio, operantes:[], taxaHistorica:item.taxaHistorica }
+    const hierTipo = deriveHierarquia(item.operante)
+    const novaAcao: Acao = { id:uid(), tipo:item.tipo==="avaliacao"?"assessment":"intervention", itemId:item.id, itemNome:item.nome, itemDominio:item.dominio, operantes:[], taxaHistorica:item.taxaHistorica, operanteVerbal:item.operante, hierarquiaTipo:hierTipo }
     if (sessaoDbId) {
       const stAtual = stages.find(s=>s.status==="active")
       const { data: acDb } = await supabase.from("session_actions").insert({ sessao_id:sessaoDbId, stage_id:stAtual?.dbId??null, tipo:novaAcao.tipo, programa_id:item.tipo==="programa"?item.id:null, plano_id:item.planoId??null, status:"active", iniciado_em:new Date().toISOString() }).select("id").single()
@@ -202,15 +248,17 @@ function SessaoInner() {
   }
 
   // ── Registrar operante ─────────────────────────────────────────────────────
-  async function registrarOperante(correto: boolean, prompt?: PromptLevel) {
+  async function registrarOperante(correto: boolean, nivelKey?: string) {
     if (!acaoAtiva) return
-    const op: Operante = { id:uid(), sd:opForm.sd, correto, promptLevel:prompt??opForm.prompt, ts:Date.now() }
+    const promptLevel = (nivelKey ?? "independente") as PromptLevel
+    const op: Operante = { id:uid(), sd:opForm.sd, correto, promptLevel, ts:Date.now() }
     if (sessaoDbId&&acaoAtiva.dbId) {
-      await supabase.from("operants").insert({ sessao_id:sessaoDbId, action_id:acaoAtiva.dbId, sd:op.sd||null, correto:op.correto, prompt_level:op.promptLevel, tipo:"tentativa" })
+      await supabase.from("operants").insert({ sessao_id:sessaoDbId, action_id:acaoAtiva.dbId, sd:op.sd||null, correto:op.correto, prompt_level:promptLevel, tipo:"tentativa" })
     }
     const atualizada = {...acaoAtiva, operantes:[...acaoAtiva.operantes,op]}
     setAcaoAtiva(atualizada)
     setAcoes(prev=>prev.map(a=>a.id===acaoAtiva.id?atualizada:a))
+    setOpForm(p=>({...p,sd:""}))
   }
 
   // ── Registrar evento ───────────────────────────────────────────────────────
@@ -425,11 +473,13 @@ function SessaoInner() {
                       </div>
                     </div>
 
-                    {/* Mini gráfico de tentativas */}
+                    {/* Mini gráfico de tentativas com nível de prompt */}
                     <div style={{display:"flex",gap:3,alignItems:"center",marginRight:10}}>
-                      {ops.slice(-10).map((op,i)=>(
-                        <div key={i} style={{width:8,height:8,borderRadius:2,background:op.correto?"#1D9E75":"#E05A4B",opacity:.85}}/>
-                      ))}
+                      {ops.slice(-10).map((op,i)=>{
+                        const hier = getHierarquia(acao.hierarquiaTipo??"generica")
+                        const hItem = hier.find(h=>h.key===op.promptLevel) ?? hier[0]
+                        return <div key={i} style={{width:8,height:14,borderRadius:2,background:op.correto?hItem.cor:"#E05A4B",opacity:.85}}/>
+                      })}
                     </div>
 
                     <div style={{textAlign:"right",flexShrink:0}}>
