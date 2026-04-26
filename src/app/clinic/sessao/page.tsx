@@ -513,25 +513,29 @@ function SessaoInner() {
                         style={{width:"100%",padding:"7px 10px",borderRadius:8,border:"1px solid rgba(26,58,92,.4)",background:"rgba(13,32,53,.6)",color:"#e8f0f8",fontSize:".75rem",fontFamily:"var(--font-sans)",outline:"none",boxSizing:"border-box" as const,marginBottom:10}}
                       />
 
-                      {/* Botões ✓ e ✗ — grandes e centrais */}
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-                        <button onClick={()=>registrarOperante(true)} style={{padding:"18px",borderRadius:10,border:"1px solid rgba(29,158,117,.4)",background:"rgba(29,158,117,.12)",color:"#1D9E75",fontWeight:800,fontSize:"1.1rem",cursor:"pointer",fontFamily:"var(--font-sans)",display:"flex",alignItems:"center",justifyContent:"center",gap:6,transition:"all .1s"}}>
-                          ✓ <span style={{fontSize:".82rem"}}>Correto</span>
-                        </button>
-                        <button onClick={()=>registrarOperante(false)} style={{padding:"18px",borderRadius:10,border:"1px solid rgba(224,90,75,.4)",background:"rgba(224,90,75,.12)",color:"#E05A4B",fontWeight:800,fontSize:"1.1rem",cursor:"pointer",fontFamily:"var(--font-sans)",display:"flex",alignItems:"center",justifyContent:"center",gap:6,transition:"all .1s"}}>
-                          ✗ <span style={{fontSize:".82rem"}}>Incorreto</span>
-                        </button>
+{/* Hierarquia de dicas — um toque = registro */}
+                      {(()=>{
+                        const hierTipo = acao.hierarquiaTipo ?? "generica"
+                        const hier = getHierarquia(hierTipo)
+                        return(
+                          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                            <div style={{fontSize:".62rem",color:"rgba(160,200,235,.35)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>
+                              Hierarquia {hierTipo==="verbal"?"verbal":hierTipo==="motora"?"motora":"genérica"}
+                              {acao.operanteVerbal&&<span style={{marginLeft:6,color:"rgba(160,200,235,.25)"}}>({acao.operanteVerbal})</span>}
+                            </div>
+                            {hier.map((h,hi)=>{
+                              const isErro=!h.correto
+                              return(
+                                <button key={h.key} onClick={()=>registrarOperante(h.correto,h.key)} style={{padding:isErro?"10px 14px":"13px 14px",borderRadius:10,border:`1px solid ${h.cor}${isErro?"":"44"}`,background:`${h.cor}12`,color:isErro?"#E05A4B":h.cor,fontWeight:700,fontSize:isErro?".78rem":".85rem",cursor:"pointer",fontFamily:"var(--font-sans)",display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:isErro?4:0}}>
+                                  <span style={{display:"flex",alignItems:"center",gap:6}}>{isErro?"✗":"✓"}<span>{h.label}</span></span>
+                                  <span style={{fontSize:".62rem",opacity:.45}}>{isErro?"sem resposta":hi===0?"sem dica":`nível ${hi}`}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )
+                      })()}                    
                       </div>
-
-                      {/* Nível de prompt — compacto */}
-                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                        {(Object.entries(PROMPT_LABELS) as [PromptLevel,string][]).map(([key,label])=>(
-                          <button key={key} onClick={()=>setOpForm(p=>({...p,prompt:key}))} title={PROMPT_FULL[key]} style={{padding:"4px 9px",borderRadius:20,cursor:"pointer",fontFamily:"var(--font-sans)",fontSize:".65rem",border:`1px solid ${opForm.prompt===key?"#378ADD55":"rgba(26,58,92,.4)"}`,background:opForm.prompt===key?"rgba(55,138,221,.15)":"transparent",color:opForm.prompt===key?"#378ADD":"rgba(160,200,235,.4)"}}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
                   )}
                 </div>
               )
