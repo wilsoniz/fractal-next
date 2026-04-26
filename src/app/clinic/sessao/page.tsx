@@ -175,7 +175,7 @@ function SessaoInner() {
       const { data: c } = await supabase.from("criancas").select("id,nome,diagnostico").eq("id", pacienteId).single()
       if (c) setPaciente({ id: c.id, nome: c.nome, iniciais: iniciais(c.nome), gradient: "linear-gradient(135deg,#1D9E75,#378ADD)", diagnostico: c.diagnostico ?? "Não informado" })
 
-      const { data: planos } = await supabase.from("planos").select("id,programas(id,nome,dominio,tipo)").eq("crianca_id", pacienteId).eq("status","ativo")
+      const { data: planos } = await supabase.from("planos").select("id,programas(id,nome,dominio,operante)").eq("crianca_id", pacienteId).eq("status","ativo")
       const planejados: LibItem[] = []
       if (planos) {
         for (const pl of planos) {
@@ -183,12 +183,12 @@ function SessaoInner() {
           if (!prog) continue
           const { data: ops } = await supabase.from("operants").select("correto").limit(50)
           const taxa = ops&&ops.length>0?Math.round((ops.filter((o:any)=>o.correto).length/ops.length)*100):undefined
-          planejados.push({ id: prog.id, nome: prog.nome, dominio: prog.dominio??"—", tipo:"programa", planejado:true, planoId:pl.id, taxaHistorica:taxa, operante:prog.tipo })
+          planejados.push({ id: prog.id, nome: prog.nome, dominio: prog.dominio??"—", tipo:"programa", planejado:true, planoId:pl.id, taxaHistorica:taxa, operante:prog.operante })
         }
       }
 
       const { data: todos } = await supabase.from("programas").select("id,nome,dominio,tipo").limit(30)
-      const libGeral: LibItem[] = (todos??[]).filter(p=>!planejados.find(pl=>pl.id===p.id)).map(p=>({ id:p.id, nome:p.nome, dominio:p.dominio??"—", tipo:"programa" as const, planejado:false, operante:(p as any).tipo }))
+      const libGeral: LibItem[] = (todos??[]).filter(p=>!planejados.find(pl=>pl.id===p.id)).map(p=>({ id:p.id, nome:p.nome, dominio:p.dominio??"—", tipo:"programa" as const, planejado:false, operante:(p as any).operante }))
       const libAvals: LibItem[] = AVALIACOES_CAT.map(a=>({...a,tipo:"avaliacao" as const,planejado:false}))
       setBiblioteca([...planejados,...libGeral,...libAvals])
       setLoading(false)
