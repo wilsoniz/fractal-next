@@ -171,7 +171,7 @@ function SessaoInner() {
 
   // ── Carregar ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!pacienteId) return
+    if (!pacienteId) { setLoading(false); return }
     async function carregar() {
       setLoading(true)
       const { data: c } = await supabase.from("criancas").select("id,nome,diagnostico").eq("id", pacienteId).single()
