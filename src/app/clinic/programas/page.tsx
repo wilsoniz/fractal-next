@@ -164,18 +164,12 @@ const handleSalvar = async () => {
       operante: programa.operante,
       dominio: programa.nivelTreino,
       objetivo: programa.comportamentoAlvo,
-      sd: programa.sd,
       materiais: programa.material,
-      instrucoes: programa.instrucoes,
+      dica: programa.instrucoes,
       total_tentativas: programa.totalTentativas,
       criterio_maestria: programa.criterioMaestria,
-      reforco_geral: programa.reforcoGeral,
-      ordem_apresentacao: programa.ordemApresentacao,
-      relacoes: programa.relacoes,
-      estimulos: programa.estimulos,
-      nivel_dicas: programa.nivelDicas,
-      sessoes_para_maestria: programa.sessoesParaMaestria,
-      criado_por: terapeuta.id,
+      nivel: programa.nivelTreino,
+      ativo: true,
     }
     const { error } = await supabase.from('programas').insert(payload)
     if (!error) {

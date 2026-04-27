@@ -630,11 +630,10 @@ export default function MatrizesPage() {
     }
 
     // Upsert na stimulus_matrices
-    const { data, error } = await supabase
-      .from('stimulus_matrices')
-      .upsert({ id: m.id, ...payload }, { onConflict: 'id' })
-      .select('id')
-      .single()
+    const isNew = !m.id || m.id.length < 10
+    const { data, error } = isNew
+      ? await supabase.from('stimulus_matrices').insert(payload).select('id').single()
+      : await supabase.from('stimulus_matrices').update(payload).eq('id', m.id).select('id').single()
 
     if (error) {
       console.error('Erro ao salvar matriz:', error)
