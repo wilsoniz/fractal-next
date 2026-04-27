@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useClinicContext } from '../layout'
 import { supabase } from '@/lib/supabase'
 
@@ -260,12 +260,13 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 // ─── Modal: Enviar para treino digital ───────────────────────────────────────
 
 function ModalEnvioDigital({
-  programa, pacienteId, nivel, onClose,
+  programa, pacienteId, nivel, onClose, matrizes,
 }: {
   programa: ProgramaEnsino
   pacienteId: string
   nivel: 'terapeuta' | 'coordenador' | 'supervisor'
   onClose: () => void
+  matrizes: Matriz[]
 }) {
   const [passo, setPasso] = useState<1 | 2 | 3>(1)
   const [cfg, setCfg] = useState<ConfigEnvio>(CONFIG_ENVIO_DEFAULT)
@@ -428,7 +429,7 @@ function ModalEnvioDigital({
                 Selecione uma matriz da sua biblioteca. Os estímulos dela serão usados no treino digital.
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {MOCK_MATRIZES.map(m => (
+                {matrizes.map(m => (
                   <div
                     key={m.id}
                     onClick={() => selecionarMatriz(m)}
@@ -804,11 +805,12 @@ function ModalEnvioDigital({
 // ─── Programa panel ───────────────────────────────────────────────────────────
 
 function ProgramaPanel({
-  programa, pacienteId, nivel,
+  programa, pacienteId, nivel, matrizes,
 }: {
   programa: ProgramaEnsino
   pacienteId: string
   nivel: 'terapeuta' | 'coordenador' | 'supervisor'
+  matrizes: Matriz[]
 }) {
   const [modalAberto, setModalAberto] = useState(false)
 
@@ -830,6 +832,7 @@ function ProgramaPanel({
           programa={programa}
           pacienteId={pacienteId}
           nivel={nivel}
+          matrizes={matrizes}
           onClose={() => setModalAberto(false)}
         />
       )}
@@ -976,7 +979,31 @@ function ProtocoloPanel({ protocolo }: { protocolo: ProtocoloConduta }) {
 export default function PlanosPage() {
   const { terapeuta } = useClinicContext()
   const nivel = (terapeuta?.nivel ?? 'coordenador') as 'terapeuta' | 'coordenador' | 'supervisor'
+const [matrizes, setMatrizes] = useState<Matriz[]>([])
 
+  useEffect(() => {
+    const carregarMatrizes = async () => {
+      const { data } = await supabase
+        .from('stimulus_matrices')
+        .select('id, name, description, columns, total_groups, created_at')
+        .order('created_at', { ascending: false })
+      if (data) {
+        setMatrizes(data.map(m => ({
+          id: m.id,
+          nome: m.name,
+          descricao: m.description ?? '',
+          colunas: m.columns ?? [],
+          grupos: Array.from({ length: m.total_groups }, (_, i) => ({
+            id: `g${i+1}`,
+            celulas: {},
+          })),
+          criatedAt: m.created_at?.slice(0, 10) ?? '',
+          isPublic: false,
+        })))
+      }
+    }
+    carregarMatrizes()
+  }, [])
   const [abaPage, setAbaPage] = useState<'planos' | 'biblioteca' | 'matrizes' | 'protocolos'>('planos')
   const [planoSelecionado, setPlanoSelecionado] = useState<PlanoIntervencao>(MOCK_PLANOS[0])
   const [alvoSelecionado, setAlvoSelecionado] = useState<AlvoComportamental | null>(MOCK_PLANOS[0].alvos[0])
@@ -1126,9 +1153,10 @@ export default function PlanosPage() {
                               </div>
                               {programaSelecionado && (
                                 <ProgramaPanel
-                                  programa={programaSelecionado}
-                                  pacienteId={planoSelecionado.pacienteId}
+  programa={programaSelecionado}
+                            pacienteId={planoSelecionado.pacienteId}
                                   nivel={nivel}
+                                  matrizes={matrizes}
                                 />
                               )}
                             </>
