@@ -171,7 +171,9 @@ const handleSalvar = async () => {
       nivel: programa.nivelTreino,
       ativo: true,
     }
+    console.log('payload:', JSON.stringify(payload, null, 2))
     const { error } = await supabase.from('programas').insert(payload)
+    console.log('error:', JSON.stringify(error, null, 2))
     if (!error) {
       setSalvo(true)
     } else {
