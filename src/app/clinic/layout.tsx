@@ -31,7 +31,8 @@ const NAV_ITEMS = [
       { href: '/clinic/dashboard', label: 'Dashboard',    icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z' },
       { href: '/clinic/pacientes', label: 'Pacientes',    icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM2 18c0-3 2.7-5 6-5s6 2 6 5', badge: '12' },
       { href: '/clinic/programas', label: 'Programas',    icon: 'M2 4h12M2 8h9M2 12h6' },
-      
+      { href: '/clinic/matrizes',  label: 'Matrizes',     icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z' },
+      { href: '/clinic/planos',    label: 'Planos',        icon: 'M2 4h12M2 8h9M2 12h6' },
       { href: '/clinic/sessao',    label: 'Sessão ativa', icon: 'M8 2a6 6 0 100 12A6 6 0 008 2zM8 5v3l2 1.5' },
       { href: '/clinic/avaliacoes', label: 'Avaliações',   icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
       { href: '/clinic/evolucao',  label: 'Evolução',     icon: 'M1 11l4-5 3 3 3-5 4 3M1 13h14' },
