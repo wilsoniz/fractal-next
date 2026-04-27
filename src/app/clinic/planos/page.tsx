@@ -90,107 +90,7 @@ const CONFIG_ENVIO_DEFAULT: ConfigEnvio = {
   condicAstracao: false,
 }
 
-// ─── Matrizes mock (em produção virá do Supabase) ─────────────────────────────
-
-const MOCK_MATRIZES: Matriz[] = [
-  {
-    id: 'm1', nome: 'Frutas', descricao: 'Imagem, português, inglês',
-    colunas: [
-      { id: 'A', nome: 'Imagem', tipo: 'imagem' },
-      { id: 'B', nome: 'Português', tipo: 'texto' },
-      { id: 'C', nome: 'Inglês', tipo: 'texto' },
-    ],
-    grupos: [
-      { id: 'g1', celulas: { A: { valor: '' }, B: { valor: 'Maçã' }, C: { valor: 'Apple' } } },
-      { id: 'g2', celulas: { A: { valor: '' }, B: { valor: 'Milho' }, C: { valor: 'Corn' } } },
-      { id: 'g3', celulas: { A: { valor: '' }, B: { valor: 'Pão' }, C: { valor: 'Bread' } } },
-    ],
-  },
-  {
-    id: 'm2', nome: 'Notas Musicais', descricao: 'Áudio, nome PT, nome EN',
-    colunas: [
-      { id: 'A', nome: 'Áudio', tipo: 'audio' },
-      { id: 'B', nome: 'Nota (PT)', tipo: 'texto' },
-      { id: 'C', nome: 'Note (EN)', tipo: 'texto' },
-    ],
-    grupos: [
-      { id: 'g1', celulas: { A: { valor: '' }, B: { valor: 'Dó' }, C: { valor: 'C' } } },
-      { id: 'g2', celulas: { A: { valor: '' }, B: { valor: 'Ré' }, C: { valor: 'D' } } },
-      { id: 'g3', celulas: { A: { valor: '' }, B: { valor: 'Mi' }, C: { valor: 'E' } } },
-    ],
-  },
-]
-
-// ─── Dados mock planos ────────────────────────────────────────────────────────
-
-const MOCK_PLANOS: PlanoIntervencao[] = [
-  {
-    id: '1', nome: 'Plano de Intervenção — Tião Mello',
-    pacienteNome: 'Tião Mello', pacienteId: 'f04cc5b0-513a-43ba-97b9-1662727acede',
-    terapeutaNome: 'Wilson', dataInicio: 'mar/2025', dataRevisao: 'jun/2025',
-    status: 'ativo',
-    alvos: [
-      {
-        id: 'a1', codigo: '0A', descricao: 'Orientar-se para voz ou rosto de outra pessoa',
-        area: 'Prontidão', funcao: 'Atenção Social Inicial', operante: 'Ouvinte', status: 'ativo',
-        programas: [
-          {
-            id: 'p1', nome: 'Atenção ao nome', areaFoco: 'Prontidão · Atenção Social',
-            prereqs: 'Tolerância ambiental básica (0E)',
-            relevancia: 'Base para todas as interações sociais',
-            protocoloRef: ['VB-MAPP'], localImpl: ['Clínica', 'Casa'],
-            sd: 'Chamada verbal pelo nome', resposta: 'Orientação do rosto ≥ 0,5 s',
-            consequenciaAcerto: 'Reforço social + item preferido',
-            consequenciaErro: 'Correção com dica física leve',
-            estrategiaDica: 'Least to most',
-            hierarquiaDicas: 'Independente → Gestual → Físico parcial → Físico total',
-            estrategiaEnsino: ['Tentativa discreta'], operante: 'Ouvinte',
-            objetivoLongoPrazo: 'Orientar ao nome em 3 ambientes, 80% em 2 sessões consecutivas',
-            criterioAvanco: '80% em 2 sessões consecutivas',
-            criterioInterrupcao: 'Queda abaixo de 50% por 3 sessões',
-            totalTentativas: 10, materiais: 'Itens preferidos · Planilha · Cronômetro',
-            status: 'ativo',
-            objetivosCurtoPrazo: [
-              { id: 'o1', prazo: 'curto', descricao: 'Orientar com dica física em 80%', dataPrevista: 'abr/2025', atingido: true },
-              { id: 'o2', prazo: 'medio', descricao: 'Orientar de forma independente na clínica', dataPrevista: 'mai/2025', atingido: false },
-              { id: 'o3', prazo: 'longo', descricao: 'Generalizar para casa e escola', dataPrevista: 'jul/2025', atingido: false },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'a2', codigo: 'IM-0C', descricao: 'Tocar o mesmo objeto que o instrutor toca',
-        area: 'Imitação', funcao: 'Coordenação Social', operante: 'Imitação', status: 'emergente',
-        programas: [],
-      },
-      {
-        id: 'a3', codigo: 'EC-0A', descricao: 'Produzir sons espontâneos (balbucio)',
-        area: 'Ecoico', funcao: 'Pré-vocalização', operante: 'Ecoico', status: 'nao_iniciado',
-        programas: [],
-      },
-    ],
-    protocolos: [
-      {
-        id: 'pr1', nome: 'Comportamento de fuga de tarefa',
-        topografia: 'Esquiva / recusa com choro', funcao: 'Fuga',
-        estrategia: ['Extinção', 'DRA', 'NCR'],
-        planoCrise: 'Pausar atividade, ofertar item de alta preferência, retomar em 2 min',
-      },
-    ],
-  },
-  {
-    id: '2', nome: 'Plano de Intervenção — Ana Beatriz',
-    pacienteNome: 'Ana Beatriz', pacienteId: 'abc-123',
-    terapeutaNome: 'Wilson', dataInicio: 'jan/2025', dataRevisao: 'abr/2025',
-    status: 'revisao', alvos: [], protocolos: [],
-  },
-  {
-    id: '3', nome: 'Plano de Intervenção — Rafa Costa',
-    pacienteNome: 'Rafa Costa', pacienteId: 'def-456',
-    terapeutaNome: 'Wilson', dataInicio: '', dataRevisao: '',
-    status: 'rascunho', alvos: [], protocolos: [],
-  },
-]
+// (sem mocks — dados carregados do Supabase)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -832,8 +732,8 @@ function ProgramaPanel({
           programa={programa}
           pacienteId={pacienteId}
           nivel={nivel}
-          matrizes={matrizes}
           onClose={() => setModalAberto(false)}
+          matrizes={matrizes}
         />
       )}
 
@@ -979,36 +879,97 @@ function ProtocoloPanel({ protocolo }: { protocolo: ProtocoloConduta }) {
 export default function PlanosPage() {
   const { terapeuta } = useClinicContext()
   const nivel = (terapeuta?.nivel ?? 'coordenador') as 'terapeuta' | 'coordenador' | 'supervisor'
-const [matrizes, setMatrizes] = useState<Matriz[]>([])
+
+  const [abaPage, setAbaPage] = useState<'planos' | 'biblioteca' | 'matrizes' | 'protocolos'>('planos')
+  const [planos, setPlanos] = useState<PlanoIntervencao[]>([])
+  const [matrizes, setMatrizes] = useState<Matriz[]>([])
+  const [loadingPlanos, setLoadingPlanos] = useState(true)
+  const [planoSelecionado, setPlanoSelecionado] = useState<PlanoIntervencao | null>(null)
+  const [alvoSelecionado, setAlvoSelecionado] = useState<AlvoComportamental | null>(null)
+  const [programaSelecionado, setProgramaSelecionado] = useState<ProgramaEnsino | null>(null)
+  const [detalheAba, setDetalheAba] = useState<'alvos' | 'protocolos' | 'historico'>('alvos')
 
   useEffect(() => {
-    const carregarMatrizes = async () => {
+    const carregar = async () => {
       const { data } = await supabase
         .from('stimulus_matrices')
         .select('id, name, description, columns, total_groups, created_at')
         .order('created_at', { ascending: false })
       if (data) {
         setMatrizes(data.map(m => ({
-          id: m.id,
-          nome: m.name,
-          descricao: m.description ?? '',
+          id: m.id, nome: m.name, descricao: m.description ?? '',
           colunas: m.columns ?? [],
-          grupos: Array.from({ length: m.total_groups }, (_, i) => ({
-            id: `g${i+1}`,
-            celulas: {},
-          })),
-          criatedAt: m.created_at?.slice(0, 10) ?? '',
-          isPublic: false,
+          grupos: Array.from({ length: m.total_groups }, (_, i) => ({ id: `g${i+1}`, celulas: {} })),
         })))
       }
     }
-    carregarMatrizes()
+    carregar()
   }, [])
-  const [abaPage, setAbaPage] = useState<'planos' | 'biblioteca' | 'matrizes' | 'protocolos'>('planos')
-  const [planoSelecionado, setPlanoSelecionado] = useState<PlanoIntervencao>(MOCK_PLANOS[0])
-  const [alvoSelecionado, setAlvoSelecionado] = useState<AlvoComportamental | null>(MOCK_PLANOS[0].alvos[0])
-  const [programaSelecionado, setProgramaSelecionado] = useState<ProgramaEnsino | null>(MOCK_PLANOS[0].alvos[0].programas[0] ?? null)
-  const [detalheAba, setDetalheAba] = useState<'alvos' | 'protocolos' | 'historico'>('alvos')
+
+  useEffect(() => {
+    if (!terapeuta) return
+    const carregar = async () => {
+      setLoadingPlanos(true)
+      const { data } = await supabase
+        .from('planos')
+        .select(`id, status, criado_em, criancas ( id, nome ), programas ( id, nome, dominio, objetivo, operante, total_tentativas, criterio_maestria )`)
+        .eq('terapeuta_id', terapeuta.id)
+        .order('criado_em', { ascending: false })
+      if (data) {
+        const agrupados = new Map<string, PlanoIntervencao>()
+        for (const pl of data) {
+          const crianca = pl.criancas as any
+          if (!crianca) continue
+          if (!agrupados.has(crianca.id)) {
+            agrupados.set(crianca.id, {
+              id: crianca.id,
+              nome: `Plano de Intervenção — ${crianca.nome}`,
+              pacienteNome: crianca.nome, pacienteId: crianca.id,
+              terapeutaNome: terapeuta.nome,
+              dataInicio: pl.criado_em?.slice(0, 7) ?? '', dataRevisao: '',
+              status: (pl.status ?? 'ativo') as StatusPlano,
+              alvos: [], protocolos: [],
+            })
+          }
+          const prog = pl.programas as any
+          if (prog) {
+            const planoAtual = agrupados.get(crianca.id)!
+            const alvoId = `alvo-${prog.dominio}-${crianca.id}`
+            const alvoExistente = planoAtual.alvos.find(a => a.id === alvoId)
+            const programa: ProgramaEnsino = {
+              id: pl.id, nome: prog.nome ?? '—', areaFoco: prog.dominio ?? '—',
+              prereqs: '', relevancia: '', protocoloRef: [], localImpl: [],
+              sd: '', resposta: '', consequenciaAcerto: '', consequenciaErro: '',
+              estrategiaDica: '', hierarquiaDicas: '', estrategiaEnsino: [],
+              operante: prog.operante ?? '—', objetivoLongoPrazo: prog.objetivo ?? '—',
+              criterioAvanco: prog.criterio_maestria ?? '—', criterioInterrupcao: '',
+              totalTentativas: prog.total_tentativas ?? 10,
+              materiais: '', objetivosCurtoPrazo: [], status: 'ativo',
+            }
+            if (alvoExistente) {
+              alvoExistente.programas.push(programa)
+            } else {
+              planoAtual.alvos.push({
+                id: alvoId, codigo: prog.dominio?.slice(0, 3).toUpperCase() ?? '—',
+                descricao: prog.dominio ?? '—', area: prog.dominio ?? '—',
+                funcao: '—', operante: prog.operante ?? '—',
+                status: 'ativo', programas: [programa],
+              })
+            }
+          }
+        }
+        const lista = Array.from(agrupados.values())
+        setPlanos(lista)
+        if (lista.length > 0) {
+          setPlanoSelecionado(lista[0])
+          setAlvoSelecionado(lista[0].alvos[0] ?? null)
+          setProgramaSelecionado(lista[0].alvos[0]?.programas[0] ?? null)
+        }
+      }
+      setLoadingPlanos(false)
+    }
+    carregar()
+  }, [terapeuta])
 
   const s = {
     navy: '#07111f', card: 'rgba(13,32,53,0.85)', border: 'rgba(26,58,92,0.5)',
@@ -1017,9 +978,9 @@ const [matrizes, setMatrizes] = useState<Matriz[]>([])
   }
 
   const abas = [
-    { key: 'planos' as const,     label: 'Planos ativos' },
+    { key: 'planos' as const, label: 'Planos ativos' },
     { key: 'biblioteca' as const, label: 'Biblioteca de programas' },
-    { key: 'matrizes' as const,   label: 'Matrizes de estímulos' },
+    { key: 'matrizes' as const, label: 'Matrizes de estímulos' },
     { key: 'protocolos' as const, label: 'Protocolos de conduta' },
   ]
 
@@ -1046,152 +1007,153 @@ const [matrizes, setMatrizes] = useState<Matriz[]>([])
       </div>
 
       <div style={{ padding: '24px 28px' }}>
-
         {abaPage === 'planos' && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 28 }}>
-              {MOCK_PLANOS.map(plano => {
-                const st = STATUS_PLANO[plano.status]
-                const sel = plano.id === planoSelecionado.id
-                return (
-                  <div key={plano.id} onClick={() => { setPlanoSelecionado(plano); setAlvoSelecionado(plano.alvos[0] ?? null); setProgramaSelecionado(plano.alvos[0]?.programas[0] ?? null) }}
-                    style={{ background: sel ? 'rgba(13,32,53,0.95)' : s.card, border: `1px solid ${sel ? s.teal : s.border}`, borderRadius: 12, padding: 18, cursor: 'pointer', transition: 'all 0.15s' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{plano.pacienteNome}</div>
-                        <div style={{ fontSize: 11, color: s.muted, marginTop: 2 }}>{plano.dataInicio ? `Início: ${plano.dataInicio} · Rev. ${plano.dataRevisao}` : 'Rascunho · não publicado'}</div>
-                      </div>
-                      <Badge label={st.label} color={st.color} bg={st.bg} />
-                    </div>
-                    <div style={{ display: 'flex', gap: 18 }}>
-                      {[{ label: 'Alvos', val: plano.alvos.length }, { label: 'Programas', val: plano.alvos.reduce((acc, a) => acc + a.programas.length, 0) }, { label: 'Protocolos', val: plano.protocolos.length }].map(item => (
-                        <div key={item.label}>
-                          <div style={{ fontSize: 18, fontWeight: 500, color: s.text }}>{item.val}</div>
-                          <div style={{ fontSize: 11, color: s.muted }}>{item.label}</div>
+            {loadingPlanos && (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: s.muted, fontSize: 13 }}>Carregando planos...</div>
+            )}
+
+            {!loadingPlanos && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 28 }}>
+                {planos.map(plano => {
+                  const st = STATUS_PLANO[plano.status]
+                  const sel = plano.id === planoSelecionado?.id
+                  return (
+                    <div key={plano.id} onClick={() => { setPlanoSelecionado(plano); setAlvoSelecionado(plano.alvos[0] ?? null); setProgramaSelecionado(plano.alvos[0]?.programas[0] ?? null) }}
+                      style={{ background: sel ? 'rgba(13,32,53,0.95)' : s.card, border: `1px solid ${sel ? s.teal : s.border}`, borderRadius: 12, padding: 18, cursor: 'pointer', transition: 'all 0.15s' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500 }}>{plano.pacienteNome}</div>
+                          <div style={{ fontSize: 11, color: s.muted, marginTop: 2 }}>{plano.dataInicio ? `Início: ${plano.dataInicio}` : 'Sem data'}</div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-              <div onClick={() => {}} style={{ background: 'transparent', border: `1px dashed ${s.border}`, borderRadius: 12, padding: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: s.muted, fontSize: 13, minHeight: 100 }}>
-                <span style={{ fontSize: 18 }}>+</span> Novo plano de intervenção
-              </div>
-            </div>
-
-            <div style={{ background: s.card, border: `1px solid ${s.border}`, borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ padding: '18px 24px', borderBottom: `1px solid ${s.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 500 }}>Plano de Intervenção — {planoSelecionado.pacienteNome}</div>
-                  <div style={{ fontSize: 11, color: s.muted, marginTop: 2 }}>{planoSelecionado.dataInicio ? `Ativo desde ${planoSelecionado.dataInicio} · Revisão prevista: ${planoSelecionado.dataRevisao}` : 'Rascunho — configure e publique o plano'}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${s.border}`, color: s.muted, cursor: 'pointer' }}>Exportar PDF</button>
-                  <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${s.border}`, color: s.muted, cursor: 'pointer' }}>Editar plano</button>
-                  <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: s.teal, border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>+ Adicionar alvo</button>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', borderBottom: `1px solid ${s.border}`, background: 'rgba(0,0,0,0.15)' }}>
-                {[{ key: 'alvos' as const, label: 'Alvos e programas' }, { key: 'protocolos' as const, label: 'Protocolos de conduta' }, { key: 'historico' as const, label: 'Histórico' }].map(t => (
-                  <button key={t.key} onClick={() => setDetalheAba(t.key)} style={{ padding: '9px 18px', fontSize: 12, background: 'transparent', border: 'none', borderBottom: `2px solid ${detalheAba === t.key ? s.teal : 'transparent'}`, color: detalheAba === t.key ? s.teal : s.muted, cursor: 'pointer' }}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ padding: 24 }}>
-                {detalheAba === 'alvos' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
-                    <div>
-                      <div style={{ fontSize: 11, color: s.muted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Comportamentos-alvo</div>
-                      {planoSelecionado.alvos.map(alvo => {
-                        const stAlvo = STATUS_ALVO[alvo.status]
-                        const sel = alvoSelecionado?.id === alvo.id
-                        return (
-                          <div key={alvo.id} onClick={() => { setAlvoSelecionado(alvo); setProgramaSelecionado(alvo.programas[0] ?? null) }}
-                            style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 14px', borderRadius: 9, marginBottom: 6, background: sel ? 'rgba(29,158,117,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${sel ? 'rgba(29,158,117,0.35)' : s.border}`, cursor: 'pointer', transition: 'all 0.15s' }}>
-                            <div style={{ width: 7, height: 7, borderRadius: '50%', background: stAlvo.color, flexShrink: 0, marginTop: 4 }} />
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                                <span style={{ fontSize: 10, fontFamily: 'monospace', color: s.blue, background: 'rgba(55,138,221,0.12)', padding: '1px 6px', borderRadius: 4 }}>{alvo.codigo}</span>
-                              </div>
-                              <div style={{ fontSize: 12, color: s.text, lineHeight: 1.4 }}>{alvo.descricao}</div>
-                              <div style={{ fontSize: 10, color: s.muted, marginTop: 3 }}>{alvo.area} · {alvo.operante}</div>
-                            </div>
+                        <Badge label={st.label} color={st.color} bg={st.bg} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 18 }}>
+                        {[{ label: 'Alvos', val: plano.alvos.length }, { label: 'Programas', val: plano.alvos.reduce((acc, a) => acc + a.programas.length, 0) }, { label: 'Protocolos', val: plano.protocolos.length }].map(item => (
+                          <div key={item.label}>
+                            <div style={{ fontSize: 18, fontWeight: 500, color: s.text }}>{item.val}</div>
+                            <div style={{ fontSize: 11, color: s.muted }}>{item.label}</div>
                           </div>
-                        )
-                      })}
-                      <div style={{ padding: '10px 14px', borderRadius: 9, marginTop: 4, border: `1px dashed ${s.border}`, color: s.muted, fontSize: 12, cursor: 'pointer', textAlign: 'center' }}>
-                        + Adicionar da biblioteca
+                        ))}
                       </div>
                     </div>
-
-                    <div>
-                      {alvoSelecionado ? (
-                        <>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 500, color: s.text }}>{alvoSelecionado.descricao}</div>
-                              <div style={{ fontSize: 11, color: s.muted, marginTop: 2 }}>{alvoSelecionado.area} · {alvoSelecionado.funcao} · {alvoSelecionado.operante}</div>
-                            </div>
-                            <Badge label={STATUS_ALVO[alvoSelecionado.status].label} color={STATUS_ALVO[alvoSelecionado.status].color} bg={`${STATUS_ALVO[alvoSelecionado.status].color}18`} />
-                          </div>
-
-                          {alvoSelecionado.programas.length > 0 ? (
-                            <>
-                              <div style={{ display: 'flex', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-                                {alvoSelecionado.programas.map(p => (
-                                  <button key={p.id} onClick={() => setProgramaSelecionado(p)}
-                                    style={{ fontSize: 12, padding: '5px 13px', borderRadius: 20, cursor: 'pointer', border: `1px solid ${programaSelecionado?.id === p.id ? s.teal : s.border}`, background: programaSelecionado?.id === p.id ? 'rgba(29,158,117,0.12)' : 'transparent', color: programaSelecionado?.id === p.id ? s.teal : s.muted }}>
-                                    {p.nome}
-                                  </button>
-                                ))}
-                                <button style={{ fontSize: 12, padding: '5px 13px', borderRadius: 20, cursor: 'pointer', border: `1px dashed ${s.border}`, background: 'transparent', color: s.muted }}>
-                                  + Novo programa
-                                </button>
-                              </div>
-                              {programaSelecionado && (
-                                <ProgramaPanel
-  programa={programaSelecionado}
-                            pacienteId={planoSelecionado.pacienteId}
-                                  nivel={nivel}
-                                  matrizes={matrizes}
-                                />
-                              )}
-                            </>
-                          ) : (
-                            <div style={{ textAlign: 'center', padding: '32px 20px', color: s.muted, fontSize: 13, border: `1px dashed ${s.border}`, borderRadius: 10 }}>
-                              <div style={{ marginBottom: 10 }}>Nenhum programa de ensino vinculado a este alvo</div>
-                              <button style={{ fontSize: 12, padding: '7px 16px', borderRadius: 7, background: s.teal, border: 'none', color: '#fff', cursor: 'pointer' }}>
-                                + Criar programa de ensino
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div style={{ color: s.muted, fontSize: 13, padding: 20 }}>Selecione um comportamento-alvo para ver os programas</div>
-                      )}
-                    </div>
+                  )
+                })}
+                {planos.length === 0 && (
+                  <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 20px', color: s.muted, fontSize: 13, border: `1px dashed ${s.border}`, borderRadius: 12 }}>
+                    Nenhum plano encontrado. Associe pacientes ao seu perfil para começar.
                   </div>
                 )}
-
-                {detalheAba === 'protocolos' && (
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-                      <button style={{ fontSize: 12, padding: '7px 14px', borderRadius: 7, background: s.coral, border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>+ Adicionar protocolo</button>
-                    </div>
-                    {planoSelecionado.protocolos.length > 0
-                      ? planoSelecionado.protocolos.map(p => <ProtocoloPanel key={p.id} protocolo={p} />)
-                      : <div style={{ textAlign: 'center', padding: '32px 20px', color: s.muted, fontSize: 13, border: `1px dashed ${s.border}`, borderRadius: 10 }}>Nenhum protocolo de conduta cadastrado</div>}
-                  </div>
-                )}
-
-                {detalheAba === 'historico' && (
-                  <div style={{ color: s.muted, fontSize: 13, textAlign: 'center', padding: 32 }}>Histórico de revisões — em breve</div>
-                )}
+                <div style={{ background: 'transparent', border: `1px dashed ${s.border}`, borderRadius: 12, padding: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: s.muted, fontSize: 13, minHeight: 100 }}>
+                  <span style={{ fontSize: 18 }}>+</span> Novo plano de intervenção
+                </div>
               </div>
-            </div>
+            )}
+
+            {!loadingPlanos && planoSelecionado && (
+              <div style={{ background: s.card, border: `1px solid ${s.border}`, borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ padding: '18px 24px', borderBottom: `1px solid ${s.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 500 }}>Plano de Intervenção — {planoSelecionado.pacienteNome}</div>
+                    <div style={{ fontSize: 11, color: s.muted, marginTop: 2 }}>{planoSelecionado.dataInicio ? `Ativo desde ${planoSelecionado.dataInicio}` : 'Rascunho'}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${s.border}`, color: s.muted, cursor: 'pointer' }}>Exportar PDF</button>
+                    <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${s.border}`, color: s.muted, cursor: 'pointer' }}>Editar plano</button>
+                    <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: s.teal, border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>+ Adicionar alvo</button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', borderBottom: `1px solid ${s.border}`, background: 'rgba(0,0,0,0.15)' }}>
+                  {([{ key: 'alvos', label: 'Alvos e programas' }, { key: 'protocolos', label: 'Protocolos de conduta' }, { key: 'historico', label: 'Histórico' }] as const).map(t => (
+                    <button key={t.key} onClick={() => setDetalheAba(t.key)} style={{ padding: '9px 18px', fontSize: 12, background: 'transparent', border: 'none', borderBottom: `2px solid ${detalheAba === t.key ? s.teal : 'transparent'}`, color: detalheAba === t.key ? s.teal : s.muted, cursor: 'pointer' }}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ padding: 24 }}>
+                  {detalheAba === 'alvos' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: s.muted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Comportamentos-alvo</div>
+                        {planoSelecionado.alvos.length === 0 && <div style={{ fontSize: 12, color: s.muted }}>Nenhum alvo cadastrado</div>}
+                        {planoSelecionado.alvos.map(alvo => {
+                          const stAlvo = STATUS_ALVO[alvo.status]
+                          const sel = alvoSelecionado?.id === alvo.id
+                          return (
+                            <div key={alvo.id} onClick={() => { setAlvoSelecionado(alvo); setProgramaSelecionado(alvo.programas[0] ?? null) }}
+                              style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 14px', borderRadius: 9, marginBottom: 6, background: sel ? 'rgba(29,158,117,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${sel ? 'rgba(29,158,117,0.35)' : s.border}`, cursor: 'pointer', transition: 'all 0.15s' }}>
+                              <div style={{ width: 7, height: 7, borderRadius: '50%', background: stAlvo.color, flexShrink: 0, marginTop: 4 }} />
+                              <div style={{ flex: 1 }}>
+                                <span style={{ fontSize: 10, fontFamily: 'monospace', color: s.blue, background: 'rgba(55,138,221,0.12)', padding: '1px 6px', borderRadius: 4 }}>{alvo.codigo}</span>
+                                <div style={{ fontSize: 12, color: s.text, lineHeight: 1.4, marginTop: 3 }}>{alvo.descricao}</div>
+                                <div style={{ fontSize: 10, color: s.muted, marginTop: 2 }}>{alvo.area} · {alvo.operante}</div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        <div style={{ padding: '10px 14px', borderRadius: 9, marginTop: 4, border: `1px dashed ${s.border}`, color: s.muted, fontSize: 12, cursor: 'pointer', textAlign: 'center' }}>
+                          + Adicionar da biblioteca
+                        </div>
+                      </div>
+
+                      <div>
+                        {alvoSelecionado ? (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 500, color: s.text }}>{alvoSelecionado.descricao}</div>
+                                <div style={{ fontSize: 11, color: s.muted, marginTop: 2 }}>{alvoSelecionado.area} · {alvoSelecionado.funcao} · {alvoSelecionado.operante}</div>
+                              </div>
+                              <Badge label={STATUS_ALVO[alvoSelecionado.status].label} color={STATUS_ALVO[alvoSelecionado.status].color} bg={`${STATUS_ALVO[alvoSelecionado.status].color}18`} />
+                            </div>
+                            {alvoSelecionado.programas.length > 0 ? (
+                              <>
+                                <div style={{ display: 'flex', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                                  {alvoSelecionado.programas.map(p => (
+                                    <button key={p.id} onClick={() => setProgramaSelecionado(p)}
+                                      style={{ fontSize: 12, padding: '5px 13px', borderRadius: 20, cursor: 'pointer', border: `1px solid ${programaSelecionado?.id === p.id ? s.teal : s.border}`, background: programaSelecionado?.id === p.id ? 'rgba(29,158,117,0.12)' : 'transparent', color: programaSelecionado?.id === p.id ? s.teal : s.muted }}>
+                                      {p.nome}
+                                    </button>
+                                  ))}
+                                  <button style={{ fontSize: 12, padding: '5px 13px', borderRadius: 20, cursor: 'pointer', border: `1px dashed ${s.border}`, background: 'transparent', color: s.muted }}>+ Novo programa</button>
+                                </div>
+                                {programaSelecionado && (
+                                  <ProgramaPanel programa={programaSelecionado} pacienteId={planoSelecionado.pacienteId} nivel={nivel} matrizes={matrizes} />
+                                )}
+                              </>
+                            ) : (
+                              <div style={{ textAlign: 'center', padding: '32px 20px', color: s.muted, fontSize: 13, border: `1px dashed ${s.border}`, borderRadius: 10 }}>
+                                <div style={{ marginBottom: 10 }}>Nenhum programa vinculado a este alvo</div>
+                                <button style={{ fontSize: 12, padding: '7px 16px', borderRadius: 7, background: s.teal, border: 'none', color: '#fff', cursor: 'pointer' }}>+ Criar programa de ensino</button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div style={{ color: s.muted, fontSize: 13, padding: 20 }}>Selecione um comportamento-alvo para ver os programas</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {detalheAba === 'protocolos' && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                        <button style={{ fontSize: 12, padding: '7px 14px', borderRadius: 7, background: s.coral, border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>+ Adicionar protocolo</button>
+                      </div>
+                      {planoSelecionado.protocolos.length > 0
+                        ? planoSelecionado.protocolos.map(p => <ProtocoloPanel key={p.id} protocolo={p} />)
+                        : <div style={{ textAlign: 'center', padding: '32px 20px', color: s.muted, fontSize: 13, border: `1px dashed ${s.border}`, borderRadius: 10 }}>Nenhum protocolo cadastrado</div>}
+                    </div>
+                  )}
+
+                  {detalheAba === 'historico' && (
+                    <div style={{ color: s.muted, fontSize: 13, textAlign: 'center', padding: 32 }}>Histórico de revisões — em breve</div>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
 
