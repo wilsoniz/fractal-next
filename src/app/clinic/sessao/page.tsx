@@ -208,7 +208,7 @@ function SessaoInner() {
   // ── Iniciar ────────────────────────────────────────────────────────────────
   async function iniciarSessao() {
     if (!paciente||!terapeuta) return
-    const { data } = await supabase.from("sessoes_v2").insert({ crianca_id:paciente.id, terapeuta_id:terapeuta.id, status:"ativa", inicio:new Date().toISOString() }).select("id").single()
+    const { data } = await supabase.from("sessoes_v2").insert({ crianca_id:paciente.id, terapeuta_id:terapeuta?.id, status:"ativa", inicio:new Date().toISOString() }).select("id").single()
     if (data) {
       setSessaoDbId(data.id)
       for (const st of stages) {
