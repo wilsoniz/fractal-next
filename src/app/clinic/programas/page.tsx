@@ -157,7 +157,34 @@ export default function GoalBuilderPage() {
     }
     carregarPacientes();
   }, [terapeuta]);
-
+const handleSalvar = async () => {
+    if (!terapeuta) return
+    const payload = {
+      nome: programa.nome,
+      operante: programa.operante,
+      dominio: programa.nivelTreino,
+      objetivo: programa.comportamentoAlvo,
+      sd: programa.sd,
+      materiais: programa.material,
+      instrucoes: programa.instrucoes,
+      total_tentativas: programa.totalTentativas,
+      criterio_maestria: programa.criterioMaestria,
+      reforco_geral: programa.reforcoGeral,
+      ordem_apresentacao: programa.ordemApresentacao,
+      relacoes: programa.relacoes,
+      estimulos: programa.estimulos,
+      nivel_dicas: programa.nivelDicas,
+      sessoes_para_maestria: programa.sessoesParaMaestria,
+      criado_por: terapeuta.id,
+    }
+    const { error } = await supabase.from('programas').insert(payload)
+    if (!error) {
+      setSalvo(true)
+    } else {
+      console.error('Erro ao salvar programa:', error)
+      alert('Erro ao salvar. Verifique o console.')
+    }
+  }
   const upd = useCallback(<K extends keyof Programa>(key: K, val: Programa[K]) => {
     setPrograma(prev => ({ ...prev, [key]: val }));
   }, []);
@@ -601,7 +628,7 @@ const lbl: React.CSSProperties = {
 
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => setEtapa(3)} style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: ".85rem", cursor: "pointer" }}>← Voltar</button>
-            <button onClick={() => setSalvo(true)} style={{ flex: 1, padding: 14, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".9rem", cursor: "pointer" }}>
+            <button onClick={handleSalvar} style={{ flex: 1, padding: 14, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".9rem", cursor: "pointer" }}>
               ✓ Salvar programa
             </button>
           </div>
