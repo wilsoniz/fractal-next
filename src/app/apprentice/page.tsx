@@ -96,7 +96,7 @@ function playSound(type: 'acerto' | 'erro' | 'conclusao') {
 
 function Confetti({ ativo }: { ativo: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animRef = useRef<number>()
+  const animRef = useRef<number | null>(null)
   const particlesRef = useRef<any[]>([])
 
   useEffect(() => {
@@ -329,8 +329,9 @@ function ApprenticeContent() {
       setTask(taskData)
 
       // Embaralha os trials e as opções de cada trial
-      const trialsEmbaralhados = embaralhar(taskData.stimuli_payload?.trials ?? [])
-        .map(t => ({ ...t, options: embaralhar(t.options) }))
+      const rawTrials = (taskData.stimuli_payload as { trials: Trial[] })?.trials ?? []
+      const trialsEmbaralhados = embaralhar(rawTrials)
+        .map((t: Trial) => ({ ...t, options: embaralhar(t.options) }))
       setTrials(trialsEmbaralhados)
 
       // Cria sessão
@@ -437,7 +438,7 @@ function ApprenticeContent() {
     setPontos(0)
     if (task) {
       const trialsEmbaralhados = embaralhar(task.stimuli_payload?.trials ?? [])
-        .map(t => ({ ...t, options: embaralhar(t.options) }))
+        .map((t: Trial) => ({ ...t, options: embaralhar(t.options) }))
       setTrials(trialsEmbaralhados)
     }
     inicioTrialRef.current = Date.now()
