@@ -593,7 +593,7 @@ function MatrizCard({ matriz, onEditar, onSelecionar, selecionada }: {
 
 export default function MatrizesPage() {
   useClinicContext()
-
+  const { terapeuta } = useClinicContext()
   const [matrizes, setMatrizes] = useState<Matriz[]>(MOCK_MATRIZES)
   const [editando, setEditando] = useState<Matriz | null>(null)
   const [selecionada, setSelecionada] = useState<string | null>(null)
@@ -617,7 +617,51 @@ export default function MatrizesPage() {
     m.descricao.toLowerCase().includes(busca.toLowerCase())
   )
 
-  const handleSave = (m: Matriz) => {
+  const handleSave = async (m: Matriz) => {
+    if (!terapeuta) return
+
+    const payload = {
+      name: m.nome,
+      description: m.descricao,
+      total_groups: m.grupos.length,
+      columns: m.colunas,
+      is_public: false,
+      created_by: terapeuta.id,
+    }
+
+    // Upsert na stimulus_matrices
+    const { data, error } = await supabase
+      .from('stimulus_matrices')
+      .upsert({ id: m.id, ...payload }, { onConflict: 'id' })
+      .select('id')
+      .single()
+
+    if (error) {
+      console.error('Erro ao salvar matriz:', error)
+      alert('Erro ao salvar matriz. Verifique o console.')
+      return
+    }
+
+    // Salva células
+    const celulas = m.grupos.flatMap((grupo, grupIdx) =>
+      m.colunas.map(col => ({
+        matrix_id: data.id,
+        group_index: grupIdx + 1,
+        column_id: col.id,
+        inline_type: col.tipo,
+        inline_label: grupo.celulas[col.id]?.valor ?? '',
+      }))
+    )
+
+    await supabase
+      .from('stimulus_matrix_cells')
+      .delete()
+      .eq('matrix_id', data.id)
+
+    if (celulas.length > 0) {
+      await supabase.from('stimulus_matrix_cells').insert(celulas)
+    }
+
     setMatrizes(prev => {
       const existe = prev.find(x => x.id === m.id)
       return existe ? prev.map(x => x.id === m.id ? m : x) : [m, ...prev]
