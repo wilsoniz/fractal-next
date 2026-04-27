@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useClinicContext } from '../layout'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -126,7 +126,7 @@ function CelulaEditor({
   onChange: (nova: Celula) => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClientComponentClient()
+  
 
   const s = {
     border: 'rgba(26,58,92,0.5)',
