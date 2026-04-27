@@ -162,7 +162,7 @@ const handleSalvar = async () => {
     const payload = {
       nome: programa.nome,
       operante: programa.operante,
-      dominio: programa.nivelTreino,
+      dominio: 'comunicacao', 
       objetivo: programa.comportamentoAlvo,
       materiais: programa.material,
       dica: programa.instrucoes,
