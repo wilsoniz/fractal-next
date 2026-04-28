@@ -170,7 +170,7 @@ const handleSalvar = async () => {
       dica: programa.instrucoes,
       total_tentativas: programa.totalTentativas,
       criterio_maestria: programa.criterioMaestria,
-      nivel: programa.nivelTreino,
+      nivel: programa.nivelTreino === 'basico' ? 'iniciante' : programa.nivelTreino,
       ativo: true,
     }
     console.log('payload:', JSON.stringify(payload, null, 2))
