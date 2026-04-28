@@ -41,6 +41,7 @@ interface Programa {
   operante: TipoOperante;
   tipoComportamento: TipoComportamento;
   nivelTreino: NivelTreino;
+  dominio: string;
   comportamentoAlvo: string;
   sd: string;
   material: string;
@@ -100,7 +101,7 @@ function uid() { return Math.random().toString(36).slice(2, 9); }
 
 // ─── PROGRAMA INICIAL ─────────────────────────────────────────────────────────
 const PROGRAMA_INICIAL: Programa = {
-  nome: "", operante: "tato", nivelTreino: "basico", tipoComportamento: "verbal" as TipoComportamento,
+  nome: "", operante: "tato", nivelTreino: "basico", tipoComportamento: "verbal" as TipoComportamento, dominio: "comunicacao",
   comportamentoAlvo: "", sd: "", material: "", instrucoes: "", pacienteId: "1",
   estimulos: [{ id: uid(), modelo: "", comparacao: "", modeloTipo: "texto", comparacaoTipo: "texto" }],
   relacoes: ["A→B"],
@@ -164,7 +165,7 @@ const handleSalvar = async () => {
     const payload = {
       nome: programa.nome,
       operante: programa.operante,
-      dominio: 'comunicacao', 
+      dominio: programa.dominio, 
       objetivo: programa.comportamentoAlvo,
       materiais: programa.material,
       dica: programa.instrucoes,
@@ -377,6 +378,35 @@ const lbl: React.CSSProperties = {
                 Comportamento motor — operante registrado automaticamente como Imitação/Ouvinte
               </div>
             )}
+          </div>
+
+          {/* Domínio */}
+          <div style={{ ...card, padding: 20 }}>
+            <label style={lbl}>Domínio de desenvolvimento *</label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+              {([
+                { id: "comunicacao",   label: "Comunicação",   cor: "#1D9E75" },
+                { id: "social",        label: "Social",        cor: "#378ADD" },
+                { id: "atencao",       label: "Atenção",       cor: "#8B7FE8" },
+                { id: "regulacao",     label: "Regulação",     cor: "#E05A4B" },
+                { id: "brincadeira",   label: "Brincadeira",   cor: "#EF9F27" },
+                { id: "flexibilidade", label: "Flexibilidade", cor: "#23c48f" },
+                { id: "autonomia",     label: "Autonomia",     cor: "#378ADD" },
+                { id: "motivacao",     label: "Motivação",     cor: "#EF9F27" },
+              ] as const).map(d => (
+                <button key={d.id} onClick={() => upd("dominio", d.id)} style={{
+                  padding: "9px 10px", borderRadius: 8, textAlign: "center",
+                  border: `1px solid ${programa.dominio === d.id ? d.cor + "55" : "rgba(26,58,92,.5)"}`,
+                  background: programa.dominio === d.id ? d.cor + "18" : "transparent",
+                  cursor: "pointer", fontFamily: "var(--font-sans)",
+                  color: programa.dominio === d.id ? d.cor : "rgba(160,200,235,.92)",
+                  fontSize: ".75rem", fontWeight: programa.dominio === d.id ? 700 : 400,
+                  transition: "all 0.15s",
+                }}>
+                  {d.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Comportamento-alvo + SD */}
