@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 type Etapa = 1 | 2 | 3 | 4;
 type NivelTreino = "basico" | "intermediario" | "avancado";
 type TipoOperante = "tato" | "mando" | "intraverbal" | "echoico" | "imitacao" | "ouvinte" | "textual" | "transcricao";
+type TipoComportamento = "verbal" | "não-verbal";
 type TipoRelacao = 
   | "A→B"
   | "B→A"
@@ -38,6 +39,7 @@ interface Programa {
   // Etapa 1
   nome: string;
   operante: TipoOperante;
+  tipoComportamento: TipoComportamento;
   nivelTreino: NivelTreino;
   comportamentoAlvo: string;
   sd: string;
@@ -98,7 +100,7 @@ function uid() { return Math.random().toString(36).slice(2, 9); }
 
 // ─── PROGRAMA INICIAL ─────────────────────────────────────────────────────────
 const PROGRAMA_INICIAL: Programa = {
-  nome: "", operante: "tato", nivelTreino: "basico",
+  nome: "", operante: "tato", nivelTreino: "basico", tipoComportamento: "verbal" as TipoComportamento,
   comportamentoAlvo: "", sd: "", material: "", instrucoes: "", pacienteId: "1",
   estimulos: [{ id: uid(), modelo: "", comparacao: "", modeloTipo: "texto", comparacaoTipo: "texto" }],
   relacoes: ["A→B"],
@@ -330,22 +332,51 @@ const lbl: React.CSSProperties = {
             </div>
           </div>
 
-          {/* Operante */}
+          {/* Switch Verbal / Motor + Operante */}
           <div style={{ ...card, padding: 20 }}>
-            <label style={lbl}>Operante verbal *</label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-              {OPERANTES.map(o => (
-                <button key={o.id} onClick={() => upd("operante", o.id)} style={{
-                  padding: "10px 12px", borderRadius: 9,
-                  border: `1px solid ${programa.operante === o.id ? o.cor + "55" : "rgba(26,58,92,.5)"}`,
-                  background: programa.operante === o.id ? o.cor + "11" : "transparent",
-                  cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)",
+            <label style={lbl}>Tipo de comportamento *</label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              {([ ["verbal", "Comportamento Verbal"], ["nao_verbal", "Comportamento Não-verbal"] ] as const).map(([val, label]) => (
+                <button key={val} onClick={() => {
+                  upd("tipoComportamento", val as TipoComportamento)
+                  if (val === "nao_verbal") upd("operante", "imitacao")
+                  else upd("operante", "tato")
+                }} style={{
+                  flex: 1, padding: "10px 16px", borderRadius: 9, cursor: "pointer",
+                  fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".82rem",
+                  border: `1px solid ${programa.tipoComportamento === val ? "#1D9E75" : "rgba(26,58,92,.5)"}`,
+                  background: programa.tipoComportamento === val ? "rgba(29,158,117,.12)" : "transparent",
+                  color: programa.tipoComportamento === val ? "#1D9E75" : "rgba(160,200,235,.92)",
                 }}>
-                  <div style={{ fontSize: ".78rem", fontWeight: 600, color: programa.operante === o.id ? o.cor : "rgba(160,200,235,.92)" }}>{o.label}</div>
-                  <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 2 }}>{o.desc}</div>
+                  {label}
                 </button>
               ))}
             </div>
+
+            {programa.tipoComportamento === "verbal" && (
+              <>
+                <label style={lbl}>Operante verbal *</label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                  {OPERANTES.filter(o => !["imitacao", "ouvinte"].includes(o.id)).map(o => (
+                    <button key={o.id} onClick={() => upd("operante", o.id)} style={{
+                      padding: "10px 12px", borderRadius: 9,
+                      border: `1px solid ${programa.operante === o.id ? o.cor + "55" : "rgba(26,58,92,.5)"}`,
+                      background: programa.operante === o.id ? o.cor + "11" : "transparent",
+                      cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)",
+                    }}>
+                      <div style={{ fontSize: ".78rem", fontWeight: 600, color: programa.operante === o.id ? o.cor : "rgba(160,200,235,.92)" }}>{o.label}</div>
+                      <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 2 }}>{o.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {programa.tipoComportamento === "não-verbal" && (
+              <div style={{ fontSize: ".82rem", color: "rgba(160,200,235,.7)", padding: "8px 0" }}>
+                Comportamento motor — operante registrado automaticamente como Imitação/Ouvinte
+              </div>
+            )}
           </div>
 
           {/* Comportamento-alvo + SD */}
