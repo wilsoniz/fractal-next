@@ -553,6 +553,12 @@ function ApprenticeContent() {
           accuracy,
         }).eq('id', sessionId)
 
+        // Dispara o FractaEngine em background
+        fetch('/api/engine/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId }),
+        }).catch(err => console.error('Engine error:', err))
         playSound('conclusao')
         setFase('concluido')
       } else {
