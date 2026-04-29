@@ -1,10 +1,9 @@
 'use client'
-
-import { useState } from 'react'
-
+import { useState, useEffect } from 'react'
+import { useClinicContext } from '../layout'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'visao-geral' | 'casos' | 'supervisores' | 'historico'
+type Tab = 'visao-geral' | 'casos' | 'supervisores' | 'historico' | 'inbox'
 
 interface SupervisorCard {
   id: string
@@ -578,8 +577,182 @@ function HistoricoTab() {
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Inbox Tab ───────────────────────────────────────────────────────────────
+function InboxTab() {
+  const { terapeuta } = useClinicContext()
+  const [requests, setRequests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
+  useEffect(() => {
+    const carregar = async () => {
+      if (!terapeuta) return
+      const { supabase } = await import('@/lib/supabase')
+      const { data } = await supabase
+        .from('supervisor_requests')
+        .select('*')
+        .eq('supervisor_id', terapeuta.id)
+        .order('criado_em', { ascending: false })
+      setRequests(data ?? [])
+      setLoading(false)
+    }
+    carregar()
+  }, [terapeuta])
+
+  const marcarResolvido = async (id: string) => {
+    const { supabase } = await import('@/lib/supabase')
+    await supabase
+      .from('supervisor_requests')
+      .update({ status: 'resolvido', resolvido_em: new Date().toISOString() })
+      .eq('id', id)
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'resolvido' } : r))
+  }
+
+  const marcarEmAndamento = async (id: string) => {
+    const { supabase } = await import('@/lib/supabase')
+    await supabase
+      .from('supervisor_requests')
+      .update({ status: 'em_andamento' })
+      .eq('id', id)
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'em_andamento' } : r))
+  }
+
+  const pendentes = requests.filter(r => r.status === 'pendente')
+  const emAndamento = requests.filter(r => r.status === 'em_andamento')
+  const resolvidos = requests.filter(r => r.status === 'resolvido')
+
+  const s = {
+    card: 'rgba(13,32,53,0.75)', border: 'rgba(26,58,92,0.5)',
+    teal: '#1D9E75', amber: '#EF9F27', coral: '#E05A4B', purple: '#8B7FE8',
+    muted: 'rgba(255,255,255,.4)', text: 'rgba(255,255,255,.85)',
+  }
+
+  const StatusBadge = ({ status }: { status: string }) => {
+    const cfg: Record<string, { label: string; cor: string }> = {
+      pendente: { label: 'Pendente', cor: s.coral },
+      em_andamento: { label: 'Em andamento', cor: s.amber },
+      resolvido: { label: 'Resolvido', cor: s.teal },
+    }
+    const c = cfg[status] ?? cfg.pendente
+    return (
+      <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 20, background: c.cor + '20', color: c.cor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        {c.label}
+      </span>
+    )
+  }
+
+  const RequestCard = ({ r }: { r: any }) => (
+    <div style={{
+      background: s.card, border: `1px solid ${s.border}`, borderRadius: 10,
+      padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: s.text, marginBottom: 4 }}>
+            {r.programa_nome ?? 'Programa sem nome'}
+          </div>
+          <div style={{ fontSize: 11, color: s.muted }}>
+            {new Date(r.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </div>
+        <StatusBadge status={r.status} />
+      </div>
+
+      {r.mensagem && (
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', lineHeight: 1.6, padding: '10px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 7 }}>
+          {r.mensagem}
+        </div>
+      )}
+
+      {r.dimensoes_faltantes?.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {r.dimensoes_faltantes.map((d: string) => (
+            <span key={d} style={{ fontSize: 10, padding: '3px 9px', borderRadius: 20, background: 'rgba(224,90,75,0.12)', color: s.coral, border: '1px solid rgba(224,90,75,0.2)' }}>{d}</span>
+          ))}
+        </div>
+      )}
+
+      {r.status !== 'resolvido' && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          {r.status === 'pendente' && (
+            <button onClick={() => marcarEmAndamento(r.id)} style={{
+              flex: 1, padding: '8px', borderRadius: 7, border: `1px solid ${s.amber}44`,
+              background: 'rgba(239,159,39,0.08)', color: s.amber,
+              fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              Iniciar atendimento
+            </button>
+          )}
+          <button onClick={() => marcarResolvido(r.id)} style={{
+            flex: 1, padding: '8px', borderRadius: 7, border: `1px solid ${s.teal}44`,
+            background: 'rgba(29,158,117,0.08)', color: s.teal,
+            fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+          }}>
+            Marcar como resolvido
+          </button>
+        </div>
+      )}
+    </div>
+  )
+
+  if (loading) return <div style={{ color: s.muted, fontSize: 13, padding: 32 }}>Carregando inbox...</div>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {/* Resumo */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+        {[
+          { label: 'Pendentes', value: pendentes.length, cor: s.coral },
+          { label: 'Em andamento', value: emAndamento.length, cor: s.amber },
+          { label: 'Resolvidos', value: resolvidos.length, cor: s.teal },
+        ].map(m => (
+          <div key={m.label} style={{ background: s.card, border: `1px solid ${s.border}`, borderRadius: 10, padding: '16px 20px' }}>
+            <div style={{ fontSize: 11, color: s.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{m.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 600, color: m.cor }}>{m.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pendentes */}
+      {pendentes.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, color: s.coral, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Aguardando ação</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {pendentes.map(r => <RequestCard key={r.id} r={r} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Em andamento */}
+      {emAndamento.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, color: s.amber, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Em andamento</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {emAndamento.map(r => <RequestCard key={r.id} r={r} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Resolvidos */}
+      {resolvidos.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, color: s.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Resolvidos</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {resolvidos.map(r => <RequestCard key={r.id} r={r} />)}
+          </div>
+        </div>
+      )}
+
+      {requests.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '48px 20px', color: s.muted, fontSize: 13, border: `1px dashed ${s.border}`, borderRadius: 12 }}>
+          Nenhuma solicitação recebida ainda.
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function SupervisaoPage() {
   const [tab, setTab] = useState<Tab>('visao-geral')
 
@@ -588,6 +761,7 @@ export default function SupervisaoPage() {
     { id: 'casos', label: 'Casos' },
     { id: 'supervisores', label: 'Supervisores' },
     { id: 'historico', label: 'Histórico' },
+    { id: 'inbox', label: 'Inbox' },
   ]
 
   return (
@@ -660,6 +834,7 @@ export default function SupervisaoPage() {
       {tab === 'casos' && <CasosTab />}
       {tab === 'supervisores' && <SupervisoresTab />}
       {tab === 'historico' && <HistoricoTab />}
+      {tab === 'inbox' && <InboxTab />}
     </div>
   )
 }
