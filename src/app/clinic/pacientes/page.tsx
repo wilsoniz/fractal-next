@@ -73,8 +73,12 @@ export default function PacientesPage() {
   const [filtro,    setFiltro]    = useState<FiltroAtivo>("todos");
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [loading,   setLoading]   = useState(true);
-  const [modalFFS,  setModalFFS]  = useState(false);
-  const [salvando,  setSalvando]  = useState(false);
+  const [modalFFS,      setModalFFS]      = useState(false);
+  const [modalVinculo,  setModalVinculo]  = useState(false);
+  const [salvando,      setSalvando]      = useState(false);
+  const [codigoConvite, setCodigoConvite] = useState('');
+  const [msgVinculo,    setMsgVinculo]    = useState('');
+  const [vinculando,    setVinculando]    = useState(false);  
   const [msgFFS,    setMsgFFS]    = useState('');
   const [novoNome,  setNovoNome]  = useState('');
   const [novoIdade, setNovoIdade] = useState('');
@@ -262,9 +266,14 @@ export default function PacientesPage() {
             {stats.total} pacientes · {stats.hoje} com sessão hoje
           </div>
         </div>
-        <button onClick={() => setModalFFS(true)} style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-          + Novo paciente
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setModalVinculo(true)} style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid rgba(55,138,221,0.4)", background: "rgba(55,138,221,0.08)", color: "#378ADD", fontWeight: 600, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            Vincular por código
+          </button>
+          <button onClick={() => setModalFFS(true)} style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            + Novo paciente
+          </button>
+        </div>
       </div>
 
       {/* ── STATS ── */}
@@ -381,6 +390,69 @@ export default function PacientesPage() {
             </Link>
           ))}
 </div>
+      )}
+
+      {/* ── Modal vinculação por código ── */}
+      {modalVinculo && (
+        <div onClick={() => { setModalVinculo(false); setMsgVinculo(''); setCodigoConvite(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(13,32,53,0.97)', border: '1px solid rgba(55,138,221,0.3)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: '#e8eef4', marginBottom: 4 }}>Vincular paciente FractaCare</div>
+              <div style={{ fontSize: 12, color: 'rgba(232,238,244,.4)', lineHeight: 1.6 }}>
+                Peça ao responsável para gerar um código de convite no FractaCare e insira abaixo para vincular o paciente à sua conta.
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>Código de convite</label>
+              <input
+                value={codigoConvite}
+                onChange={e => setCodigoConvite(e.target.value.toUpperCase())}
+                placeholder="Ex: ABC123"
+                maxLength={10}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(55,138,221,0.3)', background: 'rgba(55,138,221,0.05)', color: '#e8eef4', fontSize: 16, fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box', letterSpacing: '0.15em', textAlign: 'center' }}
+              />
+            </div>
+
+            {msgVinculo && (
+              <div style={{ fontSize: 12, padding: '9px 12px', borderRadius: 8, background: msgVinculo.includes('Erro') || msgVinculo.includes('inválido') || msgVinculo.includes('expirado') ? 'rgba(224,90,75,.08)' : 'rgba(29,158,117,.08)', color: msgVinculo.includes('Erro') || msgVinculo.includes('inválido') || msgVinculo.includes('expirado') ? '#E05A4B' : '#1D9E75', border: `1px solid ${msgVinculo.includes('Erro') || msgVinculo.includes('inválido') || msgVinculo.includes('expirado') ? 'rgba(224,90,75,.2)' : 'rgba(29,158,117,.2)'}` }}>
+                {msgVinculo}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { setModalVinculo(false); setMsgVinculo(''); setCodigoConvite(''); }} style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(26,58,92,0.5)', background: 'transparent', color: 'rgba(232,238,244,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+              <button
+                disabled={vinculando || codigoConvite.trim().length < 4}
+                onClick={async () => {
+                  if (!terapeuta || !codigoConvite.trim()) return
+                  setVinculando(true)
+                  setMsgVinculo('')
+                  try {
+                    const { data: convite } = await supabase
+                      .from('convites')
+                      .select('id, crianca_id, usado, expira_em')
+                      .eq('codigo', codigoConvite.trim())
+                      .single()
+                    if (!convite) { setMsgVinculo('Código inválido. Verifique e tente novamente.'); setVinculando(false); return }
+                    if (convite.usado) { setMsgVinculo('Este código já foi utilizado.'); setVinculando(false); return }
+                    if (new Date(convite.expira_em) < new Date()) { setMsgVinculo('Este código está expirado. Peça um novo ao responsável.'); setVinculando(false); return }
+                    const { data: crianca } = await supabase.from('criancas').select('nome').eq('id', convite.crianca_id).single()
+                    await supabase.from('planos').insert({ crianca_id: convite.crianca_id, terapeuta_id: terapeuta.id, status: 'ativo', tipo: 'care' })
+                    await supabase.from('convites').update({ usado: true }).eq('id', convite.id)
+                    setMsgVinculo(`Paciente ${crianca?.nome ?? ''} vinculado com sucesso!`)
+                    setCodigoConvite('')
+                    setTimeout(() => { setModalVinculo(false); setMsgVinculo('') }, 1800)
+                  } catch { setMsgVinculo('Erro inesperado. Tente novamente.') }
+                  setVinculando(false)
+                }}
+                style={{ flex: 2, padding: '10px', borderRadius: 9, border: 'none', background: codigoConvite.trim().length >= 4 ? '#378ADD' : 'rgba(26,58,92,0.4)', color: codigoConvite.trim().length >= 4 ? '#fff' : 'rgba(232,238,244,.4)', fontSize: 13, fontWeight: 700, cursor: vinculando || codigoConvite.trim().length < 4 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: vinculando ? 0.7 : 1 }}
+              >
+                {vinculando ? 'Verificando...' : 'Vincular paciente'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Modal cadastro FFS ── */}
