@@ -316,9 +316,34 @@ export default function AdminUsuariosPage() {
               <button style={{ padding: '10px 14px', borderRadius: 9, border: '1px solid rgba(239,159,39,.2)', background: 'rgba(239,159,39,.06)', color: '#EF9F27', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                 ★ Promover a Founder Test User
               </button>
-              <button style={{ padding: '10px 14px', borderRadius: 9, border: '1px solid rgba(139,127,232,.2)', background: 'rgba(139,127,232,.06)', color: '#8B7FE8', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-                ↑ Promover nível de senioridade
-              </button>
+              {/* Seletor de senioridade */}
+              {selecionado.tipo === 'terapeuta' && (
+                <div style={{ padding: '14px', borderRadius: 9, border: '1px solid rgba(139,127,232,.2)', background: 'rgba(139,127,232,.04)' }}>
+                  <div style={{ fontSize: 11, color: 'rgba(226,232,240,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Nível de senioridade</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {([
+                      { id: 'terapeuta',   label: 'Terapeuta',   cor: '#1D9E75' },
+                      { id: 'coordenador', label: 'Coordenador', cor: '#EF9F27' },
+                      { id: 'supervisor',  label: 'Supervisor',  cor: '#8B7FE8' },
+                    ] as const).map(n => (
+                      <button key={n.id} onClick={async () => {
+                        setSalvando(true)
+                        await supabase.from('profiles').update({ nivel_senioridade: n.id }).eq('id', selecionado.id)
+                        setSelecionado({ ...selecionado, nivel: n.id })
+                        setUsuarios(prev => prev.map(u => u.id === selecionado.id ? { ...u, nivel: n.id } : u))
+                        setSalvando(false)
+                      }} style={{
+                        flex: 1, padding: '8px 6px', borderRadius: 8, cursor: 'pointer',
+                        fontFamily: 'inherit', fontSize: 11, fontWeight: 600,
+                        border: `1px solid ${selecionado.nivel === n.id ? n.cor + '55' : 'rgba(139,127,232,.15)'}`,
+                        background: selecionado.nivel === n.id ? n.cor + '18' : 'transparent',
+                        color: selecionado.nivel === n.id ? n.cor : 'rgba(226,232,240,.4)',
+                        opacity: salvando ? 0.6 : 1,
+                      }}>{n.label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <button style={{ padding: '10px 14px', borderRadius: 9, border: '1px solid rgba(224,90,75,.2)', background: 'rgba(224,90,75,.06)', color: '#E05A4B', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                 ⊘ Suspender acesso
               </button>
