@@ -888,6 +888,9 @@ export default function PlanosPage() {
   const [alvoSelecionado, setAlvoSelecionado] = useState<AlvoComportamental | null>(null)
   const [programaSelecionado, setProgramaSelecionado] = useState<ProgramaEnsino | null>(null)
   const [detalheAba, setDetalheAba] = useState<'alvos' | 'protocolos' | 'historico'>('alvos')
+  const [modalProtocolo, setModalProtocolo] = useState(false)
+  const [salvandoProtocolo, setSalvandoProtocolo] = useState(false)
+  const [novoProtocolo, setNovoProtocolo] = useState({ nome: '', topografia: '', funcao: '', estrategia: '', planoCrise: '' })
 
   const exportarPDF = (plano: PlanoIntervencao) => {
     const win = window.open('', '_blank')
@@ -1055,6 +1058,33 @@ export default function PlanosPage() {
           }
         }
         const lista = Array.from(agrupados.values())
+
+        // Busca protocolos reais do banco
+        const criancaIds = lista.map(p => p.pacienteId)
+        if (criancaIds.length > 0) {
+          const { data: protData } = await supabase
+            .from('protocolos_conduta')
+            .select('*')
+            .in('crianca_id', criancaIds)
+            .eq('terapeuta_id', terapeuta.id)
+
+          if (protData) {
+            protData.forEach((p: any) => {
+              const plano = lista.find(l => l.pacienteId === p.crianca_id)
+              if (plano) {
+                plano.protocolos.push({
+                  id: p.id,
+                  nome: p.nome,
+                  topografia: p.topografia ?? '—',
+                  funcao: p.funcao ?? '—',
+                  estrategia: p.estrategia ?? [],
+                  planoCrise: p.plano_crise ?? '—',
+                })
+              }
+            })
+          }
+        }
+
         setPlanos(lista)
         if (lista.length > 0) {
           setPlanoSelecionado(lista[0])
@@ -1236,7 +1266,7 @@ export default function PlanosPage() {
                   {detalheAba === 'protocolos' && (
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-                        <button style={{ fontSize: 12, padding: '7px 14px', borderRadius: 7, background: s.coral, border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>+ Adicionar protocolo</button>
+                        <button onClick={() => setModalProtocolo(true)} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 7, background: s.coral, border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>+ Adicionar protocolo</button>
                       </div>
                       {planoSelecionado.protocolos.length > 0
                         ? planoSelecionado.protocolos.map(p => <ProtocoloPanel key={p.id} protocolo={p} />)
@@ -1252,6 +1282,64 @@ export default function PlanosPage() {
             )}
           </>
         )}
+
+        {/* Modal novo protocolo */}
+      {modalProtocolo && planoSelecionado && (
+        <div onClick={() => setModalProtocolo(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(13,32,53,0.97)', border: '1px solid rgba(224,90,75,0.3)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: '#f08070', marginBottom: 4 }}>Novo protocolo de conduta</div>
+
+            {[
+              { label: 'Nome do protocolo *', key: 'nome', placeholder: 'Ex: Protocolo de autolesão' },
+              { label: 'Topografia (o quê acontece)', key: 'topografia', placeholder: 'Ex: Bater a cabeça na parede' },
+              { label: 'Função (hipótese)', key: 'funcao', placeholder: 'Ex: Fuga de demanda' },
+              { label: 'Estratégias (separadas por vírgula)', key: 'estrategia', placeholder: 'Ex: Extinção, Reforço diferencial, FCT' },
+              { label: 'Plano de crise / escalada', key: 'planoCrise', placeholder: 'Ex: Se persistir por 3+ minutos, acionar responsável' },
+            ].map(f => (
+              <div key={f.key}>
+                <label style={{ fontSize: 11, color: 'rgba(226,232,240,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>{f.label}</label>
+                <input
+                  value={novoProtocolo[f.key as keyof typeof novoProtocolo]}
+                  onChange={e => setNovoProtocolo(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(224,90,75,0.2)', background: 'rgba(224,90,75,0.04)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+            ))}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <button onClick={() => setModalProtocolo(false)} style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(224,90,75,.2)', background: 'transparent', color: 'rgba(226,232,240,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+              <button onClick={async () => {
+                if (!novoProtocolo.nome.trim() || !terapeuta) return
+                setSalvandoProtocolo(true)
+                const { data, error } = await supabase.from('protocolos_conduta').insert({
+                  plano_id: planoSelecionado.id,
+                  crianca_id: planoSelecionado.pacienteId,
+                  terapeuta_id: terapeuta.id,
+                  nome: novoProtocolo.nome,
+                  topografia: novoProtocolo.topografia,
+                  funcao: novoProtocolo.funcao,
+                  estrategia: novoProtocolo.estrategia.split(',').map(s => s.trim()).filter(Boolean),
+                  plano_crise: novoProtocolo.planoCrise,
+                }).select().single()
+                if (!error && data) {
+                  const novo: ProtocoloConduta = {
+                    id: data.id, nome: data.nome, topografia: data.topografia ?? '—',
+                    funcao: data.funcao ?? '—', estrategia: data.estrategia ?? [],
+                    planoCrise: data.plano_crise ?? '—',
+                  }
+                  setPlanoSelecionado(prev => prev ? { ...prev, protocolos: [...prev.protocolos, novo] } : prev)
+                  setNovoProtocolo({ nome: '', topografia: '', funcao: '', estrategia: '', planoCrise: '' })
+                  setModalProtocolo(false)
+                }
+                setSalvandoProtocolo(false)
+              }} disabled={salvandoProtocolo || !novoProtocolo.nome.trim()} style={{ flex: 2, padding: '10px', borderRadius: 9, border: 'none', background: novoProtocolo.nome.trim() ? s.coral : 'rgba(224,90,75,.2)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: salvandoProtocolo ? 0.7 : 1 }}>
+                {salvandoProtocolo ? 'Salvando...' : 'Salvar protocolo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
         {abaPage !== 'planos' && (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: s.muted, fontSize: 14, border: `1px dashed ${s.border}`, borderRadius: 12 }}>
