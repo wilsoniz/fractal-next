@@ -73,6 +73,14 @@ export default function PacientesPage() {
   const [filtro,    setFiltro]    = useState<FiltroAtivo>("todos");
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [loading,   setLoading]   = useState(true);
+  const [modalFFS,  setModalFFS]  = useState(false);
+  const [salvando,  setSalvando]  = useState(false);
+  const [msgFFS,    setMsgFFS]    = useState('');
+  const [novoNome,  setNovoNome]  = useState('');
+  const [novoIdade, setNovoIdade] = useState('');
+  const [novoDiag,  setNovoDiag]  = useState('');
+  const [novoResp,  setNovoResp]  = useState('');
+  const [novoEmail, setNovoEmail] = useState('');
 
   useEffect(() => {
     if (!terapeuta) return;
@@ -254,11 +262,9 @@ export default function PacientesPage() {
             {stats.total} pacientes · {stats.hoje} com sessão hoje
           </div>
         </div>
-        {nivel === "supervisor" && (
-          <button style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-            + Novo paciente
-          </button>
-        )}
+        <button onClick={() => setModalFFS(true)} style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          + Novo paciente
+        </button>
       </div>
 
       {/* ── STATS ── */}
@@ -374,6 +380,70 @@ export default function PacientesPage() {
               </div>
             </Link>
           ))}
+</div>
+      )}
+
+      {/* ── Modal cadastro FFS ── */}
+      {modalFFS && (
+        <div onClick={() => setModalFFS(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(13,32,53,0.97)', border: '1px solid rgba(26,58,92,0.5)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: '#e8eef4', marginBottom: 4 }}>Cadastrar paciente FFS</div>
+              <div style={{ fontSize: 12, color: 'rgba(232,238,244,.4)' }}>Paciente atendido fora da plataforma Care. Você terá acesso ao FractaEngine e registro de sessões.</div>
+            </div>
+
+            {[
+              { label: 'Nome da criança *', value: novoNome, setter: setNovoNome, placeholder: 'Ex: João Silva' },
+              { label: 'Idade (anos)', value: novoIdade, setter: setNovoIdade, placeholder: 'Ex: 6' },
+              { label: 'Diagnóstico', value: novoDiag, setter: setNovoDiag, placeholder: 'Ex: TEA nível 1' },
+              { label: 'Nome do responsável', value: novoResp, setter: setNovoResp, placeholder: 'Ex: Maria Silva' },
+              { label: 'Email do responsável', value: novoEmail, setter: setNovoEmail, placeholder: 'maria@email.com' },
+            ].map(f => (
+              <div key={f.label}>
+                <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>{f.label}</label>
+                <input
+                  value={f.value}
+                  onChange={e => f.setter(e.target.value)}
+                  placeholder={f.placeholder}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+            ))}
+
+            {msgFFS && (
+              <div style={{ fontSize: 12, padding: '9px 12px', borderRadius: 8, background: msgFFS.includes('Erro') ? 'rgba(224,90,75,.08)' : 'rgba(29,158,117,.08)', color: msgFFS.includes('Erro') ? '#E05A4B' : '#1D9E75', border: `1px solid ${msgFFS.includes('Erro') ? 'rgba(224,90,75,.2)' : 'rgba(29,158,117,.2)'}` }}>
+                {msgFFS}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <button onClick={() => { setModalFFS(false); setMsgFFS(''); }} style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(26,58,92,0.5)', background: 'transparent', color: 'rgba(232,238,244,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+              <button
+                disabled={salvando || !novoNome.trim()}
+                onClick={async () => {
+                  if (!terapeuta || !novoNome.trim()) return
+                  setSalvando(true)
+                  setMsgFFS('')
+                  try {
+                    const { data: crianca, error: errCrianca } = await supabase
+                      .from('criancas')
+                      .insert({ nome: novoNome.trim(), idade: novoIdade ? parseInt(novoIdade) : null, diagnostico: novoDiag.trim() || null })
+                      .select()
+                      .single()
+                    if (errCrianca || !crianca) { setMsgFFS('Erro ao cadastrar criança.'); setSalvando(false); return }
+                    await supabase.from('planos').insert({ crianca_id: crianca.id, terapeuta_id: terapeuta.id, status: 'ativo', tipo: 'ffs' })
+                    setMsgFFS('Paciente cadastrado com sucesso!')
+                    setNovoNome(''); setNovoIdade(''); setNovoDiag(''); setNovoResp(''); setNovoEmail('')
+                    setTimeout(() => { setModalFFS(false); setMsgFFS('') }, 1500)
+                  } catch { setMsgFFS('Erro inesperado. Tente novamente.') }
+                  setSalvando(false)
+                }}
+                style={{ flex: 2, padding: '10px', borderRadius: 9, border: 'none', background: novoNome.trim() ? 'linear-gradient(135deg,#1D9E75,#0f8f7a)' : 'rgba(26,58,92,0.4)', color: novoNome.trim() ? '#07111f' : 'rgba(232,238,244,.4)', fontSize: 13, fontWeight: 700, cursor: salvando || !novoNome.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: salvando ? 0.7 : 1 }}
+              >
+                {salvando ? 'Cadastrando...' : 'Cadastrar paciente'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
