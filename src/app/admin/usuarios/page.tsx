@@ -316,6 +316,14 @@ export default function AdminUsuariosPage() {
               <button style={{ padding: '10px 14px', borderRadius: 9, border: '1px solid rgba(239,159,39,.2)', background: 'rgba(239,159,39,.06)', color: '#EF9F27', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                 ★ Promover a Founder Test User
               </button>
+              {/* Isenção de comissão */}
+              {selecionado.tipo === 'terapeuta' && (
+                <IsentarComissao usuario={selecionado} onUpdate={(u) => {
+                  setSelecionado(u)
+                  setUsuarios(prev => prev.map(x => x.id === u.id ? u : x))
+                }} />
+              )}
+
               {/* Seletor de senioridade */}
               {selecionado.tipo === 'terapeuta' && (
                 <div style={{ padding: '14px', borderRadius: 9, border: '1px solid rgba(139,127,232,.2)', background: 'rgba(139,127,232,.04)' }}>
@@ -405,6 +413,81 @@ export default function AdminUsuariosPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+// ── Isenção de comissão ───────────────────────────────────────────────────────
+function IsentarComissao({ usuario, onUpdate }: { usuario: Usuario; onUpdate: (u: Usuario) => void }) {
+  const [isento, setIsento] = useState(false)
+  const [motivo, setMotivo] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const [carregado, setCarregado] = useState(false)
+
+  useEffect(() => {
+    const carregar = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('isento_comissao, motivo_isencao')
+        .eq('id', usuario.id)
+        .single()
+      if (data) {
+        setIsento(data.isento_comissao ?? false)
+        setMotivo(data.motivo_isencao ?? '')
+      }
+      setCarregado(true)
+    }
+    carregar()
+  }, [usuario.id])
+
+  const salvar = async () => {
+    setSalvando(true)
+    await supabase.from('profiles').update({
+      isento_comissao: isento,
+      motivo_isencao: motivo,
+      isento_desde: isento ? new Date().toISOString() : null,
+    }).eq('id', usuario.id)
+    setSalvando(false)
+  }
+
+  if (!carregado) return null
+
+  return (
+    <div style={{ padding: '14px', borderRadius: 9, border: '1px solid rgba(239,159,39,.2)', background: 'rgba(239,159,39,.04)' }}>
+      <div style={{ fontSize: 11, color: 'rgba(226,232,240,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Isenção de comissão</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isento ? 10 : 0 }}>
+        <span style={{ fontSize: 13, color: 'rgba(226,232,240,.7)' }}>Isento de comissão</span>
+        <button onClick={() => setIsento(!isento)} style={{
+          width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+          background: isento ? '#EF9F27' : 'rgba(226,232,240,.15)',
+          position: 'relative', transition: 'background 0.2s',
+        }}>
+          <div style={{
+            width: 18, height: 18, borderRadius: '50%', background: '#fff',
+            position: 'absolute', top: 3, transition: 'left 0.2s',
+            left: isento ? 23 : 3,
+          }} />
+        </button>
+      </div>
+      {isento && (
+        <input
+          value={motivo}
+          onChange={e => setMotivo(e.target.value)}
+          placeholder="Motivo da isenção..."
+          style={{
+            width: '100%', padding: '8px 10px', borderRadius: 7, boxSizing: 'border-box',
+            border: '1px solid rgba(239,159,39,.2)', background: 'rgba(239,159,39,.06)',
+            color: '#e2e8f0', fontSize: 12, fontFamily: 'inherit', outline: 'none',
+            marginBottom: 8,
+          }}
+        />
+      )}
+      <button onClick={salvar} disabled={salvando} style={{
+        width: '100%', padding: '8px', borderRadius: 7, border: 'none', cursor: 'pointer',
+        background: salvando ? 'rgba(239,159,39,.2)' : 'rgba(239,159,39,.15)',
+        color: '#EF9F27', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+      }}>
+        {salvando ? 'Salvando...' : 'Salvar'}
+      </button>
     </div>
   )
 }
