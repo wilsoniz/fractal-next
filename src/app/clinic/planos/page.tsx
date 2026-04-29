@@ -899,7 +899,16 @@ export default function PlanosPage() {
         setMatrizes(data.map(m => ({
           id: m.id, nome: m.name, descricao: m.description ?? '',
           colunas: m.columns ?? [],
-          grupos: Array.from({ length: m.total_groups }, (_, i) => ({ id: `g${i+1}`, celulas: {} })),
+          grupos: (() => {
+            const celulasDaMatriz = (celulas ?? []).filter((c: any) => c.matrix_id === m.id)
+            return Array.from({ length: m.total_groups }, (_, i) => {
+              const cls: Record<string, { valor: string; mediaUrl?: string }> = {}
+              celulasDaMatriz
+                .filter((c: any) => c.group_index === i)
+                .forEach((c: any) => { cls[c.column_id] = { valor: c.value ?? '', mediaUrl: c.media_url ?? undefined } })
+              return { id: `g${i + 1}`, celulas: cls }
+            })
+          })(),
         })))
       }
     }
