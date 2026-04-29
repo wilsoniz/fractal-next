@@ -889,6 +889,88 @@ export default function PlanosPage() {
   const [programaSelecionado, setProgramaSelecionado] = useState<ProgramaEnsino | null>(null)
   const [detalheAba, setDetalheAba] = useState<'alvos' | 'protocolos' | 'historico'>('alvos')
 
+  const exportarPDF = (plano: PlanoIntervencao) => {
+    const win = window.open('', '_blank')
+    if (!win) return
+    const programasHTML = plano.alvos?.flatMap(a => a.programas ?? []).map(p => `
+      <tr>
+        <td>${p.nome}</td>
+        <td>${p.areaFoco ?? '—'}</td>
+        <td>${p.operante ?? '—'}</td>
+        <td>${p.objetivoLongoPrazo ?? '—'}</td>
+        <td>${p.criterioAvanco ?? '—'}</td>
+      </tr>`).join('') ?? '<tr><td colspan="5">Nenhum programa cadastrado</td></tr>'
+
+    const alvosHTML = plano.alvos?.map(a => `
+      <div class="alvo">
+        <h3>${a.codigo} — ${a.descricao}</h3>
+        <p><strong>Função:</strong> ${a.funcao ?? '—'} &nbsp;|&nbsp; <strong>Operante:</strong> ${a.operante ?? '—'} &nbsp;|&nbsp; <strong>Status:</strong> ${a.status ?? '—'}</p>
+      </div>`).join('') ?? '<p>Nenhum alvo cadastrado</p>'
+
+    win.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Plano de Intervenção — ${plano.pacienteNome}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a2e; padding: 48px; font-size: 13px; line-height: 1.6; }
+    .header { border-bottom: 2px solid #1D9E75; padding-bottom: 20px; margin-bottom: 32px; }
+    .header h1 { font-size: 22px; font-weight: 600; color: #07111f; margin-bottom: 4px; }
+    .header p { color: #666; font-size: 12px; }
+    .meta { display: flex; gap: 32px; margin-bottom: 32px; }
+    .meta-item { flex: 1; }
+    .meta-item label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #999; display: block; margin-bottom: 4px; }
+    .meta-item span { font-size: 13px; font-weight: 500; color: #1a1a2e; }
+    .section { margin-bottom: 32px; }
+    .section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #1D9E75; border-bottom: 1px solid #e5e5e5; padding-bottom: 8px; margin-bottom: 16px; }
+    .alvo { margin-bottom: 16px; padding: 14px; border: 1px solid #e5e5e5; border-radius: 8px; }
+    .alvo h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #f5f5f5; padding: 8px 10px; text-align: left; font-weight: 600; border: 1px solid #e5e5e5; }
+    td { padding: 8px 10px; border: 1px solid #e5e5e5; }
+    tr:nth-child(even) td { background: #fafafa; }
+    .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #e5e5e5; font-size: 11px; color: #999; display: flex; justify-content: space-between; }
+    @media print { body { padding: 24px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Plano de Intervenção</h1>
+    <p>Fracta Behavior — Documento gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+  </div>
+
+  <div class="meta">
+    <div class="meta-item"><label>Paciente</label><span>${plano.pacienteNome}</span></div>
+    <div class="meta-item"><label>Terapeuta</label><span>${plano.terapeutaNome}</span></div>
+    <div class="meta-item"><label>Início</label><span>${plano.dataInicio || '—'}</span></div>
+    <div class="meta-item"><label>Status</label><span>${plano.status}</span></div>
+  </div>
+
+  <div class="section">
+    <h2>Alvos comportamentais</h2>
+    ${alvosHTML}
+  </div>
+
+  <div class="section">
+    <h2>Programas de ensino</h2>
+    <table>
+      <thead><tr><th>Nome</th><th>Domínio</th><th>Operante</th><th>Objetivo</th><th>Critério</th></tr></thead>
+      <tbody>${programasHTML}</tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <span>Fracta Behavior — fractabehavior.com</span>
+    <span>${plano.pacienteNome} — ${new Date().toLocaleDateString('pt-BR')}</span>
+  </div>
+</body>
+</html>`)
+    win.document.close()
+    win.focus()
+    setTimeout(() => win.print(), 500)
+  }
+
   useEffect(() => {
     const carregar = async () => {
       const { data } = await supabase
@@ -896,7 +978,12 @@ export default function PlanosPage() {
         .select('id, name, description, columns, total_groups, created_at')
         .order('created_at', { ascending: false })
       if (data) {
-        setMatrizes(data.map(m => ({
+        const matrizIds = data.map((m: any) => m.id)
+        const { data: celulas } = await supabase
+          .from('stimulus_matrix_cells')
+          .select('matrix_id, group_index, column_id, value, media_url')
+          .in('matrix_id', matrizIds)
+        setMatrizes(data.map((m: any) => ({
           id: m.id, nome: m.name, descricao: m.description ?? '',
           colunas: m.columns ?? [],
           grupos: (() => {
@@ -1067,7 +1154,7 @@ export default function PlanosPage() {
                     <div style={{ fontSize: 11, color: s.muted, marginTop: 2 }}>{planoSelecionado.dataInicio ? `Ativo desde ${planoSelecionado.dataInicio}` : 'Rascunho'}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${s.border}`, color: s.muted, cursor: 'pointer' }}>Exportar PDF</button>
+                    <button onClick={() => exportarPDF(planoSelecionado)} style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${s.border}`, color: s.muted, cursor: 'pointer' }}>Exportar PDF</button>
                     <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${s.border}`, color: s.muted, cursor: 'pointer' }}>Editar plano</button>
                     <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: s.teal, border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>+ Adicionar alvo</button>
                   </div>
