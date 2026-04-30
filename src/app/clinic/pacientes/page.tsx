@@ -502,7 +502,8 @@ export default function PacientesPage() {
                       .from('criancas')
                       .insert({ id: criancaId, nome: novoNome.trim(), idade_anos: novoIdade ? parseInt(novoIdade) : null, diagnostico: novoDiag.trim() || null })
                     if (errCrianca) { setMsgFFS('Erro ao cadastrar criança: ' + errCrianca.message); setSalvando(false); return }
-                    await supabase.from('planos').insert({ crianca_id: criancaId, terapeuta_id: terapeuta.id, status: 'ativo', tipo_plano: 'ffs' })
+                    const { error: errPlano } = await supabase.from('planos').insert({ crianca_id: criancaId, terapeuta_id: terapeuta.id, status: 'ativo', tipo_plano: 'ffs' })
+                    if (errPlano) { setMsgFFS('Erro ao criar plano: ' + errPlano.message); setSalvando(false); return }
                     setMsgFFS('Paciente cadastrado com sucesso!')
                     setNovoNome(''); setNovoIdade(''); setNovoDiag(''); setNovoResp(''); setNovoEmail('')
                     setTimeout(() => { setModalFFS(false); setMsgFFS('') }, 1500)
