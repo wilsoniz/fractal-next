@@ -330,6 +330,9 @@ export default function AdminUsuariosPage() {
                   <div style={{ fontSize: 11, color: 'rgba(226,232,240,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Nível de senioridade</div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     {([
+                      { id: 'abat',        label: 'ABAT',        cor: '#1D9E75' },
+                      { id: 'qasp_s',      label: 'QASP-S',      cor: '#EF9F27' },
+                      { id: 'qba',         label: 'QBA',         cor: '#8B7FE8' },
                       { id: 'terapeuta',   label: 'Terapeuta',   cor: '#1D9E75' },
                       { id: 'coordenador', label: 'Coordenador', cor: '#EF9F27' },
                       { id: 'supervisor',  label: 'Supervisor',  cor: '#8B7FE8' },
