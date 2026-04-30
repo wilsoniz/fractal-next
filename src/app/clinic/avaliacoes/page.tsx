@@ -2,7 +2,7 @@
 
 import { supabase } from "@/lib/supabase";import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useClinicContext } from "../layout";
+import { useClinicContext, useAcesso } from "../layout";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type TabAval       = "protocolos" | "analise-funcional" | "historico";
@@ -187,6 +187,7 @@ function funcaoIdentificada(condicoes: CondicaoExperimental[]): FuncaoComport {
 // ─── PAGE ────────────────────────────────────────────────────────────────────
 export default function AvaliacoesPage() {
   const { terapeuta } = useClinicContext();
+  const acesso = useAcesso();
   const nivel = terapeuta?.nivel ?? "coordenador";
 
   const [tab,          setTab]          = useState<TabAval>("protocolos");
@@ -342,10 +343,12 @@ export default function AvaliacoesPage() {
           <h1 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#e8f0f8", margin: 0, marginBottom: 4 }}>Avaliações</h1>
           <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>Protocolos padronizados · Análise Funcional · Histórico clínico</div>
         </div>
-        <button style={{ padding: "9px 16px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 6 }}>
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10"/></svg>
-          Nova avaliação
-        </button>
+        {acesso.podeCriarAvaliacoes && (
+          <button style={{ padding: "9px 16px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10"/></svg>
+            Nova avaliação
+          </button>
+        )}
       </div>
 
       {/* ── KPIs ── */}
