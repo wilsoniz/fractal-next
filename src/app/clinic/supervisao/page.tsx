@@ -418,103 +418,165 @@ function CasosTab() {
 }
 
 function SupervisoresTab() {
+  const { terapeuta } = useClinicContext()
+  const [supervisores, setSupervisores] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [solicitando, setSolicitando] = useState<string | null>(null)
+  const [solicitados, setSolicitados] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const carregar = async () => {
+      const { supabase } = await import('@/lib/supabase')
+      const { data } = await supabase
+        .from('supervisor_profiles')
+        .select('*, profiles(nome, nivel_senioridade)')
+        .eq('disponivel', true)
+        .order('criado_em', { ascending: false })
+      setSupervisores(data ?? [])
+      setLoading(false)
+    }
+    carregar()
+  }, [])
+
+  const solicitarSessao = async (supId: string, supervisorTerapeutaId: string) => {
+    if (!terapeuta) return
+    setSolicitando(supId)
+    const { supabase } = await import('@/lib/supabase')
+    await supabase.from('supervisor_requests').insert({
+      terapeuta_id: terapeuta.id,
+      supervisor_id: supervisorTerapeutaId,
+      tipo: 'duvida_clinica',
+      mensagem: 'Solicitação de sessão de supervisão via marketplace.',
+      status: 'pendente',
+    })
+    setSolicitados(prev => new Set([...prev, supId]))
+    setSolicitando(null)
+  }
+
+  if (loading) return (
+    <div style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, padding: 20 }}>
+      Carregando supervisores...
+    </div>
+  )
+
+  // Fallback para mock enquanto não há perfis cadastrados
+  const lista = supervisores.length > 0 ? supervisores : SUPERVISORES.map(s => ({
+    id: s.id,
+    titulo: s.titulo,
+    especialidades: s.especialidades,
+    preco_sessao: s.preco_sessao,
+    disponivel: s.disponivel,
+    profiles: { nome: s.nome, nivel_senioridade: 'supervisor' },
+    rating: s.rating,
+    sessoes_total: s.sessoes_total,
+    terapeuta_id: s.id,
+    _mock: true,
+  }))
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
         Supervisores disponíveis na plataforma
       </div>
-      {SUPERVISORES.map((sup) => (
-        <div
-          key={sup.id}
-          style={{
-            background: 'rgba(13,32,53,.75)',
-            border: '1px solid rgba(26,58,92,.5)',
-            borderRadius: 12,
-            padding: '20px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-            {/* Avatar */}
-            <div style={{
-              width: 48,
-              height: 48,
+
+      {lista.map((sup) => {
+        const nome = sup.profiles?.nome ?? sup.nome ?? 'Supervisor'
+        const iniciais = nome.trim().split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()
+        const jaSolicitou = solicitados.has(sup.id)
+        const estasolicitando = solicitando === sup.id
+
+        return (
+          <div
+            key={sup.id}
+            style={{
+              background: 'rgba(13,32,53,.75)',
+              border: '1px solid rgba(26,58,92,.5)',
               borderRadius: 12,
-              background: `rgba(139,127,232,.2)`,
-              border: `1px solid rgba(139,127,232,.35)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 15,
-              fontWeight: 700,
-              color: sup.badge_cor,
-              flexShrink: 0,
-            }}>
-              {sup.avatar_inicial}
-            </div>
-
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                <span style={{ fontWeight: 700, color: 'rgba(255,255,255,.9)', fontSize: 15 }}>{sup.nome}</span>
-                <span style={{
-                  background: sup.disponivel ? 'rgba(29,158,117,.15)' : 'rgba(255,255,255,.06)',
-                  border: `1px solid ${sup.disponivel ? 'rgba(29,158,117,.35)' : 'rgba(255,255,255,.12)'}`,
-                  borderRadius: 6,
-                  padding: '2px 8px',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: sup.disponivel ? '#1D9E75' : 'rgba(255,255,255,.3)',
-                }}>
-                  {sup.disponivel ? 'Disponível' : 'Indisponível'}
-                </span>
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', marginBottom: 8 }}>{sup.titulo}</div>
-              <StarRating rating={sup.rating} />
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>
-                {sup.sessoes_total} sessões realizadas
+              padding: '20px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+              {/* Avatar */}
+              <div style={{
+                width: 48, height: 48, borderRadius: 12,
+                background: 'rgba(139,127,232,.2)', border: '1px solid rgba(139,127,232,.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 15, fontWeight: 700, color: '#8B7FE8', flexShrink: 0,
+              }}>
+                {sup.avatar_inicial ?? iniciais}
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-                {sup.especialidades.map((esp) => (
-                  <span key={esp} style={{
-                    background: 'rgba(255,255,255,.05)',
-                    border: '1px solid rgba(255,255,255,.1)',
-                    borderRadius: 6,
-                    padding: '3px 10px',
-                    fontSize: 11,
-                    color: 'rgba(255,255,255,.5)',
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  <span style={{ fontWeight: 700, color: 'rgba(255,255,255,.9)', fontSize: 15 }}>{nome}</span>
+                  <span style={{
+                    background: sup.disponivel ? 'rgba(29,158,117,.15)' : 'rgba(255,255,255,.06)',
+                    border: `1px solid ${sup.disponivel ? 'rgba(29,158,117,.35)' : 'rgba(255,255,255,.12)'}`,
+                    borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                    color: sup.disponivel ? '#1D9E75' : 'rgba(255,255,255,.3)',
                   }}>
-                    {esp}
+                    {sup.disponivel ? 'Disponível' : 'Indisponível'}
                   </span>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>por sessão</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,.9)' }}>
-                R$ {sup.preco_sessao}
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', marginBottom: 8 }}>{sup.titulo ?? '—'}</div>
+
+                {sup.rating && <StarRating rating={sup.rating} />}
+                {sup.sessoes_total && (
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>
+                    {sup.sessoes_total} sessões realizadas
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+                  {(sup.especialidades ?? []).map((esp: string) => (
+                    <span key={esp} style={{
+                      background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)',
+                      borderRadius: 6, padding: '3px 10px', fontSize: 11, color: 'rgba(255,255,255,.5)',
+                    }}>
+                      {esp}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <button
-                disabled={!sup.disponivel}
-                style={{
-                  marginTop: 10,
-                  background: sup.disponivel ? 'rgba(139,127,232,.2)' : 'rgba(255,255,255,.04)',
-                  border: `1px solid ${sup.disponivel ? 'rgba(139,127,232,.45)' : 'rgba(255,255,255,.08)'}`,
-                  borderRadius: 8,
-                  padding: '8px 16px',
-                  color: sup.disponivel ? '#8B7FE8' : 'rgba(255,255,255,.2)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: sup.disponivel ? 'pointer' : 'not-allowed',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {sup.disponivel ? 'Solicitar sessão' : 'Indisponível'}
-              </button>
+
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                {sup.preco_sessao && (
+                  <>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>por sessão</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,.9)' }}>
+                      R$ {sup.preco_sessao}
+                    </div>
+                  </>
+                )}
+                <button
+                  disabled={!sup.disponivel || jaSolicitou || estasolicitando || sup._mock}
+                  onClick={() => solicitarSessao(sup.id, sup.terapeuta_id)}
+                  style={{
+                    marginTop: 10,
+                    background: jaSolicitou ? 'rgba(29,158,117,.15)' : sup.disponivel && !sup._mock ? 'rgba(139,127,232,.2)' : 'rgba(255,255,255,.04)',
+                    border: `1px solid ${jaSolicitou ? 'rgba(29,158,117,.35)' : sup.disponivel && !sup._mock ? 'rgba(139,127,232,.45)' : 'rgba(255,255,255,.08)'}`,
+                    borderRadius: 8, padding: '8px 16px',
+                    color: jaSolicitou ? '#1D9E75' : sup.disponivel && !sup._mock ? '#8B7FE8' : 'rgba(255,255,255,.2)',
+                    fontSize: 12, fontWeight: 600,
+                    cursor: sup.disponivel && !sup._mock && !jaSolicitou ? 'pointer' : 'not-allowed',
+                    whiteSpace: 'nowrap' as const,
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                >
+                  {jaSolicitou ? 'Solicitado' : estasolicitando ? 'Enviando...' : sup.disponivel ? 'Solicitar sessão' : 'Indisponível'}
+                </button>
+              </div>
             </div>
           </div>
+        )
+      })}
+
+      {lista.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'rgba(255,255,255,.3)', fontSize: 13, border: '1px dashed rgba(26,58,92,.5)', borderRadius: 12 }}>
+          Nenhum supervisor disponível no momento.
         </div>
-      ))}
+      )}
     </div>
   )
 }
