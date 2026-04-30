@@ -438,7 +438,7 @@ export default function PacientesPage() {
                     if (convite.usado) { setMsgVinculo('Este código já foi utilizado.'); setVinculando(false); return }
                     if (new Date(convite.expira_em) < new Date()) { setMsgVinculo('Este código está expirado. Peça um novo ao responsável.'); setVinculando(false); return }
                     const { data: crianca } = await supabase.from('criancas').select('nome').eq('id', convite.crianca_id).single()
-                    await supabase.from('planos').insert({ crianca_id: convite.crianca_id, terapeuta_id: terapeuta.id, status: 'ativo', tipo: 'care' })
+                    await supabase.from('planos').insert({ crianca_id: convite.crianca_id, terapeuta_id: terapeuta.id, status: 'ativo', tipo_plano: 'care' })
                     await supabase.from('convites').update({ usado: true }).eq('id', convite.id)
                     setMsgVinculo(`Paciente ${crianca?.nome ?? ''} vinculado com sucesso!`)
                     setCodigoConvite('')
@@ -502,7 +502,7 @@ export default function PacientesPage() {
                       .from('criancas')
                       .insert({ id: criancaId, nome: novoNome.trim(), idade_anos: novoIdade ? parseInt(novoIdade) : null, diagnostico: novoDiag.trim() || null })
                     if (errCrianca) { setMsgFFS('Erro ao cadastrar criança: ' + errCrianca.message); setSalvando(false); return }
-                    await supabase.from('planos').insert({ crianca_id: criancaId, terapeuta_id: terapeuta.id, status: 'ativo', tipo: 'ffs' })
+                    await supabase.from('planos').insert({ crianca_id: criancaId, terapeuta_id: terapeuta.id, status: 'ativo', tipo_plano: 'ffs' })
                     setMsgFFS('Paciente cadastrado com sucesso!')
                     setNovoNome(''); setNovoIdade(''); setNovoDiag(''); setNovoResp(''); setNovoEmail('')
                     setTimeout(() => { setModalFFS(false); setMsgFFS('') }, 1500)
