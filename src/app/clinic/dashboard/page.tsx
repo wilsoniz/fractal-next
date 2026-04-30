@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useClinicContext } from '../layout'
 
 // ── TIPOS ─────────────────────────────────────────────────────────────────
-type SenioridadeNivel = 'terapeuta' | 'coordenador' | 'supervisor'
+type SenioridadeNivel = 'terapeuta' | 'coordenador' | 'supervisor' | 'abat' | 'qasp_s' | 'qba'
 interface SessaoHoje {
   id: string
   paciente: string
@@ -76,6 +76,9 @@ function tempoRelativo(data: string) {
 }
 
 const NIVEL_BANNER: Record<SenioridadeNivel, { label: string; cor: string; bg: string; desc: string }> = {
+  abat:         { label: 'ABAT',            cor: '#1D9E75', bg: 'rgba(29,158,117,.12)',  desc: 'Modo guiado — aplica programas com suporte do supervisor' },
+  qasp_s:       { label: 'QASP-S',          cor: '#EF9F27', bg: 'rgba(239,159,39,.12)',  desc: 'Modo semi-guiado — atendimento e supervisão de casos' },
+  qba:          { label: 'QBA',             cor: '#8B7FE8', bg: 'rgba(139,127,232,.12)', desc: 'Modo livre — acesso completo e análise avançada' },
   terapeuta:    { label: 'Terapeuta',       cor: '#1D9E75', bg: 'rgba(29,158,117,.12)',  desc: 'Modo guiado — programas e orientações detalhadas' },
   coordenador:  { label: 'Coord. de Caso',  cor: '#EF9F27', bg: 'rgba(239,159,39,.12)',  desc: 'Modo semi-guiado — autonomia com suporte clínico' },
   supervisor:   { label: 'Supervisor',      cor: '#8B7FE8', bg: 'rgba(139,127,232,.12)', desc: 'Modo livre — acesso completo ao sistema' },

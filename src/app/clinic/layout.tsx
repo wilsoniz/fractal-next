@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 
 // ── TIPOS ───────────────────────────────────────────────────────────────────
-type SenioridadeNivel = 'terapeuta' | 'coordenador' | 'supervisor'
+type SenioridadeNivel = 'terapeuta' | 'coordenador' | 'supervisor' | 'abat' | 'qasp_s' | 'qba'
 
 interface TerapeutaAtivo {
   id: string
@@ -24,7 +24,7 @@ const ClinicContext = createContext<ClinicContextType>({ terapeuta: null })
 export const useClinicContext = () => useContext(ClinicContext)
 
 // ── CONSTANTES ──────────────────────────────────────────────────────────────
-const NAV_ITEMS = [
+const NAV_ITEMS_COMPLETO = [
   {
     section: 'Clínico',
     items: [
@@ -55,9 +55,38 @@ const NAV_ITEMS = [
 ]
 
 const NIVEL_CONFIG: Record<SenioridadeNivel, { label: string; cor: string; bg: string; modo: string }> = {
+  abat:         { label: 'ABAT',              cor: '#1D9E75', bg: 'rgba(29,158,117,.15)',  modo: 'Modo guiado'      },
+  qasp_s:       { label: 'QASP-S',            cor: '#EF9F27', bg: 'rgba(239,159,39,.15)',  modo: 'Modo semi-guiado' },
+  qba:          { label: 'QBA',               cor: '#8B7FE8', bg: 'rgba(139,127,232,.15)', modo: 'Modo livre'       },
   terapeuta:    { label: 'Terapeuta',         cor: '#1D9E75', bg: 'rgba(29,158,117,.15)',  modo: 'Modo guiado'      },
   coordenador:  { label: 'Coord. de caso',    cor: '#EF9F27', bg: 'rgba(239,159,39,.15)',  modo: 'Modo semi-guiado' },
   supervisor:   { label: 'Supervisor',        cor: '#E05A4B', bg: 'rgba(224,90,75,.15)',   modo: 'Modo livre'       },
+}
+
+// ── PERMISSÕES POR NÍVEL ─────────────────────────────────────────────────────
+export type AcessoNivel = SenioridadeNivel
+
+export const PERMISSOES: Record<SenioridadeNivel, {
+  podeEditarProgramas: boolean
+  podeAcessarMatrizes: boolean
+  podeCriarAvaliacoes: boolean
+  podeVerPlanos: boolean
+  podeEnviarSpark: boolean
+  modoSessao: 'guiado' | 'semi_guiado' | 'livre'
+  precisaSupervisor: boolean
+}> = {
+  abat:        { podeEditarProgramas: false, podeAcessarMatrizes: false, podeCriarAvaliacoes: false, podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'guiado',      precisaSupervisor: true  },
+  qasp_s:      { podeEditarProgramas: true,  podeAcessarMatrizes: true,  podeCriarAvaliacoes: true,  podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'semi_guiado', precisaSupervisor: false },
+  qba:         { podeEditarProgramas: true,  podeAcessarMatrizes: true,  podeCriarAvaliacoes: true,  podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'livre',       precisaSupervisor: false },
+  terapeuta:   { podeEditarProgramas: false, podeAcessarMatrizes: false, podeCriarAvaliacoes: false, podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'guiado',      precisaSupervisor: true  },
+  coordenador: { podeEditarProgramas: true,  podeAcessarMatrizes: true,  podeCriarAvaliacoes: true,  podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'semi_guiado', precisaSupervisor: false },
+  supervisor:  { podeEditarProgramas: true,  podeAcessarMatrizes: true,  podeCriarAvaliacoes: true,  podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'livre',       precisaSupervisor: false },
+}
+
+export function useAcesso() {
+  const { terapeuta } = useClinicContext()
+  const nivel = (terapeuta?.nivel ?? 'coordenador') as SenioridadeNivel
+  return PERMISSOES[nivel] ?? PERMISSOES['coordenador']
 }
 
 // ── CANVAS PARTÍCULAS ────────────────────────────────────────────────────────
@@ -179,7 +208,18 @@ function Sidebar({ terapeuta }: { terapeuta: TerapeutaAtivo | null }) {
 
       {/* Nav */}
       <div style={{ flex: 1, overflowY: 'auto', paddingTop: 8 }}>
-        {NAV_ITEMS.map(group => (
+        {(() => {
+          const nivel = (terapeuta?.nivel ?? 'coordenador') as SenioridadeNivel
+          const permissoes = PERMISSOES[nivel] ?? PERMISSOES['coordenador']
+          return NAV_ITEMS_COMPLETO.map(group => ({
+            ...group,
+            items: group.items.filter(item => {
+              if (item.href === '/clinic/programas') return permissoes.podeEditarProgramas
+              if (item.href === '/clinic/matrizes') return permissoes.podeAcessarMatrizes
+              return true
+            })
+          })).filter(group => group.items.length > 0)
+        })().map(group => (
           <div key={group.section}>
             <div style={{
               padding: '12px 20px 4px',
