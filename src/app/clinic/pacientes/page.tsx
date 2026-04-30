@@ -497,13 +497,12 @@ export default function PacientesPage() {
                   setSalvando(true)
                   setMsgFFS('')
                   try {
-                    const { data: crianca, error: errCrianca } = await supabase
+                    const criancaId = crypto.randomUUID()
+                    const { error: errCrianca } = await supabase
                       .from('criancas')
-                      .insert({ nome: novoNome.trim(), idade: novoIdade ? parseInt(novoIdade) : null, diagnostico: novoDiag.trim() || null })
-                      .select()
-                      .single()
-                    if (errCrianca || !crianca) { setMsgFFS('Erro ao cadastrar criança.'); setSalvando(false); return }
-                    await supabase.from('planos').insert({ crianca_id: crianca.id, terapeuta_id: terapeuta.id, status: 'ativo', tipo: 'ffs' })
+                      .insert({ id: criancaId, nome: novoNome.trim(), idade_anos: novoIdade ? parseInt(novoIdade) : null, diagnostico: novoDiag.trim() || null })
+                    if (errCrianca) { setMsgFFS('Erro ao cadastrar criança: ' + errCrianca.message); setSalvando(false); return }
+                    await supabase.from('planos').insert({ crianca_id: criancaId, terapeuta_id: terapeuta.id, status: 'ativo', tipo: 'ffs' })
                     setMsgFFS('Paciente cadastrado com sucesso!')
                     setNovoNome(''); setNovoIdade(''); setNovoDiag(''); setNovoResp(''); setNovoEmail('')
                     setTimeout(() => { setModalFFS(false); setMsgFFS('') }, 1500)
