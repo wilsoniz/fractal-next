@@ -6,7 +6,7 @@ import { useClinicContext } from "../layout";
 import { LineChart, Line, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
-type Senioridade = "terapeuta" | "coordenador" | "supervisor";
+type Senioridade = "terapeuta" | "coordenador" | "supervisor" | "abat" | "qasp_s" | "qba";
 type StageKey = "warmup_pairing" | "assent_checklist" | "preference_assessment" | "clinical_actions" | "break" | "closing_preparation";
 type StageStatus = "pending" | "active" | "completed" | "skipped";
 type PromptLevel = "independente" | "gestual" | "modelo" | "fisico_parcial" | "fisico_total";
@@ -122,6 +122,103 @@ const AVALIACOES_CAT = [
 ]
 
 function fmt(s: number) { return `${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}` }
+
+// ── Checklist guiado por estágio ──────────────────────────────────────────────
+const CHECKLIST_GUIADO: Record<string, { item: string; obrigatorio: boolean }[]> = {
+  warmup_pairing: [
+    { item: 'Cumprimentar a criança pelo nome', obrigatorio: true },
+    { item: 'Oferecer item preferido sem exigências', obrigatorio: true },
+    { item: 'Seguir a liderança da criança por 2 min', obrigatorio: true },
+    { item: 'Verificar estado emocional e disposição', obrigatorio: false },
+  ],
+  assent_checklist: [
+    { item: 'Explicar a atividade de forma acessível', obrigatorio: true },
+    { item: 'Verificar sinais de aceitação (verbal ou não-verbal)', obrigatorio: true },
+    { item: 'Confirmar que a criança pode encerrar quando quiser', obrigatorio: true },
+    { item: 'Registrar forma de assentimento obtida', obrigatorio: false },
+  ],
+  preference_assessment: [
+    { item: 'Apresentar 3 a 5 itens preferidos', obrigatorio: true },
+    { item: 'Observar hierarquia de escolha', obrigatorio: true },
+    { item: 'Selecionar reforçador primário da sessão', obrigatorio: true },
+    { item: 'Verificar saciação de sessões anteriores', obrigatorio: false },
+  ],
+  clinical_actions: [
+    { item: 'Revisar programa antes de iniciar', obrigatorio: true },
+    { item: 'Posicionar materiais fora do alcance', obrigatorio: false },
+    { item: 'Aplicar SD com clareza e volume adequado', obrigatorio: true },
+    { item: 'Registrar cada tentativa imediatamente', obrigatorio: true },
+  ],
+  break: [
+    { item: 'Sinalizar pausa de forma clara', obrigatorio: true },
+    { item: 'Remover exigências completamente', obrigatorio: true },
+    { item: 'Observar comportamento passivamente', obrigatorio: false },
+  ],
+  closing_preparation: [
+    { item: 'Encerrar com atividade preferida', obrigatorio: true },
+    { item: 'Registrar observações da sessão', obrigatorio: true },
+    { item: 'Comunicar evolução ao responsável', obrigatorio: false },
+    { item: 'Planejar próxima sessão', obrigatorio: false },
+  ],
+}
+
+function ChecklistGuiado({ stageKey, nivel }: { stageKey: string; nivel: string }) {
+  const itens = CHECKLIST_GUIADO[stageKey] ?? []
+  const [checks, setChecks] = useState<boolean[]>(itens.map(() => false))
+  const obrigatorios = itens.filter(i => i.obrigatorio).length
+  const obrigatoriosMarcados = itens.filter((i, idx) => i.obrigatorio && checks[idx]).length
+  const completo = obrigatoriosMarcados === obrigatorios
+  const isGuiado = nivel === 'abat' || nivel === 'terapeuta'
+
+  if (itens.length === 0) return null
+
+  return (
+    <div style={{
+      marginBottom: 14, padding: '12px 14px',
+      background: 'rgba(0,0,0,0.2)', borderRadius: 10,
+      border: `1px solid ${completo ? 'rgba(29,158,117,0.25)' : 'rgba(239,159,39,0.2)'}`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontSize: 11, color: 'rgba(160,200,235,.6)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          {isGuiado ? 'Checklist obrigatório' : 'Checklist sugerido'}
+        </span>
+        <span style={{ fontSize: 11, color: completo ? '#1D9E75' : '#EF9F27', fontWeight: 600 }}>
+          {obrigatoriosMarcados}/{obrigatorios} obrigatórios
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {itens.map((item, idx) => (
+          <div
+            key={idx}
+            onClick={() => setChecks(prev => prev.map((v, i) => i === idx ? !v : v))}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              cursor: 'pointer', padding: '6px 8px', borderRadius: 7,
+              background: checks[idx] ? 'rgba(29,158,117,0.06)' : 'transparent',
+              transition: 'background 0.15s',
+            }}
+          >
+            <div style={{
+              width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+              border: `1.5px solid ${checks[idx] ? '#1D9E75' : item.obrigatorio ? 'rgba(239,159,39,0.5)' : 'rgba(160,200,235,0.2)'}`,
+              background: checks[idx] ? '#1D9E75' : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {checks[idx] && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/></svg>}
+            </div>
+            <span style={{ fontSize: 12, color: checks[idx] ? 'rgba(232,238,244,.8)' : 'rgba(160,200,235,.6)', flex: 1 }}>
+              {item.item}
+            </span>
+            {item.obrigatorio && !checks[idx] && (
+              <span style={{ fontSize: 9, color: '#EF9F27', textTransform: 'uppercase', letterSpacing: '0.06em' }}>req</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function uid() { return Math.random().toString(36).slice(2,9) }
 function iniciais(nome: string) { const p = nome.trim().split(" "); return p.length>=2?`${p[0][0]}${p[p.length-1][0]}`.toUpperCase():nome.slice(0,2).toUpperCase() }
 
@@ -441,6 +538,11 @@ function SessaoInner() {
                   Concluir →
                 </button>
               </div>
+            )}
+
+            {/* Checklist guiado — ABAT e QASP-S */}
+            {stAtual && (nivel === 'abat' || nivel === 'terapeuta' || nivel === 'qasp_s' || nivel === 'coordenador') && (
+              <ChecklistGuiado stageKey={stAtual.key} nivel={nivel} />
             )}
 
             {/* Área de drop */}
