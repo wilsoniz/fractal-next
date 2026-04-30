@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { useClinicContext } from '../layout'
+import { useClinicContext, useAcesso } from '../layout'
 import { supabase } from '@/lib/supabase'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -594,6 +594,17 @@ function MatrizCard({ matriz, onEditar, onSelecionar, selecionada }: {
 export default function MatrizesPage() {
   useClinicContext()
   const { terapeuta } = useClinicContext()
+  const acesso = useAcesso()
+
+  if (!acesso.podeAcessarMatrizes) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16, color: 'rgba(232,238,244,.6)', fontFamily: 'var(--font-sans)' }}>
+      <div style={{ fontSize: 32, opacity: 0.2 }}>⊘</div>
+      <div style={{ fontSize: 15, fontWeight: 500, color: '#e8eef4' }}>Acesso restrito</div>
+      <div style={{ fontSize: 13, textAlign: 'center', maxWidth: 360, lineHeight: 1.6 }}>
+        A criação de matrizes de estímulos requer nível QASP-S ou QBA. Solicite ao seu supervisor que configure as matrizes para seus pacientes.
+      </div>
+    </div>
+  )
   const [matrizes, setMatrizes] = useState<Matriz[]>(MOCK_MATRIZES)
   const [editando, setEditando] = useState<Matriz | null>(null)
   const [selecionada, setSelecionada] = useState<string | null>(null)

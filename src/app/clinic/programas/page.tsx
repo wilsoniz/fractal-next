@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { useClinicContext } from "../layout";
+import { useClinicContext, useAcesso } from "../layout";
 import { supabase } from "@/lib/supabase";
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type Etapa = 1 | 2 | 3 | 4;
@@ -130,7 +130,18 @@ function iniciaisPac(nome: string) {
 // ─── PAGE ────────────────────────────────────────────────────────────────────
 export default function GoalBuilderPage() {
   const { terapeuta } = useClinicContext();
+  const acesso = useAcesso();
   const nivel = terapeuta?.nivel ?? "coordenador";
+
+  if (!acesso.podeEditarProgramas) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16, color: 'rgba(232,238,244,.6)', fontFamily: 'var(--font-sans)' }}>
+      <div style={{ fontSize: 32, opacity: 0.2 }}>⊘</div>
+      <div style={{ fontSize: 15, fontWeight: 500, color: '#e8eef4' }}>Acesso restrito</div>
+      <div style={{ fontSize: 13, textAlign: 'center', maxWidth: 360, lineHeight: 1.6 }}>
+        A criação e edição de programas requer nível QASP-S ou QBA. Solicite ao seu supervisor que configure os programas para seus pacientes.
+      </div>
+    </div>
+  )
 
   const [etapa,    setEtapa]    = useState<Etapa>(1);
   const [programa, setPrograma] = useState<Programa>(PROGRAMA_INICIAL);
