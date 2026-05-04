@@ -22,12 +22,9 @@ interface PacienteFinanceiro {
   sessoesRealizadas: number
   sessoesCanceladas: number
   valorSessao: number
-  // FFS
   mensalidadeFFS: number
-  // Care
   comissaoCare: number
-  comissaoCareEfetiva: number // com teto aplicado
-  // Financeiro
+  comissaoCareEfetiva: number
   receitaBruta: number
   custoPlataforma: number
   receitaLiquida: number
@@ -43,25 +40,22 @@ interface MesHistorico {
 }
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
-const FFS_MENSAL     = 39    // legado — mantido para compatibilidade
-
-// Modelo Care — % por senioridade (sobre valor real da sessão)
 const CARE_COMISSAO: Record<string, number> = {
-  terapeuta:   0.08,  // 8%
-  coordenador: 0.10,  // 10%
-  supervisor:  0.12,  // 12%
+  terapeuta:   0.08,
+  coordenador: 0.10,
+  supervisor:  0.12,
 }
 
-// Modelo FFS — assinatura mensal por faixa de sessões
 const FFS_PLANOS = [
-  { nome: "Starter",       sessoes: 20,   valor: 49,  desc: "até 20 sessões/mês"   },
-  { nome: "Profissional",  sessoes: 60,   valor: 89,  desc: "até 60 sessões/mês"   },
-  { nome: "Clínica",       sessoes: 9999, valor: 149, desc: "sessões ilimitadas"    },
+  { nome: "Starter",      sessoes: 20,   valor: 49,  desc: "até 20 sessões/mês"  },
+  { nome: "Profissional", sessoes: 60,   valor: 89,  desc: "até 60 sessões/mês"  },
+  { nome: "Clínica",      sessoes: 9999, valor: 149, desc: "sessões ilimitadas"   },
 ]
 
 function planoFFS(sessoes: number) {
   return FFS_PLANOS.find(p => sessoes <= p.sessoes) ?? FFS_PLANOS[FFS_PLANOS.length - 1]
 }
+
 const GRADIENTS = [
   "linear-gradient(135deg,#1D9E75,#378ADD)",
   "linear-gradient(135deg,#378ADD,#8B7FE8)",
@@ -97,33 +91,45 @@ export default function ClinicWalletPage() {
   const [historico, setHistorico] = useState<MesHistorico[]>([])
   const [loading,   setLoading]   = useState(true)
   const [pacSel,    setPacSel]    = useState<PacienteFinanceiro | null>(null)
+  const [erro,      setErro]      = useState<string | null>(null)
 
-  // Simulador multi-paciente
   type SimPaciente = { id: string; nome: string; sessoes: number; valorSessao: number; modelo: "ffs" | "care" }
   const [simNivel,     setSimNivel]     = useState<"terapeuta"|"coordenador"|"supervisor">("coordenador")
   const [simPacientes, setSimPacientes] = useState<SimPaciente[]>([
     { id: "1", nome: "Paciente A", sessoes: 12, valorSessao: 250, modelo: "care" },
     { id: "2", nome: "Paciente B", sessoes: 4,  valorSessao: 100, modelo: "ffs"  },
   ])
-  const [simEscala,    setSimEscala]    = useState(10)
+  const [simEscala, setSimEscala] = useState(10)
 
+  // ── Carregar dados ───────────────────────────────────────────────────────
+  // CORREÇÃO CRÍTICA: o useEffect agora trata corretamente o caso terapeuta=null
+  // e sempre chama setLoading(false) independente do resultado
   useEffect(() => {
-    if (!terapeuta) return
+    if (terapeuta === undefined) return // contexto ainda carregando
+    if (terapeuta === null) {
+      // terapeuta confirmadamente ausente — não há dados a carregar
+      setLoading(false)
+      return
+    }
     carregar()
   }, [terapeuta])
 
   async function carregar() {
     setLoading(true)
+    setErro(null)
     try {
-      // 1. Planos ativos do terapeuta com criança
-      const { data: planos } = await supabase
+      // 1. Planos ativos com criança
+      const { data: planos, error: erroPlanos } = await supabase
         .from("planos")
-        .select("id, criancas ( id, nome ), programas ( nome, dominio )")
+        .select("id, criancas ( id, nome ), programas ( nome, dominio ), modelo_financeiro, valor_sessao")
         .eq("terapeuta_id", terapeuta!.id)
         .eq("status", "ativo")
 
+      if (erroPlanos) throw erroPlanos
+
       if (!planos || planos.length === 0) {
         setPacientes([])
+        setHistorico([])
         setLoading(false)
         return
       }
@@ -139,40 +145,49 @@ export default function ClinicWalletPage() {
 
       const criancaIds = Array.from(criancaMap.keys())
 
-      // 2. Sessões do mês atual por criança
-      const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0,0,0,0)
+      // 2. Sessões do mês atual
+      const inicioMes = new Date()
+      inicioMes.setDate(1)
+      inicioMes.setHours(0, 0, 0, 0)
+
       const { data: sessoesMes } = await supabase
         .from("sessoes_clinicas")
-        .select("crianca_id, concluida, taxa_acerto, criado_em")
+        .select("crianca_id, concluida, criado_em")
         .in("crianca_id", criancaIds)
         .gte("criado_em", inicioMes.toISOString())
 
       // 3. Montar pacientes financeiros
+      // CORREÇÃO: modelo_financeiro e valor_sessao agora vêm do banco quando disponíveis
+      const comissao = CARE_COMISSAO[terapeuta?.nivel ?? "coordenador"] ?? 0.10
       const result: PacienteFinanceiro[] = Array.from(criancaMap.entries()).map(([id, { nome, planos: cPlanos }], i) => {
-        const sessoesC     = (sessoesMes ?? []).filter(s => s.crianca_id === id)
-        const realizadas   = sessoesC.filter(s => s.concluida).length
-        const canceladas   = sessoesC.filter(s => !s.concluida).length
-        const valorSessao  = 250 // valor padrão — futuramente vem do contrato
-        const modelo: "ffs" | "care" = "ffs" // padrão FFS — futuramente configurável
+        const sessoesC   = (sessoesMes ?? []).filter(s => s.crianca_id === id)
+        const realizadas = sessoesC.filter(s => s.concluida).length
+        const canceladas = sessoesC.filter(s => !s.concluida).length
 
-        const bruta = realizadas * valorSessao * (CARE_COMISSAO[terapeuta?.nivel ?? "coordenador"] ?? 0.10); const efetiva = bruta
+        // Usa valor do banco se disponível; fallback 250 é explícito e documentado
+        const primeiroPlano = cPlanos[0]
+        const valorSessao   = (primeiroPlano?.valor_sessao as number | null) ?? 250
+        // modelo_financeiro: campo que deve existir no banco; fallback "care" se ausente
+        const modelo: "ffs" | "care" = (primeiroPlano?.modelo_financeiro as "ffs" | "care" | null) ?? "care"
+
         const receitaBruta    = realizadas * valorSessao
-        const custoPlataforma = modelo === "ffs" ? FFS_MENSAL : efetiva
+        const comissaoCare    = receitaBruta * comissao
+        const custoPlataforma = modelo === "ffs" ? planoFFS(realizadas).valor : comissaoCare
         const receitaLiquida  = receitaBruta - custoPlataforma
 
         return {
           id, nome,
-          iniciais:             iniciais(nome),
-          gradient:             GRADIENTS[i % GRADIENTS.length],
-          cor:                  CORES[i % CORES.length],
+          iniciais:            iniciais(nome),
+          gradient:            GRADIENTS[i % GRADIENTS.length],
+          cor:                 CORES[i % CORES.length],
           modelo,
-          sessoesMes:           cPlanos.length * 4, // estimativa
-          sessoesRealizadas:    realizadas,
-          sessoesCanceladas:    canceladas,
+          sessoesMes:          cPlanos.length * 4,
+          sessoesRealizadas:   realizadas,
+          sessoesCanceladas:   canceladas,
           valorSessao,
-          mensalidadeFFS:       FFS_MENSAL,
-          comissaoCare:         bruta,
-          comissaoCareEfetiva:  efetiva,
+          mensalidadeFFS:      planoFFS(realizadas).valor,
+          comissaoCare,
+          comissaoCareEfetiva: comissaoCare,
           receitaBruta,
           custoPlataforma,
           receitaLiquida,
@@ -183,21 +198,28 @@ export default function ClinicWalletPage() {
       // 4. Histórico — últimos 6 meses
       const hist: MesHistorico[] = []
       for (let i = 5; i >= 0; i--) {
-        const d     = new Date(); d.setMonth(d.getMonth() - i)
+        const d      = new Date()
+        d.setMonth(d.getMonth() - i)
         const inicio = new Date(d.getFullYear(), d.getMonth(), 1).toISOString()
-        const fim    = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString()
-        const mes    = d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" })
+        const fim    = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).toISOString()
+        const mes      = d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" })
         const mesLabel = d.toLocaleDateString("pt-BR", { month: "short" })
 
         const { data: sessMes } = await supabase
           .from("sessoes_clinicas")
           .select("concluida, crianca_id")
           .in("crianca_id", criancaIds)
-          .gte("criado_em", inicio).lte("criado_em", fim)
+          .gte("criado_em", inicio)
+          .lte("criado_em", fim)
 
-        const realizadasMes   = (sessMes ?? []).filter(s => s.concluida).length
-        const receitaMes      = realizadasMes * 250
-        const previstaMes     = result.length * 8 * 250 // estimativa
+        // Valor médio de sessão da carteira
+        const valorMedioSessao = result.length > 0
+          ? Math.round(result.reduce((a, p) => a + p.valorSessao, 0) / result.length)
+          : 250
+
+        const realizadasMes = (sessMes ?? []).filter(s => s.concluida).length
+        const receitaMes    = realizadasMes * valorMedioSessao
+        const previstaMes   = result.length * 8 * valorMedioSessao
 
         hist.push({
           mes, mesLabel,
@@ -209,50 +231,48 @@ export default function ClinicWalletPage() {
       }
       setHistorico(hist)
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao carregar wallet:", err)
+      setErro(err?.message ?? "Erro ao carregar dados financeiros.")
     }
     setLoading(false)
   }
 
   // ── Métricas agregadas ───────────────────────────────────────────────────
   const metricas = useMemo(() => {
-    const receitaRealizada   = pacientes.reduce((a, p) => a + p.receitaBruta, 0)
-    const receitaLiquida     = pacientes.reduce((a, p) => a + p.receitaLiquida, 0)
-    const custoTotal         = pacientes.reduce((a, p) => a + p.custoPlataforma, 0)
-    const totalSessoes       = pacientes.reduce((a, p) => a + p.sessoesRealizadas, 0)
-    const totalCanceladas    = pacientes.reduce((a, p) => a + p.sessoesCanceladas, 0)
-    const pacFFS             = pacientes.filter(p => p.modelo === "ffs").length
-    const pacCare            = pacientes.filter(p => p.modelo === "care").length
+    const receitaRealizada  = pacientes.reduce((a, p) => a + p.receitaBruta, 0)
+    const receitaLiquida    = pacientes.reduce((a, p) => a + p.receitaLiquida, 0)
+    const custoTotal        = pacientes.reduce((a, p) => a + p.custoPlataforma, 0)
+    const totalSessoes      = pacientes.reduce((a, p) => a + p.sessoesRealizadas, 0)
+    const totalCanceladas   = pacientes.reduce((a, p) => a + p.sessoesCanceladas, 0)
+    const pacFFS            = pacientes.filter(p => p.modelo === "ffs").length
+    const pacCare           = pacientes.filter(p => p.modelo === "care").length
     return { receitaRealizada, receitaLiquida, custoTotal, totalSessoes, totalCanceladas, pacFFS, pacCare, totalPac: pacientes.length }
   }, [pacientes])
 
-  // ── Simulador multi-paciente ─────────────────────────────────────────────
+  // ── Simulador ─────────────────────────────────────────────────────────────
   const simResultado = useMemo(() => {
     const comissao = CARE_COMISSAO[simNivel] ?? 0.10
     const pacs = simPacientes.map(p => {
-      const receitaBruta   = p.sessoes * p.valorSessao
-      const custoFFS       = planoFFS(p.sessoes).valor
-      const custoCare      = receitaBruta * comissao
-      const lucroFFS       = receitaBruta - custoFFS
-      const lucroCare      = receitaBruta - custoCare
-      const plano          = planoFFS(p.sessoes)
+      const receitaBruta = p.sessoes * p.valorSessao
+      const custoFFS     = planoFFS(p.sessoes).valor
+      const custoCare    = receitaBruta * comissao
+      const lucroFFS     = receitaBruta - custoFFS
+      const lucroCare    = receitaBruta - custoCare
+      const plano        = planoFFS(p.sessoes)
       return { ...p, receitaBruta, custoFFS, custoCare, lucroFFS, lucroCare, plano,
         custoEfetivo: p.modelo === "ffs" ? custoFFS : custoCare,
         lucroEfetivo: p.modelo === "ffs" ? lucroFFS : lucroCare,
       }
     })
-    const totalBruto       = pacs.reduce((a, p) => a + p.receitaBruta, 0)
-    const totalFFS         = pacs.reduce((a, p) => a + p.custoFFS, 0)
-    const totalCare        = pacs.reduce((a, p) => a + p.custoCare, 0)
-    const totalEfetivo     = pacs.reduce((a, p) => a + p.custoEfetivo, 0)
-    const totalLiquido     = pacs.reduce((a, p) => a + p.lucroEfetivo, 0)
-    const receitaFracta    = totalEfetivo
-    // Escala
-    const ticketMedioLiq   = pacs.length > 0 ? totalLiquido / pacs.length : 0
-    const escalaLiquido    = ticketMedioLiq * simEscala
-    const escalaFracta     = (totalEfetivo / (pacs.length || 1)) * simEscala
-    return { pacs, totalBruto, totalFFS, totalCare, totalEfetivo, totalLiquido, receitaFracta, escalaLiquido, escalaFracta, comissao }
+    const totalBruto    = pacs.reduce((a, p) => a + p.receitaBruta, 0)
+    const totalEfetivo  = pacs.reduce((a, p) => a + p.custoEfetivo, 0)
+    const totalLiquido  = pacs.reduce((a, p) => a + p.lucroEfetivo, 0)
+    const receitaFracta = totalEfetivo
+    const ticketMedioLiq = pacs.length > 0 ? totalLiquido / pacs.length : 0
+    const escalaLiquido  = ticketMedioLiq * simEscala
+    const escalaFracta   = (totalEfetivo / (pacs.length || 1)) * simEscala
+    return { pacs, totalBruto, totalEfetivo, totalLiquido, receitaFracta, escalaLiquido, escalaFracta, comissao }
   }, [simPacientes, simNivel, simEscala])
 
   function adicionarPacSim() {
@@ -264,11 +284,11 @@ export default function ClinicWalletPage() {
     setSimPacientes(p => p.map(x => x.id === id ? { ...x, [campo]: val } : x))
   }
 
-  // Projeção próximos 6 meses baseada em dados reais
   const projecaoMeses = useMemo(() => {
     const baseReceita = metricas.receitaRealizada || pacientes.length * 8 * 250
     return Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(); d.setMonth(d.getMonth() + i + 1)
+      const d = new Date()
+      d.setMonth(d.getMonth() + i + 1)
       const mes = d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" })
       return {
         mes,
@@ -295,16 +315,37 @@ export default function ClinicWalletPage() {
   }
 
   const TABS: { id: TabWallet; label: string }[] = [
-    { id: "visao-geral", label: "Visão geral"  },
-    { id: "contratos",   label: "Contratos"    },
-    { id: "historico",   label: "Histórico"    },
-    { id: "projecao",    label: "Projeção"      },
+    { id: "visao-geral", label: "Visão geral"       },
+    { id: "contratos",   label: "Contratos"         },
+    { id: "historico",   label: "Histórico"         },
+    { id: "projecao",    label: "Projeção"           },
     { id: "simulador",   label: "Simulador FFS/Care" },
   ]
 
+  // ── Loading / Erro / Sem terapeuta ───────────────────────────────────────
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
       <div style={{ fontSize: 13, color: "rgba(160,200,235,.9)" }}>Carregando wallet...</div>
+    </div>
+  )
+
+  if (!terapeuta) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
+      <div style={{ fontSize: 13, color: "rgba(255,255,255,.3)", textAlign: "center" }}>
+        Sessão não encontrada.<br />
+        <a href="/login" style={{ color: "#1D9E75" }}>Fazer login novamente</a>
+      </div>
+    </div>
+  )
+
+  if (erro) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
+      <div style={{ fontSize: 13, color: "#E05A4B", textAlign: "center" }}>
+        {erro}<br />
+        <button onClick={carregar} style={{ marginTop: 12, padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(224,90,75,.3)", background: "transparent", color: "#E05A4B", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 12 }}>
+          Tentar novamente
+        </button>
+      </div>
     </div>
   )
 
@@ -316,17 +357,21 @@ export default function ClinicWalletPage() {
         <div>
           <h1 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#e8f0f8", margin: 0, marginBottom: 4 }}>Clinic Wallet</h1>
           <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>
-            {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} · {metricas.totalPac} pacientes · FFS + Care
+            {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+            {" · "}{metricas.totalPac} pacientes · FFS + Care
           </div>
         </div>
+        <button onClick={carregar} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(70,120,180,.4)", background: "transparent", color: "rgba(160,200,235,.7)", fontSize: ".72rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          Atualizar
+        </button>
       </div>
 
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
         {[
-          { l: "Receita bruta",    v: fmtK(metricas.receitaRealizada), c: "#1D9E75", sub: "sessões realizadas" },
-          { l: "Receita líquida",  v: fmtK(metricas.receitaLiquida),   c: "#378ADD", sub: "após custo plataforma" },
-          { l: "Custo plataforma", v: fmtK(metricas.custoTotal),        c: "#EF9F27", sub: `FFS R$${FFS_MENSAL}/pac` },
+          { l: "Receita bruta",     v: fmtK(metricas.receitaRealizada), c: "#1D9E75", sub: "sessões realizadas"       },
+          { l: "Receita líquida",   v: fmtK(metricas.receitaLiquida),   c: "#378ADD", sub: "após custo plataforma"    },
+          { l: "Custo plataforma",  v: fmtK(metricas.custoTotal),       c: "#EF9F27", sub: "FFS + comissões Care"     },
           { l: "Sessões realizadas",v: metricas.totalSessoes,           c: "#8B7FE8", sub: `${metricas.totalCanceladas} canceladas` },
         ].map(k => (
           <div key={k.l} style={{ ...card, padding: "16px 18px" }}>
@@ -350,26 +395,25 @@ export default function ClinicWalletPage() {
         ))}
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* TAB: VISÃO GERAL */}
+      {/* ═══ TAB: VISÃO GERAL ═══════════════════════════════════════════════ */}
       {tab === "visao-geral" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-
-          {/* Receita por paciente */}
           <div style={{ ...card, padding: 20 }}>
             <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>Receita por paciente</div>
             <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)", marginBottom: 16 }}>Bruta vs custo plataforma este mês</div>
             {pacientes.length === 0 ? (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,.3)", textAlign: "center", padding: "32px 0" }}>Nenhum paciente vinculado</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,.3)", textAlign: "center", padding: "32px 0" }}>
+                Nenhum paciente vinculado
+              </div>
             ) : (
-              <div style={{ height: 220, minHeight: 220 }}>
+              <div style={{ height: 220 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={pacientes.map(p => ({ nome: p.nome.split(" ")[0], bruta: p.receitaBruta, custo: p.custoPlataforma, cor: p.cor }))} barSize={20}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,58,92,.4)" vertical={false} />
                     <XAxis dataKey="nome" stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.90)", fontSize: 11 }} />
                     <YAxis stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} tickFormatter={v => `${v/1000}k`} />
                     <Tooltip {...tooltipStyle} formatter={(v: unknown) => [fmtBRL(Number(v))] as [string]} />
-                    <Bar dataKey="bruta" name="Bruta" stackId="a" radius={[0,0,0,0]}>
+                    <Bar dataKey="bruta" name="Bruta" stackId="a">
                       {pacientes.map((p, i) => <Cell key={i} fill={p.cor} fillOpacity={0.8} />)}
                     </Bar>
                     <Bar dataKey="custo" name="Custo" stackId="b" radius={[4,4,0,0]}>
@@ -381,7 +425,6 @@ export default function ClinicWalletPage() {
             )}
           </div>
 
-          {/* Breakdown por paciente */}
           <div style={{ ...card, padding: 20 }}>
             <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 14 }}>Breakdown financeiro</div>
             {pacientes.length === 0 ? (
@@ -409,14 +452,13 @@ export default function ClinicWalletPage() {
             )}
           </div>
 
-          {/* Sessões do mês */}
           <div style={{ ...card, padding: 20 }}>
             <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 14 }}>Sessões do mês</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 16 }}>
               {[
-                { l: "Realizadas",  v: metricas.totalSessoes,   c: "#1D9E75" },
-                { l: "Canceladas",  v: metricas.totalCanceladas, c: "#E05A4B" },
-                { l: "Pacientes",   v: metricas.totalPac,        c: "#378ADD" },
+                { l: "Realizadas", v: metricas.totalSessoes,   c: "#1D9E75" },
+                { l: "Canceladas", v: metricas.totalCanceladas, c: "#E05A4B" },
+                { l: "Pacientes",  v: metricas.totalPac,        c: "#378ADD" },
               ].map(k => (
                 <div key={k.l} style={{ background: "rgba(26,58,92,.25)", borderRadius: 9, padding: "10px 12px", textAlign: "center" }}>
                   <div style={{ fontSize: ".58rem", color: "rgba(170,210,245,.88)", marginBottom: 4 }}>{k.l}</div>
@@ -434,12 +476,11 @@ export default function ClinicWalletPage() {
             ))}
           </div>
 
-          {/* Modelo FFS vs Care */}
           <div style={{ ...card, padding: 20 }}>
             <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 14 }}>Distribuição FFS vs Care</div>
             {[
-              { l: "FFS", v: metricas.pacFFS, val: metricas.pacFFS * FFS_MENSAL, cor: "#1D9E75", desc: `R$${FFS_MENSAL}/pac/mês` },
-              { l: "Care", v: metricas.pacCare, val: pacientes.filter(p => p.modelo === "care").reduce((a, p) => a + p.comissaoCareEfetiva, 0), cor: "#378ADD", desc: "5% por sessão (com teto)" },
+              { l: "FFS",  v: metricas.pacFFS,  val: pacientes.filter(p => p.modelo === "ffs").reduce((a,p) => a + p.custoPlataforma, 0), cor: "#1D9E75", desc: "assinatura por faixa de sessões" },
+              { l: "Care", v: metricas.pacCare, val: pacientes.filter(p => p.modelo === "care").reduce((a,p) => a + p.comissaoCareEfetiva, 0), cor: "#378ADD", desc: `${((CARE_COMISSAO[nivel] ?? 0.10) * 100).toFixed(0)}% por sessão (${nivel})` },
             ].map(m => (
               <div key={m.l} style={{ padding: "12px 14px", background: "rgba(26,58,92,.25)", borderRadius: 10, marginBottom: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
@@ -452,20 +493,21 @@ export default function ClinicWalletPage() {
                 </div>
               </div>
             ))}
-            <div style={{ padding: "10px 12px", background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.15)", borderRadius: 9, fontSize: ".72rem", color: "rgba(160,200,235,.8)", lineHeight: 1.55 }}>
-              Teto do Care: comissão nunca ultrapassa R${FFS_MENSAL}/mês por paciente — mesmo com alto volume de sessões.
-            </div>
+            {pacientes.some(p => !p.valorSessao || p.valorSessao === 250) && (
+              <div style={{ padding: "8px 12px", background: "rgba(239,159,39,.06)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 8, fontSize: ".7rem", color: "rgba(239,159,39,.8)", lineHeight: 1.55, marginTop: 8 }}>
+                Alguns pacientes usam valor padrão de R$250/sessão — configure <code>valor_sessao</code> na tabela <code>planos</code> para cálculos precisos.
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* TAB: CONTRATOS */}
+      {/* ═══ TAB: CONTRATOS ══════════════════════════════════════════════════ */}
       {tab === "contratos" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {pacientes.length === 0 ? (
             <div style={{ ...card, padding: "48px 24px", textAlign: "center", fontSize: 13, color: "rgba(255,255,255,.3)" }}>
-              Nenhum paciente vinculado ainda. Vincule via planos no Supabase.
+              Nenhum paciente vinculado. Adicione planos ativos para visualizar contratos.
             </div>
           ) : pacientes.map(p => (
             <div key={p.id} style={{ ...card, padding: 22 }}>
@@ -475,11 +517,12 @@ export default function ClinicWalletPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                     <span style={{ fontSize: ".95rem", fontWeight: 700, color: "#e8f0f8" }}>{p.nome}</span>
                     <span style={{ fontSize: ".65rem", color: p.modelo === "ffs" ? "#1D9E75" : "#378ADD", background: p.modelo === "ffs" ? "rgba(29,158,117,.12)" : "rgba(55,138,221,.12)", border: `1px solid ${p.modelo === "ffs" ? "rgba(29,158,117,.25)" : "rgba(55,138,221,.25)"}`, borderRadius: 20, padding: "2px 9px", fontWeight: 700 }}>
-                      Modelo {p.modelo.toUpperCase()}
+                      {p.modelo.toUpperCase()}
                     </span>
                   </div>
                   <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.6)" }}>
-                    {p.sessoesRealizadas} sessões este mês · R${p.valorSessao}/sessão
+                    {p.sessoesRealizadas} sessões · R${p.valorSessao}/sessão
+                    {p.valorSessao === 250 && <span style={{ color: "rgba(239,159,39,.6)", marginLeft: 6 }}>(valor padrão)</span>}
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -489,35 +532,29 @@ export default function ClinicWalletPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
                 {[
-                  { l: "Receita bruta",    v: fmtBRL(p.receitaBruta),       c: "#e8f0f8" },
-                  { l: "Custo plataforma", v: fmtBRL(p.custoPlataforma),    c: "#EF9F27" },
-                  { l: "Receita líquida",  v: fmtBRL(p.receitaLiquida),     c: "#1D9E75" },
-                  { l: p.modelo === "ffs" ? "Mensalidade FFS" : "Comissão Care", v: p.modelo === "ffs" ? fmtBRL(p.mensalidadeFFS) : fmtBRL(p.comissaoCareEfetiva), c: "#378ADD" },
+                  { l: "Receita bruta",    v: fmtBRL(p.receitaBruta)    },
+                  { l: "Custo plataforma", v: fmtBRL(p.custoPlataforma) },
+                  { l: "Receita líquida",  v: fmtBRL(p.receitaLiquida)  },
+                  { l: p.modelo === "ffs" ? "Plano FFS" : "Comissão Care", v: p.modelo === "ffs" ? fmtBRL(p.mensalidadeFFS) : fmtBRL(p.comissaoCareEfetiva) },
                 ].map(k => (
                   <div key={k.l} style={{ background: "rgba(26,58,92,.25)", borderRadius: 9, padding: "10px 12px" }}>
                     <div style={{ fontSize: ".58rem", color: "rgba(170,210,245,.88)", marginBottom: 4 }}>{k.l}</div>
-                    <div style={{ fontSize: ".9rem", fontWeight: 700, color: k.c }}>{k.v}</div>
+                    <div style={{ fontSize: ".9rem", fontWeight: 700, color: "#e8f0f8" }}>{k.v}</div>
                   </div>
                 ))}
               </div>
-              {p.modelo === "care" && p.comissaoCare > FFS_MENSAL && (
-                <div style={{ marginTop: 12, padding: "8px 12px", background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.15)", borderRadius: 8, fontSize: ".72rem", color: "#1D9E75" }}>
-                  ✓ Teto aplicado: comissão real foi {fmtBRL(p.comissaoCareEfetiva)} (seria {fmtBRL(p.comissaoCare)} sem teto)
-                </div>
-              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* TAB: HISTÓRICO */}
+      {/* ═══ TAB: HISTÓRICO ══════════════════════════════════════════════════ */}
       {tab === "historico" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ ...card, padding: 20 }}>
             <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>Receita histórica — últimos 6 meses</div>
             <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)", marginBottom: 16 }}>Realizado vs previsto · baseado em sessões clínicas reais</div>
-            <div style={{ height: 220, minHeight: 220 }}>
+            <div style={{ height: 220 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={historico} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,58,92,.4)" vertical={false} />
@@ -555,14 +592,13 @@ export default function ClinicWalletPage() {
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* TAB: PROJEÇÃO */}
+      {/* ═══ TAB: PROJEÇÃO ═══════════════════════════════════════════════════ */}
       {tab === "projecao" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ ...card, padding: 20 }}>
             <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>Projeção de receita — próximos 6 meses</div>
             <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)", marginBottom: 16 }}>Baseada nos dados reais de sessões e pacientes ativos</div>
-            <div style={{ height: 260, minHeight: 260 }}>
+            <div style={{ height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={projecaoMeses}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,58,92,.4)" />
@@ -575,20 +611,12 @@ export default function ClinicWalletPage() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <div style={{ display: "flex", gap: 20, marginTop: 12 }}>
-              {[["#1D9E75","Otimista (+5%/mês)"],["#EF9F27","Previsto (+2%/mês)"],["#E05A4B","Conservador (-3%/mês)"]].map(([c,l]) => (
-                <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <div style={{ width: 12, height: 3, background: c, borderRadius: 2 }} />
-                  <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.90)" }}>{l}</span>
-                </div>
-              ))}
-            </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
             {[
               { l: "Projeção 12m (previsto)", v: fmtK(metricas.receitaLiquida * 12), c: "#1D9E75", sub: "base atual × 12" },
-              { l: "Potencial novo paciente",  v: fmtK(8 * 250 - FFS_MENSAL),        c: "#378ADD", sub: "líquido/mês estimado" },
-              { l: "Custo plataforma anual",   v: fmtK(metricas.custoTotal * 12),     c: "#EF9F27", sub: "FFS × 12 meses" },
+              { l: "Potencial novo paciente",  v: fmtK(8 * 250 * (1 - (CARE_COMISSAO[nivel] ?? 0.10))), c: "#378ADD", sub: "líquido/mês estimado (Care)" },
+              { l: "Custo plataforma anual",   v: fmtK(metricas.custoTotal * 12), c: "#EF9F27", sub: "projeção 12 meses" },
             ].map(k => (
               <div key={k.l} style={{ ...card, padding: 18 }}>
                 <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>{k.l}</div>
@@ -600,21 +628,18 @@ export default function ClinicWalletPage() {
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* TAB: SIMULADOR FFS vs CARE */}
+      {/* ═══ TAB: SIMULADOR ══════════════════════════════════════════════════ */}
       {tab === "simulador" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* Explicação do modelo */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div style={{ background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 12, padding: "14px 18px" }}>
               <div style={{ fontSize: ".75rem", fontWeight: 700, color: "#1D9E75", marginBottom: 8 }}>Care — Paciente da plataforma</div>
               <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.75)", lineHeight: 1.65 }}>
-                Família paga pelo FractaCare. O Fracta processa o pagamento e repassa descontando a comissão por senioridade:
+                Família paga pelo FractaCare. Fracta processa e repassa descontando comissão por senioridade:
               </div>
               <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
                 {[
-                  { n: "Terapeuta/RBT", v: "8%", cor: "#1D9E75" },
+                  { n: "Terapeuta/RBT", v: "8%",  cor: "#1D9E75" },
                   { n: "Coordenador",   v: "10%", cor: "#EF9F27" },
                   { n: "Supervisor",    v: "12%", cor: "#8B7FE8" },
                 ].map(r => (
@@ -628,7 +653,7 @@ export default function ClinicWalletPage() {
             <div style={{ background: "rgba(55,138,221,.06)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 12, padding: "14px 18px" }}>
               <div style={{ fontSize: ".75rem", fontWeight: 700, color: "#378ADD", marginBottom: 8 }}>FFS — Carteira própria</div>
               <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.75)", lineHeight: 1.65, marginBottom: 10 }}>
-                Terapeuta usa o FractaClinic como SaaS de gestão. Assinatura mensal por volume de sessões:
+                Terapeuta usa o FractaClinic como SaaS. Assinatura mensal:
               </div>
               {FFS_PLANOS.map(p => (
                 <div key={p.nome} style={{ display: "flex", justifyContent: "space-between", fontSize: ".72rem", padding: "4px 0", borderBottom: "1px solid rgba(55,138,221,.08)" }}>
@@ -639,7 +664,6 @@ export default function ClinicWalletPage() {
             </div>
           </div>
 
-          {/* Configuração do simulador */}
           <div style={{ ...card, padding: 22 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8" }}>Monte sua carteira</div>
@@ -653,9 +677,7 @@ export default function ClinicWalletPage() {
               </div>
             </div>
 
-            {/* Lista de pacientes */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
-              {/* Header */}
               <div style={{ display: "grid", gridTemplateColumns: "1.5fr 80px 100px 80px 80px 80px 32px", gap: 8, padding: "0 4px" }}>
                 {["Paciente","Sessões/mês","Valor/sessão","Modelo","Custo","Líquido",""].map(h => (
                   <div key={h} style={{ fontSize: ".58rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em" }}>{h}</div>
@@ -678,7 +700,7 @@ export default function ClinicWalletPage() {
                     </select>
                     <div style={{ fontSize: ".78rem", fontWeight: 600, color: "#EF9F27" }}>{res ? fmtBRL(res.custoEfetivo) : "—"}</div>
                     <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#1D9E75" }}>{res ? fmtBRL(res.lucroEfetivo) : "—"}</div>
-                    <button onClick={() => removerPacSim(p.id)} style={{ padding: "4px 6px", borderRadius: 6, border: "1px solid rgba(224,90,75,.2)", background: "rgba(224,90,75,.06)", color: "#E05A4B", cursor: "pointer", fontSize: ".7rem" }}>✕</button>
+                    <button onClick={() => removerPacSim(p.id)} style={{ padding: "4px 6px", borderRadius: 6, border: "1px solid rgba(224,90,75,.2)", background: "rgba(224,90,75,.06)", color: "#E05A4B", cursor: "pointer", fontSize: ".7rem" }}>x</button>
                   </div>
                 )
               })}
@@ -688,7 +710,6 @@ export default function ClinicWalletPage() {
               </button>
             </div>
 
-            {/* Totais */}
             <div style={{ borderTop: "1px solid rgba(26,58,92,.4)", paddingTop: 16 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
                 {[
@@ -706,7 +727,6 @@ export default function ClinicWalletPage() {
             </div>
           </div>
 
-          {/* Projeção de escala */}
           <div style={{ ...card, padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8" }}>Projeção de escala</div>
@@ -717,9 +737,9 @@ export default function ClinicWalletPage() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
               {[
-                { l: `Receita líquida total (${simEscala} terapeutas)`, v: fmtK(simResultado.escalaLiquido),  c: "#1D9E75", sub: "receita dos terapeutas" },
-                { l: `Fracta recebe (${simEscala} terapeutas)`,          v: fmtK(simResultado.escalaFracta),   c: "#8B7FE8", sub: "receita da plataforma" },
-                { l: "Ticket médio por terapeuta",                        v: fmtBRL(simResultado.totalLiquido), c: "#378ADD", sub: "líquido mensal" },
+                { l: `Receita líquida (${simEscala} terapeutas)`, v: fmtK(simResultado.escalaLiquido),  c: "#1D9E75", sub: "receita dos terapeutas" },
+                { l: `Fracta recebe (${simEscala} terapeutas)`,   v: fmtK(simResultado.escalaFracta),   c: "#8B7FE8", sub: "receita da plataforma" },
+                { l: "Ticket médio por terapeuta",                  v: fmtBRL(simResultado.totalLiquido), c: "#378ADD", sub: "líquido mensal" },
               ].map(k => (
                 <div key={k.l} style={{ background: "rgba(26,58,92,.25)", borderRadius: 10, padding: "14px 16px" }}>
                   <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.7)", marginBottom: 6, lineHeight: 1.4 }}>{k.l}</div>
@@ -727,20 +747,6 @@ export default function ClinicWalletPage() {
                   <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", marginTop: 4 }}>{k.sub}</div>
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* Sugestão do Engine */}
-          <div style={{ background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 12, padding: "16px 18px" }}>
-            <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#1D9E75", marginBottom: 8 }}>Sugestão do FractaEngine</div>
-            <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.8)", lineHeight: 1.65 }}>
-              {simResultado.pacs.filter(p => p.modelo === "ffs" && p.sessoes <= 20).length > 0 &&
-                `${simResultado.pacs.filter(p => p.modelo === "ffs" && p.sessoes <= 20).length} paciente(s) FFS com até 20 sessões — plano Starter R$49/mês é suficiente. `}
-              {simResultado.pacs.filter(p => p.modelo === "care").length > 0 &&
-                `${simResultado.pacs.filter(p => p.modelo === "care").length} paciente(s) Care com comissão de ${(simResultado.comissao * 100).toFixed(0)}% (${simNivel}). `}
-              {simResultado.totalLiquido > 5000
-                ? "Carteira saudável — receita líquida acima de R$5.000/mês."
-                : "Considere adicionar mais pacientes Care para aumentar a receita líquida."}
             </div>
           </div>
         </div>
@@ -779,4 +785,3 @@ export default function ClinicWalletPage() {
     </div>
   )
 }
-

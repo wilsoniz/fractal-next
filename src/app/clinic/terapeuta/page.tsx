@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useClinicContext } from "../layout";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
-type TabPerfil = "vitrine" | "formacao" | "disponibilidade" | "avaliacoes" | "configuracoes";
+type TabPerfil = "vitrine" | "formacao" | "disponibilidade" | "avaliacoes" | "configuracoes" | "supervisao";
 type Nivel     = "terapeuta" | "coordenador" | "supervisor";
 
 interface Certificacao {
@@ -180,6 +180,7 @@ export default function TerapeutaPerfilPage() {
     { id: "disponibilidade",  label: "Disponibilidade"},
     { id: "avaliacoes",       label: `Avaliações (${perfil.avaliacoes.length})` },
     { id: "configuracoes",    label: "Configurações"  },
+    { id: "supervisao",       label: "Supervisão"     },
   ];
 
   return (

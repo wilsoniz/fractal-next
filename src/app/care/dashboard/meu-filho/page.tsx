@@ -1,10 +1,5 @@
 'use client'
-// v2 — completo com previsibilidade clínica
-
-/**
- * Aba: Meu Filho
- * src/app/care/dashboard/meu-filho/page.tsx
- */
+// v2 — fluxo FFS correto + convite via função segura
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -16,8 +11,7 @@ import { calcularForecast } from '@/lib/fracta/forecast'
 import type { RadarSnapshot as ForecastRadarSnapshot, DadosSessao } from '@/lib/fracta/forecast'
 import { DOMINIO_LABELS, DOMINIO_CORES } from '@/lib/fracta/scoring'
 import type { Dominio } from '@/lib/fracta/scoring'
-import { Suspense } from "react";
-
+import { Suspense } from 'react'
 
 type Crianca = {
   id: string
@@ -85,31 +79,31 @@ function MeuFilhoPageInner() {
   const { criancaAtiva, criancas, setCriancaAtiva, recarregarCriancas } = useCareContext()
   const searchParams = useSearchParams()
 
-  const [snapshots, setSnapshots] = useState<RadarSnapshot[]>([])
-  const [laudos, setLaudos] = useState<Laudo[]>([])
-  const [sessoes, setSessoes] = useState<{ id: string }[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editando, setEditando] = useState(false)
-  const [formPerfil, setFormPerfil] = useState({ nome: '', data_nascimento: '', diagnostico: '', observacoes: '' })
+  const [snapshots,      setSnapshots]      = useState<RadarSnapshot[]>([])
+  const [laudos,         setLaudos]         = useState<Laudo[]>([])
+  const [sessoes,        setSessoes]        = useState<{ id: string }[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [editando,       setEditando]       = useState(false)
+  const [formPerfil,     setFormPerfil]     = useState({ nome: '', data_nascimento: '', diagnostico: '', observacoes: '' })
   const [salvandoPerfil, setSalvandoPerfil] = useState(false)
   const [mostrarFormFilho, setMostrarFormFilho] = useState(searchParams.get('acao') === 'adicionar')
-  const [formFilho, setFormFilho] = useState({ nome: '', data_nascimento: '', idade_anos: '', diagnostico: '' })
-  const [salvandoFilho, setSalvandoFilho] = useState(false)
-  const [forecast, setForecast] = useState<ReturnType<typeof calcularForecast> | null>(null)
-  const [conviteCodigo, setConviteCodigo] = useState<string | null>(null)
+  const [formFilho,      setFormFilho]      = useState({ nome: '', data_nascimento: '', idade_anos: '', diagnostico: '' })
+  const [salvandoFilho,  setSalvandoFilho]  = useState(false)
+  const [erroFilho,      setErroFilho]      = useState<string | null>(null)
+  const [forecast,       setForecast]       = useState<ReturnType<typeof calcularForecast> | null>(null)
+  const [conviteCodigo,  setConviteCodigo]  = useState<string | null>(null)
   const [gerandoConvite, setGerandoConvite] = useState(false)
   const [conviteCopiado, setConviteCopiado] = useState(false)
-  const [responsaveis, setResponsaveis] = useState<{id:string;email:string;tipo:string}[]>([])
- 
- 
+  const [responsaveis,   setResponsaveis]   = useState<{ id: string; email: string; tipo: string }[]>([])
+
   useEffect(() => {
     if (!criancaAtiva) return
     carregarDados()
     setFormPerfil({
-      nome: criancaAtiva.nome ?? '',
+      nome:            criancaAtiva.nome ?? '',
       data_nascimento: (criancaAtiva as any).data_nascimento ?? '',
-      diagnostico: (criancaAtiva as any).diagnostico ?? '',
-      observacoes: (criancaAtiva as any).observacoes ?? '',
+      diagnostico:     (criancaAtiva as any).diagnostico ?? '',
+      observacoes:     (criancaAtiva as any).observacoes ?? '',
     })
   }, [criancaAtiva])
 
@@ -137,6 +131,29 @@ function MeuFilhoPageInner() {
       { total_sessoes: sess?.length ?? 0, sessoes_ultimos_14d: sessoesRec?.length ?? 0 } as DadosSessao
     )
     setForecast(fc)
+
+    // Carregar responsáveis vinculados via crianca_responsaveis
+    const { data: vinculos } = await supabase
+      .from('crianca_responsaveis')
+      .select('responsavel_id, tipo')
+      .eq('crianca_id', criancaAtiva!.id)
+      .neq('tipo', 'terapeuta_ffs') // não mostrar o terapeuta FFS como responsável familiar
+
+    if (vinculos && vinculos.length > 0) {
+      const ids = vinculos.map((v: any) => v.responsavel_id)
+      const { data: perfis } = await supabase
+        .from('profiles')
+        .select('id, email, nome')
+        .in('id', ids)
+      if (perfis) {
+        setResponsaveis(perfis.map((p: any) => ({
+          id:    p.id,
+          email: p.email ?? p.nome ?? 'Responsável',
+          tipo:  vinculos.find((v: any) => v.responsavel_id === p.id)?.tipo ?? 'secundario',
+        })))
+      }
+    }
+
     setLoading(false)
   }
 
@@ -144,63 +161,106 @@ function MeuFilhoPageInner() {
     if (!criancaAtiva) return
     setSalvandoPerfil(true)
     await supabase.from('criancas').update({
-      nome: formPerfil.nome,
+      nome:            formPerfil.nome,
       data_nascimento: formPerfil.data_nascimento || null,
-      diagnostico: formPerfil.diagnostico || null,
-      observacoes: formPerfil.observacoes || null,
+      diagnostico:     formPerfil.diagnostico || null,
+      observacoes:     formPerfil.observacoes || null,
     }).eq('id', criancaAtiva.id)
     await recarregarCriancas()
     setEditando(false)
     setSalvandoPerfil(false)
   }
 
+  // CORRIGIDO: adicionarFilho agora usa responsavel_id do usuário logado (pai/mãe no Care)
+  // e não confunde com o fluxo FFS do terapeuta.
+  // O terapeuta FFS usa a função cadastrar_paciente_ffs() no FractaClinic.
   async function adicionarFilho() {
+    if (!formFilho.nome.trim()) return
     setSalvandoFilho(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: novaC } = await supabase.from('criancas').insert({
-      responsavel_id: user?.id,
-      nome: formFilho.nome,
-      data_nascimento: formFilho.data_nascimento || null,
-      idade_anos: formFilho.idade_anos ? parseInt(formFilho.idade_anos) : null,
-      diagnostico: formFilho.diagnostico || null,
-      ativo: true,
-    }).select().single()
-    if (novaC) { await recarregarCriancas(); setCriancaAtiva(novaC as any) }
+    setErroFilho(null)
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (!user || authError) {
+      setErroFilho('Sessão expirada. Faça login novamente.')
+      setSalvandoFilho(false)
+      return
+    }
+
+    // Insert direto: responsavel_id = usuário logado (pai/mãe autenticado no Care)
+    // Este caminho é EXCLUSIVO do FractaCare (responsável familiar)
+    const { data: novaC, error } = await supabase
+      .from('criancas')
+      .insert({
+        responsavel_id:  user.id,           // correto: é o responsável real
+        nome:            formFilho.nome.trim(),
+        data_nascimento: formFilho.data_nascimento || null,
+        idade_anos:      formFilho.idade_anos ? parseInt(formFilho.idade_anos) : null,
+        diagnostico:     formFilho.diagnostico || null,
+        ativo:           true,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Erro ao cadastrar filho:', error)
+      setErroFilho('Não foi possível cadastrar. Verifique os dados e tente novamente.')
+      setSalvandoFilho(false)
+      return
+    }
+
+    if (novaC) {
+      // Registra também em crianca_responsaveis como primário
+      await supabase.from('crianca_responsaveis').insert({
+        crianca_id:     novaC.id,
+        responsavel_id: user.id,
+        tipo:           'primario'
+      })
+
+      await recarregarCriancas()
+      setCriancaAtiva(novaC as any)
+    }
+
     setMostrarFormFilho(false)
     setFormFilho({ nome: '', data_nascimento: '', idade_anos: '', diagnostico: '' })
     setSalvandoFilho(false)
   }
 
-async function gerarConvite() {
-  if (!criancaAtiva) return
-  setGerandoConvite(true)
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-  const { data } = await supabase
-    .from('convites')
-    .insert({ crianca_id: criancaAtiva.id, criado_por: user.id })
-    .select('codigo')
-    .single()
-  if (data) setConviteCodigo(data.codigo)
-  setGerandoConvite(false)
-}
+  // CORRIGIDO: gera convite via tabela convites no banco
+  async function gerarConvite() {
+    if (!criancaAtiva) return
+    setGerandoConvite(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setGerandoConvite(false); return }
 
-async function copiarConvite() {
-  if (!conviteCodigo) return
-  const link = `${window.location.origin}/care/convite/${conviteCodigo}`
-  await navigator.clipboard.writeText(link)
-  setConviteCopiado(true)
-  setTimeout(() => setConviteCopiado(false), 3000)
-}
+    const { data, error } = await supabase
+      .from('convites')
+      .insert({ crianca_id: criancaAtiva.id, criado_por: user.id })
+      .select('codigo')
+      .single()
 
+    if (data) setConviteCodigo(data.codigo)
+    if (error) console.error('Erro ao gerar convite:', error)
+    setGerandoConvite(false)
+  }
 
+  async function copiarConvite() {
+    if (!conviteCodigo) return
+    const link = `${window.location.origin}/care/convite/${conviteCodigo}`
+    await navigator.clipboard.writeText(link)
+    setConviteCopiado(true)
+    setTimeout(() => setConviteCopiado(false), 3000)
+  }
 
   const snapshotAtual = snapshots[0]
   const scoresAtuais: ScoresRadar = snapshotAtual ? {
-    comunicacao: snapshotAtual.score_comunicacao, social: snapshotAtual.score_social,
-    atencao: snapshotAtual.score_atencao, regulacao: snapshotAtual.score_regulacao,
-    brincadeira: snapshotAtual.score_brincadeira, flexibilidade: snapshotAtual.score_flexibilidade,
-    autonomia: snapshotAtual.score_autonomia, motivacao: snapshotAtual.score_motivacao,
+    comunicacao:  snapshotAtual.score_comunicacao,
+    social:       snapshotAtual.score_social,
+    atencao:      snapshotAtual.score_atencao,
+    regulacao:    snapshotAtual.score_regulacao,
+    brincadeira:  snapshotAtual.score_brincadeira,
+    flexibilidade:snapshotAtual.score_flexibilidade,
+    autonomia:    snapshotAtual.score_autonomia,
+    motivacao:    snapshotAtual.score_motivacao,
   } : { comunicacao:50, social:50, atencao:50, regulacao:50, brincadeira:50, flexibilidade:50, autonomia:50, motivacao:50 }
 
   const card: React.CSSProperties = {
@@ -210,95 +270,95 @@ async function copiarConvite() {
   }
 
   if (!criancaAtiva) return (
-    <div style={{ textAlign:'center', padding:'48px 24px' }}>
-      <p style={{ color:'#8a9ab8', fontSize:14, marginBottom:20 }}>Nenhuma criança cadastrada ainda.</p>
+    <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+      <p style={{ color: '#8a9ab8', fontSize: 14, marginBottom: 20 }}>Nenhuma criança cadastrada ainda.</p>
       <button onClick={() => setMostrarFormFilho(true)} style={{
-        padding:'12px 28px', background:'linear-gradient(135deg,#2BBFA4,#7AE040)',
-        color:'white', border:'none', borderRadius:50, fontWeight:700, fontSize:14, cursor:'pointer',
+        padding: '12px 28px', background: 'linear-gradient(135deg,#2BBFA4,#7AE040)',
+        color: 'white', border: 'none', borderRadius: 50, fontWeight: 700, fontSize: 14, cursor: 'pointer',
       }}>Adicionar meu filho</button>
     </div>
   )
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── PERFIL ATIVO */}
       <div style={card}>
         <div style={{
-          background:'linear-gradient(135deg,rgba(43,191,164,.12),rgba(79,195,216,.06))',
-          borderRadius:'22px 22px 0 0', padding:'24px 24px 20px',
-          borderBottom:'1px solid rgba(43,191,164,.1)',
+          background: 'linear-gradient(135deg,rgba(43,191,164,.12),rgba(79,195,216,.06))',
+          borderRadius: '22px 22px 0 0', padding: '24px 24px 20px',
+          borderBottom: '1px solid rgba(43,191,164,.1)',
         }}>
-          <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{
-              width:72, height:72, borderRadius:20, flexShrink:0,
+              width: 72, height: 72, borderRadius: 20, flexShrink: 0,
               background: CORES_AVATAR[criancas.indexOf(criancaAtiva as any) % CORES_AVATAR.length] ?? CORES_AVATAR[0],
-              display:'flex', alignItems:'center', justifyContent:'center',
-              fontSize:24, fontWeight:800, color:'white',
-              boxShadow:'0 4px 16px rgba(43,191,164,.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 24, fontWeight: 800, color: 'white',
+              boxShadow: '0 4px 16px rgba(43,191,164,.3)',
             }}>
               {getIniciais(criancaAtiva.nome)}
             </div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:'1.3rem', fontWeight:800, color:'#1E3A5F', marginBottom:4 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#1E3A5F', marginBottom: 4 }}>
                 {criancaAtiva.nome}
               </div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                <span style={{ fontSize:12, color:'#64748b' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <span style={{ fontSize: 12, color: '#64748b' }}>
                   {calcularIdade((criancaAtiva as any).data_nascimento, criancaAtiva.idade_anos)}
                 </span>
                 {(criancaAtiva as any).diagnostico && (
-                  <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:99, background:'rgba(139,92,246,.12)', color:'#8B5CF6' }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'rgba(139,92,246,.12)', color: '#8B5CF6' }}>
                     {(criancaAtiva as any).diagnostico}
                   </span>
                 )}
-                <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:99, background:'rgba(43,191,164,.12)', color:'#2BBFA4' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'rgba(43,191,164,.12)', color: '#2BBFA4' }}>
                   Perfil ativo
                 </span>
               </div>
             </div>
             <button onClick={() => setEditando(!editando)} style={{
-              padding:'8px 14px', borderRadius:10, border:'none',
+              padding: '8px 14px', borderRadius: 10, border: 'none',
               background: editando ? 'rgba(239,68,68,.1)' : 'rgba(43,191,164,.1)',
               color: editando ? '#ef4444' : '#2BBFA4',
-              fontSize:12, fontWeight:700, cursor:'pointer', flexShrink:0,
+              fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
             }}>{editando ? 'Cancelar' : 'Editar'}</button>
           </div>
         </div>
 
         {editando ? (
-          <div style={{ padding:'20px 24px' }}>
+          <div style={{ padding: '20px 24px' }}>
             {[
-              { key:'nome', label:'Nome', type:'text', placeholder:'Nome da criança' },
-              { key:'data_nascimento', label:'Data de nascimento', type:'date', placeholder:'' },
-              { key:'diagnostico', label:'Diagnóstico', type:'text', placeholder:'ex: TEA nível 1' },
-              { key:'observacoes', label:'Observações', type:'text', placeholder:'Informações relevantes' },
+              { key: 'nome',            label: 'Nome',                  type: 'text', placeholder: 'Nome da criança'       },
+              { key: 'data_nascimento', label: 'Data de nascimento',    type: 'date', placeholder: ''                      },
+              { key: 'diagnostico',     label: 'Diagnóstico',           type: 'text', placeholder: 'ex: TEA nível 1'        },
+              { key: 'observacoes',     label: 'Observações',           type: 'text', placeholder: 'Informações relevantes' },
             ].map(c => (
-              <div key={c.key} style={{ marginBottom:12 }}>
-                <label style={{ fontSize:12, fontWeight:600, color:'#64748b', display:'block', marginBottom:4 }}>{c.label}</label>
+              <div key={c.key} style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{c.label}</label>
                 <input type={c.type} value={formPerfil[c.key as keyof typeof formPerfil]}
                   onChange={e => setFormPerfil(p => ({ ...p, [c.key]: e.target.value }))}
                   placeholder={c.placeholder}
-                  style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:'1.5px solid rgba(0,0,0,.1)', fontSize:14, fontFamily:'var(--font-sans)', boxSizing:'border-box' }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(0,0,0,.1)', fontSize: 14, fontFamily: 'var(--font-sans)', boxSizing: 'border-box' }}
                 />
               </div>
             ))}
             <button onClick={salvarPerfil} disabled={salvandoPerfil} style={{
-              width:'100%', padding:'12px', borderRadius:12, border:'none',
-              background:'linear-gradient(135deg,#2BBFA4,#7AE040)', color:'white',
-              fontSize:14, fontWeight:700, cursor:'pointer',
+              width: '100%', padding: '12px', borderRadius: 12, border: 'none',
+              background: 'linear-gradient(135deg,#2BBFA4,#7AE040)', color: 'white',
+              fontSize: 14, fontWeight: 700, cursor: 'pointer',
             }}>{salvandoPerfil ? 'Salvando...' : 'Salvar alterações'}</button>
           </div>
         ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)' }}>
             {[
-              { label:'Sessões', val:sessoes.length },
-              { label:'Avaliações', val:snapshots.length },
-              { label:'Laudos', val:laudos.length },
+              { label: 'Sessões',    val: sessoes.length   },
+              { label: 'Avaliações', val: snapshots.length },
+              { label: 'Laudos',     val: laudos.length    },
             ].map((s, i) => (
-              <div key={s.label} style={{ padding:'16px', textAlign:'center', borderRight: i<2?'1px solid rgba(43,191,164,.08)':'none' }}>
-                <div style={{ fontSize:'1.5rem', fontWeight:800, color:'#2BBFA4', lineHeight:1 }}>{s.val}</div>
-                <div style={{ fontSize:11, color:'#8a9ab8', marginTop:4 }}>{s.label}</div>
+              <div key={s.label} style={{ padding: '16px', textAlign: 'center', borderRight: i < 2 ? '1px solid rgba(43,191,164,.08)' : 'none' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2BBFA4', lineHeight: 1 }}>{s.val}</div>
+                <div style={{ fontSize: 11, color: '#8a9ab8', marginTop: 4 }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -307,16 +367,16 @@ async function copiarConvite() {
 
       {/* ── MEUS FILHOS */}
       <div style={card}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 20px', borderBottom:'1px solid rgba(43,191,164,.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: '1px solid rgba(43,191,164,.08)' }}>
           <div>
-            <div style={{ fontSize:'.88rem', fontWeight:800, color:'#1E3A5F' }}>Meus filhos</div>
-            <div style={{ fontSize:'.72rem', color:'#8a9ab8', marginTop:2 }}>{criancas.length} cadastrado{criancas.length!==1?'s':''}</div>
+            <div style={{ fontSize: '.88rem', fontWeight: 800, color: '#1E3A5F' }}>Meus filhos</div>
+            <div style={{ fontSize: '.72rem', color: '#8a9ab8', marginTop: 2 }}>{criancas.length} cadastrado{criancas.length !== 1 ? 's' : ''}</div>
           </div>
           <button onClick={() => setMostrarFormFilho(!mostrarFormFilho)} style={{
-            padding:'7px 14px', borderRadius:10, border:'none',
+            padding: '7px 14px', borderRadius: 10, border: 'none',
             background: mostrarFormFilho ? 'rgba(239,68,68,.1)' : 'rgba(43,191,164,.1)',
             color: mostrarFormFilho ? '#ef4444' : '#2BBFA4',
-            fontSize:12, fontWeight:700, cursor:'pointer',
+            fontSize: 12, fontWeight: 700, cursor: 'pointer',
           }}>{mostrarFormFilho ? 'Cancelar' : '+ Adicionar'}</button>
         </div>
 
@@ -325,52 +385,57 @@ async function copiarConvite() {
           return (
             <div key={c.id} onClick={() => !ativo && setCriancaAtiva(c as any)}
               style={{
-                display:'flex', alignItems:'center', gap:14, padding:'14px 20px',
-                borderBottom: i<criancas.length-1?'1px solid rgba(43,191,164,.06)':'none',
-                cursor: ativo?'default':'pointer',
-                background: ativo?'rgba(43,191,164,.04)':'transparent',
+                display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px',
+                borderBottom: i < criancas.length - 1 ? '1px solid rgba(43,191,164,.06)' : 'none',
+                cursor: ativo ? 'default' : 'pointer',
+                background: ativo ? 'rgba(43,191,164,.04)' : 'transparent',
               }}>
-              <div style={{ width:44, height:44, borderRadius:13, flexShrink:0, background:CORES_AVATAR[i%CORES_AVATAR.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:800, color:'white' }}>
+              <div style={{ width: 44, height: 44, borderRadius: 13, flexShrink: 0, background: CORES_AVATAR[i % CORES_AVATAR.length], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: 'white' }}>
                 {getIniciais(c.nome)}
               </div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:14, fontWeight:700, color:'#1E3A5F', marginBottom:2 }}>{c.nome}</div>
-                <div style={{ fontSize:11, color:'#8a9ab8' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1E3A5F', marginBottom: 2 }}>{c.nome}</div>
+                <div style={{ fontSize: 11, color: '#8a9ab8' }}>
                   {calcularIdade((c as any).data_nascimento, c.idade_anos)}
                   {(c as any).diagnostico && ` · ${(c as any).diagnostico}`}
                 </div>
               </div>
               {ativo ? (
-                <span style={{ fontSize:10, fontWeight:700, padding:'3px 9px', borderRadius:99, background:'rgba(43,191,164,.12)', color:'#2BBFA4' }}>Ativo</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: 'rgba(43,191,164,.12)', color: '#2BBFA4' }}>Ativo</span>
               ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
               )}
             </div>
           )
         })}
 
         {mostrarFormFilho && (
-          <div style={{ padding:'20px', borderTop:'1px solid rgba(43,191,164,.1)' }}>
-            <div style={{ fontSize:13, fontWeight:700, color:'#1E3A5F', marginBottom:14 }}>Novo filho</div>
+          <div style={{ padding: '20px', borderTop: '1px solid rgba(43,191,164,.1)' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', marginBottom: 14 }}>Novo filho</div>
             {[
-              { key:'nome', label:'Nome *', type:'text', placeholder:'Nome da criança' },
-              { key:'data_nascimento', label:'Data de nascimento', type:'date', placeholder:'' },
-              { key:'idade_anos', label:'Idade (se não souber a data)', type:'number', placeholder:'ex: 4' },
-              { key:'diagnostico', label:'Diagnóstico (opcional)', type:'text', placeholder:'ex: TEA, TDAH...' },
+              { key: 'nome',            label: 'Nome *',                              type: 'text',   placeholder: 'Nome da criança'  },
+              { key: 'data_nascimento', label: 'Data de nascimento',                  type: 'date',   placeholder: ''                 },
+              { key: 'idade_anos',      label: 'Idade (se não souber a data)',         type: 'number', placeholder: 'ex: 4'            },
+              { key: 'diagnostico',     label: 'Diagnóstico (opcional)',               type: 'text',   placeholder: 'ex: TEA, TDAH...' },
             ].map(c => (
-              <div key={c.key} style={{ marginBottom:12 }}>
-                <label style={{ fontSize:12, fontWeight:600, color:'#64748b', display:'block', marginBottom:4 }}>{c.label}</label>
+              <div key={c.key} style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{c.label}</label>
                 <input type={c.type} value={formFilho[c.key as keyof typeof formFilho]}
                   onChange={e => setFormFilho(p => ({ ...p, [c.key]: e.target.value }))}
                   placeholder={c.placeholder}
-                  style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:'1.5px solid rgba(0,0,0,.1)', fontSize:14, fontFamily:'var(--font-sans)', boxSizing:'border-box' }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(0,0,0,.1)', fontSize: 14, fontFamily: 'var(--font-sans)', boxSizing: 'border-box' }}
                 />
               </div>
             ))}
-            <button onClick={adicionarFilho} disabled={!formFilho.nome||salvandoFilho} style={{
-              width:'100%', padding:'12px', borderRadius:12, border:'none',
+            {erroFilho && (
+              <div style={{ padding: '10px 12px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 10, fontSize: 12, color: '#ef4444', marginBottom: 12 }}>
+                {erroFilho}
+              </div>
+            )}
+            <button onClick={adicionarFilho} disabled={!formFilho.nome || salvandoFilho} style={{
+              width: '100%', padding: '12px', borderRadius: 12, border: 'none',
               background: formFilho.nome ? 'linear-gradient(135deg,#2BBFA4,#7AE040)' : '#e2e8f0',
-              color: formFilho.nome ? 'white' : '#94a3b8', fontSize:14, fontWeight:700,
+              color: formFilho.nome ? 'white' : '#94a3b8', fontSize: 14, fontWeight: 700,
               cursor: formFilho.nome ? 'pointer' : 'not-allowed',
             }}>{salvandoFilho ? 'Cadastrando...' : 'Cadastrar filho'}</button>
           </div>
@@ -380,38 +445,38 @@ async function copiarConvite() {
       {/* ── EVOLUÇÃO DO RADAR */}
       {snapshots.length > 0 && (
         <div style={card}>
-          <div style={{ padding:'18px 20px', borderBottom:'1px solid rgba(43,191,164,.08)' }}>
-            <div style={{ fontSize:'.88rem', fontWeight:800, color:'#1E3A5F' }}>Evolução do mapa de habilidades</div>
-            <div style={{ fontSize:'.72rem', color:'#8a9ab8', marginTop:2 }}>
-              {snapshots.length} avaliação{snapshots.length!==1?'ões':''} registrada{snapshots.length!==1?'s':''}
+          <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(43,191,164,.08)' }}>
+            <div style={{ fontSize: '.88rem', fontWeight: 800, color: '#1E3A5F' }}>Evolução do mapa de habilidades</div>
+            <div style={{ fontSize: '.72rem', color: '#8a9ab8', marginTop: 2 }}>
+              {snapshots.length} avaliação{snapshots.length !== 1 ? 'ões' : ''} registrada{snapshots.length !== 1 ? 's' : ''}
             </div>
           </div>
-          <div style={{ padding:'20px', display:'flex', justifyContent:'center' }}>
-            <FractaRadarChart scores={scoresAtuais} idadeAnos={criancaAtiva.idade_anos??4} size={220} animated/>
+          <div style={{ padding: '20px', display: 'flex', justifyContent: 'center' }}>
+            <FractaRadarChart scores={scoresAtuais} idadeAnos={criancaAtiva.idade_anos ?? 4} size={220} animated />
           </div>
           {snapshots.length > 1 && (
-            <div style={{ padding:'0 20px 20px' }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'#8a9ab8', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:10 }}>Histórico</div>
-              <div style={{ display:'flex', gap:8, overflowX:'auto', paddingBottom:4 }}>
+            <div style={{ padding: '0 20px 20px' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#8a9ab8', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Histórico</div>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
                 {snapshots.map((snap, i) => {
                   const media = mediaSnapshot(snap)
-                  const delta = i < snapshots.length-1 ? media - mediaSnapshot(snapshots[i+1]) : null
+                  const delta = i < snapshots.length - 1 ? media - mediaSnapshot(snapshots[i + 1]) : null
                   return (
                     <div key={snap.id} style={{
-                      minWidth:76, padding:'12px', borderRadius:14, flexShrink:0, textAlign:'center',
-                      background: i===0 ? 'linear-gradient(135deg,rgba(43,191,164,.15),rgba(43,191,164,.05))' : 'rgba(0,0,0,.03)',
-                      border: i===0 ? '1px solid rgba(43,191,164,.25)' : '1px solid rgba(0,0,0,.06)',
+                      minWidth: 76, padding: '12px', borderRadius: 14, flexShrink: 0, textAlign: 'center',
+                      background: i === 0 ? 'linear-gradient(135deg,rgba(43,191,164,.15),rgba(43,191,164,.05))' : 'rgba(0,0,0,.03)',
+                      border: i === 0 ? '1px solid rgba(43,191,164,.25)' : '1px solid rgba(0,0,0,.06)',
                     }}>
-                      <div style={{ fontSize:22, fontWeight:800, color:i===0?'#2BBFA4':'#1E3A5F', lineHeight:1 }}>{media}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: i === 0 ? '#2BBFA4' : '#1E3A5F', lineHeight: 1 }}>{media}</div>
                       {delta !== null && (
-                        <div style={{ fontSize:11, fontWeight:700, color:delta>=0?'#2BBFA4':'#ef4444', marginTop:2 }}>
-                          {delta>=0?'+':''}{delta}
+                        <div style={{ fontSize: 11, fontWeight: 700, color: delta >= 0 ? '#2BBFA4' : '#ef4444', marginTop: 2 }}>
+                          {delta >= 0 ? '+' : ''}{delta}
                         </div>
                       )}
-                      <div style={{ fontSize:10, color:'#8a9ab8', marginTop:4 }}>
-                        {new Date(snap.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}
+                      <div style={{ fontSize: 10, color: '#8a9ab8', marginTop: 4 }}>
+                        {new Date(snap.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                       </div>
-                      {i===0 && <div style={{ fontSize:9, color:'#2BBFA4', fontWeight:700, marginTop:2 }}>ATUAL</div>}
+                      {i === 0 && <div style={{ fontSize: 9, color: '#2BBFA4', fontWeight: 700, marginTop: 2 }}>ATUAL</div>}
                     </div>
                   )
                 })}
@@ -424,42 +489,40 @@ async function copiarConvite() {
       {/* ── PREVISIBILIDADE CLÍNICA */}
       {forecast && (
         <div style={card}>
-          <div style={{ padding:'18px 20px', borderBottom:'1px solid rgba(43,191,164,.08)' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <div style={{ width:28, height:28, borderRadius:8, background:'linear-gradient(135deg,#2BBFA4,#4FC3D8)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(43,191,164,.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#2BBFA4,#4FC3D8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
               <div>
-                <div style={{ fontSize:'.88rem', fontWeight:800, color:'#1E3A5F' }}>Previsibilidade clínica</div>
-                <div style={{ fontSize:'.72rem', color:'#8a9ab8' }}>Fracta Forecast — visão detalhada</div>
+                <div style={{ fontSize: '.88rem', fontWeight: 800, color: '#1E3A5F' }}>Previsibilidade clínica</div>
+                <div style={{ fontSize: '.72rem', color: '#8a9ab8' }}>Fracta Forecast — visão detalhada</div>
               </div>
             </div>
           </div>
 
-          <div style={{ padding:'20px' }}>
+          <div style={{ padding: '20px' }}>
             {!forecast.dados_suficientes ? (
-              <div style={{ padding:'20px', borderRadius:16, textAlign:'center', background:'rgba(43,191,164,.06)', border:'1px solid rgba(43,191,164,.15)' }}>
-                <p style={{ fontSize:14, color:'#1E3A5F', fontWeight:600, marginBottom:6 }}>Dados insuficientes para previsibilidade</p>
-                <p style={{ fontSize:12, color:'#8a9ab8', margin:0 }}>Faça uma segunda avaliação para ativar o Fracta Forecast.</p>
+              <div style={{ padding: '20px', borderRadius: 16, textAlign: 'center', background: 'rgba(43,191,164,.06)', border: '1px solid rgba(43,191,164,.15)' }}>
+                <p style={{ fontSize: 14, color: '#1E3A5F', fontWeight: 600, marginBottom: 6 }}>Dados insuficientes para previsibilidade</p>
+                <p style={{ fontSize: 12, color: '#8a9ab8', margin: 0 }}>Faça uma segunda avaliação para ativar o Fracta Forecast.</p>
               </div>
             ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-
-                {/* Mensagem principal */}
-                <div style={{ padding:'16px', borderRadius:16, background:'linear-gradient(135deg,rgba(43,191,164,.1),rgba(79,195,216,.05))', border:'1px solid rgba(43,191,164,.2)' }}>
-                  <p style={{ fontSize:14, color:'#1E3A5F', lineHeight:1.6, margin:0, fontWeight:500 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ padding: '16px', borderRadius: 16, background: 'linear-gradient(135deg,rgba(43,191,164,.1),rgba(79,195,216,.05))', border: '1px solid rgba(43,191,164,.2)' }}>
+                  <p style={{ fontSize: 14, color: '#1E3A5F', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
                     {forecast.care.mensagem_principal}
                   </p>
                   {forecast.care.estimativa_semanas && (
-                    <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:12 }}>
-                      <div style={{ width:48, height:48, borderRadius:12, background:'linear-gradient(135deg,#2BBFA4,#4FC3D8)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'white', flexShrink:0 }}>
-                        <span style={{ fontSize:18, fontWeight:800, lineHeight:1 }}>{forecast.care.estimativa_semanas}</span>
-                        <span style={{ fontSize:9, opacity:0.9 }}>sem.</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: 'linear-gradient(135deg,#2BBFA4,#4FC3D8)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+                        <span style={{ fontSize: 18, fontWeight: 800, lineHeight: 1 }}>{forecast.care.estimativa_semanas}</span>
+                        <span style={{ fontSize: 9, opacity: 0.9 }}>sem.</span>
                       </div>
-                      <div style={{ fontSize:12, color:'#64748b' }}>
-                        Estimativa para próxima habilidade em <strong style={{ color:'#2BBFA4' }}>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        Estimativa para próxima habilidade em <strong style={{ color: '#2BBFA4' }}>
                           {DOMINIO_LABELS[forecast.care.dominio_destaque as Dominio]}
                         </strong>
                       </div>
@@ -467,45 +530,43 @@ async function copiarConvite() {
                   )}
                 </div>
 
-                {/* Ação clínica */}
-                <div style={{ padding:'14px 16px', borderRadius:14, background: forecast.clinic.alerta?'rgba(245,158,11,.08)':'rgba(43,191,164,.06)', border:`1px solid ${forecast.clinic.alerta?'rgba(245,158,11,.2)':'rgba(43,191,164,.15)'}` }}>
-                  <div style={{ fontSize:10, fontWeight:700, color:'#8a9ab8', marginBottom:6, textTransform:'uppercase', letterSpacing:'.06em' }}>Ação recomendada</div>
-                  <div style={{ fontSize:13, fontWeight:700, color:'#1E3A5F' }}>
-                    {forecast.clinic.acao_recomendada === 'manter_plano' && '✓ Manter o plano atual'}
-                    {forecast.clinic.acao_recomendada === 'intensificar' && '↑ Intensificar as atividades'}
-                    {forecast.clinic.acao_recomendada === 'revisar_metas' && '↻ Revisar as metas'}
-                    {forecast.clinic.acao_recomendada === 'avaliar_barreiras' && '⚠ Avaliar barreiras'}
+                <div style={{ padding: '14px 16px', borderRadius: 14, background: forecast.clinic.alerta ? 'rgba(245,158,11,.08)' : 'rgba(43,191,164,.06)', border: `1px solid ${forecast.clinic.alerta ? 'rgba(245,158,11,.2)' : 'rgba(43,191,164,.15)'}` }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#8a9ab8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Ação recomendada</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F' }}>
+                    {forecast.clinic.acao_recomendada === 'manter_plano'      && 'Manter o plano atual'}
+                    {forecast.clinic.acao_recomendada === 'intensificar'      && 'Intensificar as atividades'}
+                    {forecast.clinic.acao_recomendada === 'revisar_metas'     && 'Revisar as metas'}
+                    {forecast.clinic.acao_recomendada === 'avaliar_barreiras' && 'Avaliar barreiras'}
                   </div>
                   {forecast.clinic.alerta && (
-                    <div style={{ fontSize:12, color:'#92400e', marginTop:4 }}>{forecast.clinic.alerta}</div>
+                    <div style={{ fontSize: 12, color: '#92400e', marginTop: 4 }}>{forecast.clinic.alerta}</div>
                   )}
                 </div>
 
-                {/* Projeção por domínio */}
                 <div>
-                  <div style={{ fontSize:11, fontWeight:700, color:'#8a9ab8', marginBottom:10, textTransform:'uppercase', letterSpacing:'.06em' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#8a9ab8', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>
                     Projeção por domínio — 4 semanas
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                    {forecast.dominios.sort((a,b) => b.delta_14d-a.delta_14d).map(d => {
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {forecast.dominios.sort((a, b) => b.delta_14d - a.delta_14d).map(d => {
                       const cor = DOMINIO_CORES[d.dominio as Dominio]
                       const pos = d.delta_14d >= 0
                       return (
-                        <div key={d.dominio} style={{ display:'flex', alignItems:'center', gap:12 }}>
-                          <div style={{ width:80, fontSize:12, color:'#1E3A5F', fontWeight:500, flexShrink:0 }}>
+                        <div key={d.dominio} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 80, fontSize: 12, color: '#1E3A5F', fontWeight: 500, flexShrink: 0 }}>
                             {DOMINIO_LABELS[d.dominio as Dominio]}
                           </div>
-                          <div style={{ flex:1 }}>
-                            <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#8a9ab8', marginBottom:3 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#8a9ab8', marginBottom: 3 }}>
                               <span>Atual: {d.score_atual}</span>
                               <span>→ {d.forecast_4w}</span>
                             </div>
-                            <div style={{ height:5, background:'rgba(0,0,0,.06)', borderRadius:99, overflow:'hidden' }}>
-                              <div style={{ height:'100%', width:`${d.forecast_4w}%`, background:cor, borderRadius:99, opacity:0.7 }}/>
+                            <div style={{ height: 5, background: 'rgba(0,0,0,.06)', borderRadius: 99, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${d.forecast_4w}%`, background: cor, borderRadius: 99, opacity: 0.7 }} />
                             </div>
                           </div>
-                          <div style={{ fontSize:11, fontWeight:700, minWidth:36, textAlign:'right', color:pos?'#2BBFA4':'#ef4444' }}>
-                            {pos?'+':''}{d.delta_14d}
+                          <div style={{ fontSize: 11, fontWeight: 700, minWidth: 36, textAlign: 'right', color: pos ? '#2BBFA4' : '#ef4444' }}>
+                            {pos ? '+' : ''}{d.delta_14d}
                           </div>
                         </div>
                       )
@@ -513,23 +574,21 @@ async function copiarConvite() {
                   </div>
                 </div>
 
-                {/* Adesão */}
                 <div>
-                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'#64748b', marginBottom:5 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 5 }}>
                     <span>Consistência nas atividades (14 dias)</span>
-                    <span style={{ fontWeight:700, color:forecast.adesao_geral>=0.6?'#2BBFA4':'#F59E0B' }}>
-                      {Math.round(forecast.adesao_geral*100)}%
+                    <span style={{ fontWeight: 700, color: forecast.adesao_geral >= 0.6 ? '#2BBFA4' : '#F59E0B' }}>
+                      {Math.round(forecast.adesao_geral * 100)}%
                     </span>
                   </div>
-                  <div style={{ height:6, background:'rgba(43,191,164,.1)', borderRadius:99, overflow:'hidden' }}>
-                    <div style={{ height:'100%', width:`${forecast.adesao_geral*100}%`, background:forecast.adesao_geral>=0.6?'linear-gradient(90deg,#2BBFA4,#4FC3D8)':'#F59E0B', borderRadius:99, transition:'width 0.6s ease' }}/>
+                  <div style={{ height: 6, background: 'rgba(43,191,164,.1)', borderRadius: 99, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${forecast.adesao_geral * 100}%`, background: forecast.adesao_geral >= 0.6 ? 'linear-gradient(90deg,#2BBFA4,#4FC3D8)' : '#F59E0B', borderRadius: 99, transition: 'width 0.6s ease' }} />
                   </div>
                 </div>
 
-                {/* Resumo clínico */}
-                <div style={{ padding:'12px 14px', borderRadius:12, background:'rgba(0,0,0,.03)', border:'1px solid rgba(0,0,0,.06)' }}>
-                  <div style={{ fontSize:10, fontWeight:700, color:'#8a9ab8', marginBottom:4, textTransform:'uppercase', letterSpacing:'.06em' }}>Resumo clínico</div>
-                  <p style={{ fontSize:12, color:'#64748b', margin:0, lineHeight:1.6 }}>{forecast.clinic.resumo_clinico}</p>
+                <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(0,0,0,.03)', border: '1px solid rgba(0,0,0,.06)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#8a9ab8', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Resumo clínico</div>
+                  <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.6 }}>{forecast.clinic.resumo_clinico}</p>
                 </div>
               </div>
             )}
@@ -537,80 +596,104 @@ async function copiarConvite() {
         </div>
       )}
 
-      {/* ── LAUDOS VINCULADOS */}
+      {/* ── LAUDOS */}
       {laudos.length > 0 && (
         <div style={card}>
-          <div style={{ padding:'18px 20px', borderBottom:'1px solid rgba(43,191,164,.08)' }}>
-            <div style={{ fontSize:'.88rem', fontWeight:800, color:'#1E3A5F' }}>Laudos e diagnósticos</div>
-            <div style={{ fontSize:'.72rem', color:'#8a9ab8', marginTop:2 }}>{laudos.length} laudo{laudos.length!==1?'s':''} cadastrado{laudos.length!==1?'s':''}</div>
+          <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(43,191,164,.08)' }}>
+            <div style={{ fontSize: '.88rem', fontWeight: 800, color: '#1E3A5F' }}>Laudos e diagnósticos</div>
+            <div style={{ fontSize: '.72rem', color: '#8a9ab8', marginTop: 2 }}>{laudos.length} laudo{laudos.length !== 1 ? 's' : ''} cadastrado{laudos.length !== 1 ? 's' : ''}</div>
           </div>
-          <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:10 }}>
+          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {laudos.map(l => (
-              <div key={l.id} style={{ padding:'14px', borderRadius:14, background:'rgba(42,123,168,.06)', border:'1px solid rgba(42,123,168,.15)' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    {l.cid && <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:99, background:'rgba(42,123,168,.12)', color:'#2A7BA8' }}>{l.cid}</span>}
-                    <span style={{ fontSize:13, fontWeight:700, color:'#1E3A5F' }}>{l.diagnostico ?? 'Sem diagnóstico'}</span>
+              <div key={l.id} style={{ padding: '14px', borderRadius: 14, background: 'rgba(42,123,168,.06)', border: '1px solid rgba(42,123,168,.15)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {l.cid && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'rgba(42,123,168,.12)', color: '#2A7BA8' }}>{l.cid}</span>}
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F' }}>{l.diagnostico ?? 'Sem diagnóstico'}</span>
                   </div>
-                  <span style={{ fontSize:11, color:'#8a9ab8' }}>{l.data_laudo ? new Date(l.data_laudo).toLocaleDateString('pt-BR') : ''}</span>
+                  <span style={{ fontSize: 11, color: '#8a9ab8' }}>{l.data_laudo ? new Date(l.data_laudo).toLocaleDateString('pt-BR') : ''}</span>
                 </div>
                 {l.especialidades?.length > 0 && (
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:4 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
                     {l.especialidades.map(e => (
-                      <span key={e} style={{ fontSize:10, padding:'2px 7px', borderRadius:99, background:'rgba(43,191,164,.1)', color:'#2BBFA4', fontWeight:600 }}>{e}</span>
+                      <span key={e} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 99, background: 'rgba(43,191,164,.1)', color: '#2BBFA4', fontWeight: 600 }}>{e}</span>
                     ))}
                   </div>
                 )}
-                {l.horas_tratamento_semana && <div style={{ fontSize:12, color:'#64748b' }}>{l.horas_tratamento_semana}h/semana recomendadas</div>}
-                {l.profissional_emissor && <div style={{ fontSize:11, color:'#8a9ab8', marginTop:2 }}>Por: {l.profissional_emissor}</div>}
+                {l.horas_tratamento_semana && <div style={{ fontSize: 12, color: '#64748b' }}>{l.horas_tratamento_semana}h/semana recomendadas</div>}
+                {l.profissional_emissor && <div style={{ fontSize: 11, color: '#8a9ab8', marginTop: 2 }}>Por: {l.profissional_emissor}</div>}
               </div>
             ))}
           </div>
         </div>
       )}
-{/* ── COMPARTILHAR ACESSO */}
-<div style={card}>
-  <div style={{ padding:'20px' }}>
-    <div style={{ fontSize:'.88rem', fontWeight:800, color:'#1E3A5F', marginBottom:4 }}>
-      Compartilhar acesso
-    </div>
-    <div style={{ fontSize:'.72rem', color:'#8a9ab8', marginBottom:16 }}>
-      Convide outro responsável para acompanhar {criancaAtiva.nome.split(' ')[0]}
-    </div>
-    {!conviteCodigo ? (
-      <button onClick={gerarConvite} disabled={gerandoConvite} style={{
-        width:'100%', padding:'11px', borderRadius:10, border:'none',
-        background:'linear-gradient(135deg,#2BBFA4,#1e9e88)',
-        color:'white', fontWeight:700, fontSize:'.85rem',
-        cursor:'pointer', fontFamily:'var(--font-sans)',
-      }}>
-        {gerandoConvite ? 'Gerando...' : '+ Gerar link de convite'}
-      </button>
-    ) : (
-      <div>
-        <div style={{ background:'rgba(43,191,164,.06)', border:'1px solid rgba(43,191,164,.2)', borderRadius:10, padding:'12px 14px', marginBottom:10 }}>
-          <div style={{ fontSize:'.65rem', fontWeight:700, color:'#2BBFA4', marginBottom:4 }}>Link de convite (válido por 7 dias)</div>
-          <div style={{ fontSize:'.78rem', color:'#1E3A5F', wordBreak:'break-all', fontFamily:'monospace' }}>
-            {`${typeof window !== 'undefined' ? window.location.origin : ''}/care/convite/${conviteCodigo}`}
+
+      {/* ── RESPONSÁVEIS VINCULADOS */}
+      {responsaveis.length > 0 && (
+        <div style={card}>
+          <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(43,191,164,.08)' }}>
+            <div style={{ fontSize: '.88rem', fontWeight: 800, color: '#1E3A5F' }}>Responsáveis com acesso</div>
+            <div style={{ fontSize: '.72rem', color: '#8a9ab8', marginTop: 2 }}>{responsaveis.length} responsável(is) vinculado(s)</div>
+          </div>
+          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {responsaveis.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'rgba(43,191,164,.04)', borderRadius: 10, border: '1px solid rgba(43,191,164,.1)' }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#2BBFA4,#4FC3D8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 }}>
+                  {r.email.slice(0, 2).toUpperCase()}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{r.email}</div>
+                  <div style={{ fontSize: 11, color: '#8a9ab8' }}>{r.tipo === 'primario' ? 'Responsável principal' : 'Responsável secundário'}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-        <button onClick={copiarConvite} style={{
-          width:'100%', padding:'11px', borderRadius:10,
-          border:'1.5px solid rgba(43,191,164,.3)', background:'white',
-          color:'#2BBFA4', fontWeight:700, fontSize:'.85rem',
-          cursor:'pointer', fontFamily:'var(--font-sans)',
-        }}>
-          {conviteCopiado ? '✓ Copiado!' : 'Copiar link'}
-        </button>
+      )}
+
+      {/* ── COMPARTILHAR ACESSO */}
+      <div style={card}>
+        <div style={{ padding: '20px' }}>
+          <div style={{ fontSize: '.88rem', fontWeight: 800, color: '#1E3A5F', marginBottom: 4 }}>
+            Compartilhar acesso
+          </div>
+          <div style={{ fontSize: '.72rem', color: '#8a9ab8', marginBottom: 16 }}>
+            Convide outro responsável para acompanhar {criancaAtiva.nome.split(' ')[0]}
+          </div>
+          {!conviteCodigo ? (
+            <button onClick={gerarConvite} disabled={gerandoConvite} style={{
+              width: '100%', padding: '11px', borderRadius: 10, border: 'none',
+              background: 'linear-gradient(135deg,#2BBFA4,#1e9e88)',
+              color: 'white', fontWeight: 700, fontSize: '.85rem',
+              cursor: 'pointer', fontFamily: 'var(--font-sans)',
+            }}>
+              {gerandoConvite ? 'Gerando...' : '+ Gerar link de convite'}
+            </button>
+          ) : (
+            <div>
+              <div style={{ background: 'rgba(43,191,164,.06)', border: '1px solid rgba(43,191,164,.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 10 }}>
+                <div style={{ fontSize: '.65rem', fontWeight: 700, color: '#2BBFA4', marginBottom: 4 }}>Link de convite (válido por 7 dias)</div>
+                <div style={{ fontSize: '.78rem', color: '#1E3A5F', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                  {`${typeof window !== 'undefined' ? window.location.origin : ''}/care/convite/${conviteCodigo}`}
+                </div>
+              </div>
+              <button onClick={copiarConvite} style={{
+                width: '100%', padding: '11px', borderRadius: 10,
+                border: '1.5px solid rgba(43,191,164,.3)', background: 'white',
+                color: '#2BBFA4', fontWeight: 700, fontSize: '.85rem',
+                cursor: 'pointer', fontFamily: 'var(--font-sans)',
+              }}>
+                {conviteCopiado ? 'Copiado!' : 'Copiar link'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    )}
-  </div>
-</div>
+
     </div>
   )
 }
 
 export default function MeuFilhoPage() {
-  return <Suspense fallback={null}><MeuFilhoPageInner /></Suspense>;
+  return <Suspense fallback={null}><MeuFilhoPageInner /></Suspense>
 }
-
