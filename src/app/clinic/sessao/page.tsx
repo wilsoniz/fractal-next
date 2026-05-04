@@ -296,16 +296,29 @@ function SessaoInner() {
   }, [pacienteId])
 
   // ── Timer ──────────────────────────────────────────────────────────────────
+  const duracaoContratadaSeg = parseInt(searchParams.get("duracao") ?? "60") * 60
+  const [avisoTempoExibido, setAvisoTempoExibido] = useState(false)
+  const [showAvisoTempo, setShowAvisoTempo] = useState(false)
+
   useEffect(() => {
     if (fase!=="sessao"||emPausa) return
-    timerRef.current = setInterval(()=>setSegundos(s=>s+1),1000)
+    timerRef.current = setInterval(()=>setSegundos(s=>{
+      const novo = s + 1
+      if (novo >= duracaoContratadaSeg && !avisoTempoExibido) {
+        setAvisoTempoExibido(true)
+        setShowAvisoTempo(true)
+      }
+      return novo
+    }),1000)
     return ()=>{ if(timerRef.current) clearInterval(timerRef.current) }
-  }, [fase, emPausa])
+  }, [fase, emPausa, avisoTempoExibido, duracaoContratadaSeg])
 
   // ── Iniciar ────────────────────────────────────────────────────────────────
   async function iniciarSessao() {
     if (!paciente||!terapeuta) return
-    const { data } = await supabase.from("sessoes_v2").insert({ crianca_id:paciente.id, terapeuta_id:terapeuta?.id, status:"ativa", inicio:new Date().toISOString() }).select("id").single()
+    const duracaoMin = parseInt(searchParams.get("duracao") ?? "60")
+const tipoSessao = (searchParams.get("tipo") ?? "atendimento") as "atendimento"|"acompanhamento_terapeutico"|"supervisao"
+const { data } = await supabase.from("sessoes_v2").insert({ crianca_id:paciente.id, terapeuta_id:terapeuta?.id, status:"ativa", inicio:new Date().toISOString(), duracao_contratada_min:duracaoMin, tipo:tipoSessao, concluida:false }).select("id").single()
     if (data) {
       setSessaoDbId(data.id)
       for (const st of stages) {
@@ -382,8 +395,18 @@ function SessaoInner() {
 
   // ── Encerrar ─────────────────────────────────────────────────────────────
   async function confirmarEncerramento() {
+    const duracaoMin = parseInt(searchParams.get("duracao") ?? "60")
+    const duracaoRealMin = Math.floor(segundos / 60)
+    const acrescimo = Math.max(0, duracaoRealMin - duracaoMin)
     if (sessaoDbId) {
-      await supabase.from("sessoes_v2").update({ status:"finalizada", fim:new Date().toISOString(), duracao_segundos:segundos, observacao_geral:notaEncerr||null }).eq("id",sessaoDbId)
+      await supabase.from("sessoes_v2").update({
+        status:"finalizada",
+        fim:new Date().toISOString(),
+        duracao_segundos:segundos,
+        observacao_geral:notaEncerr||null,
+        concluida:true,
+        acrescimo_min:acrescimo,
+      }).eq("id",sessaoDbId)
     }
     setShowEncModal(false)
     setFase("encerramento")
@@ -723,7 +746,31 @@ function SessaoInner() {
         )}
 
         {/* ── MODAL DE ENCERRAMENTO ── */}
-        {showEncModal&&(
+        {/* Pop-up aviso fim de tempo */}
+      {showAvisoTempo&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:60,padding:20}}>
+          <div style={{background:"rgba(13,32,53,.95)",border:"1px solid rgba(239,159,39,.35)",borderRadius:16,padding:28,maxWidth:400,width:"100%",textAlign:"center"}}>
+            <div style={{width:48,height:48,borderRadius:12,background:"rgba(239,159,39,.15)",border:"1px solid rgba(239,159,39,.3)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF9F27" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div style={{fontSize:"1rem",fontWeight:700,color:"rgba(255,255,255,.95)",marginBottom:8}}>Tempo de sessão encerrado</div>
+            <div style={{fontSize:".82rem",color:"rgba(255,255,255,.5)",lineHeight:1.6,marginBottom:24}}>
+              O tempo contratado chegou ao fim. Deseja encerrar a sessão agora ou continuar por mais alguns minutos?
+              <br/><span style={{fontSize:".72rem",color:"rgba(255,255,255,.3)",marginTop:6,display:"block"}}>Minutos extras não são cobrados de nenhuma das partes.</span>
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setShowAvisoTempo(false)} style={{flex:1,padding:"11px",borderRadius:10,border:"1px solid rgba(255,255,255,.1)",background:"transparent",color:"rgba(255,255,255,.6)",fontSize:".82rem",fontWeight:600,cursor:"pointer",fontFamily:"var(--font-sans)"}}>
+                Continuar sessão
+              </button>
+              <button onClick={()=>{setShowAvisoTempo(false);setShowEncModal(true)}} style={{flex:1,padding:"11px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#EF9F27,#e08a1a)",color:"#07111f",fontSize:".82rem",fontWeight:800,cursor:"pointer",fontFamily:"var(--font-sans)"}}>
+                Encerrar agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEncModal&&(
           <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50,padding:20}}>
             <div style={{...card,padding:28,width:"100%",maxWidth:460}}>
               <div style={{fontSize:"1rem",fontWeight:800,color:"#e8f0f8",marginBottom:4}}>Encerrar sessão</div>
