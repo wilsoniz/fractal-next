@@ -1,713 +1,827 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import { useClinicContext } from '../layout'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Tab = 'visao-geral' | 'casos' | 'supervisores' | 'historico' | 'inbox'
+type TabTerapeuta  = 'minha-supervisao' | 'buscar-supervisor' | 'historico'
+type TabSupervisor = 'painel' | 'minha-equipe' | 'inbox' | 'historico-ministrado'
 
-interface SupervisorCard {
+interface CasoRecebendo {
   id: string
-  nome: string
-  titulo: string
-  especialidades: string[]
-  rating: number
-  sessoes_total: number
-  disponivel: boolean
-  preco_sessao: number
-  avatar_inicial: string
-  badge_cor: string
-}
-
-interface CasoEmSupervimento {
-  id: string
-  crianca_nome: string
-  crianca_idade: number
   supervisor_nome: string
-  proxima_sessao: string | null
-  complexidade: 'alta' | 'muito-alta'
-  status: 'ativo' | 'pendente'
   foco: string
-  progresso: number
+  status: 'pendente' | 'ativo'
+  criado_em: string
 }
 
-interface HistoricoSessao {
+interface HistoricoItem {
   id: string
   data: string
   supervisor_nome: string
-  crianca_nome: string
-  duracao: number
-  tema: string
-  nota: string
+  foco: string
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-function MetricCard({ label, value, sub, cor }: { label: string; value: string | number; sub?: string; cor: string }) {
+interface RequestInbox {
+  id: string
+  terapeuta_nome: string
+  mensagem: string
+  status: string
+  criado_em: string
+  programa_nome: string | null
+}
+
+interface MembroEquipe {
+  id: string
+  membro_id: string
+  nome: string
+  email: string
+  status: 'convidado' | 'ativo' | 'inativo'
+  limite_pacientes: number
+  criado_em: string
+}
+
+interface NotificacaoEquipe {
+  id: string
+  membro_id: string
+  membro_nome: string
+  tipo: 'sessao_iniciada' | 'sessao_encerrada' | 'alerta_clinico' | 'novo_paciente'
+  mensagem: string
+  lida: boolean
+  criado_em: string
+}
+
+// ─── Helpers visuais ─────────────────────────────────────────────────────────
+const c = {
+  bg:     '#07111f',
+  card:   'rgba(13,32,53,.75)',
+  border: 'rgba(26,58,92,.5)',
+  teal:   '#1D9E75',
+  blue:   '#378ADD',
+  purple: '#8B7FE8',
+  amber:  '#EF9F27',
+  coral:  '#E05A4B',
+  muted:  'rgba(255,255,255,.4)',
+  text:   'rgba(255,255,255,.85)',
+  sub:    'rgba(255,255,255,.35)',
+}
+
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div style={{ background: 'rgba(13,32,53,.75)', border: '1px solid rgba(26,58,92,.5)', borderRadius: 12, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
-      <span style={{ fontSize: 28, fontWeight: 700, color: cor, lineHeight: 1.1 }}>{value}</span>
-      {sub && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.35)' }}>{sub}</span>}
+    <div style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, ...style }}>
+      {children}
     </div>
   )
 }
 
-function StarRating({ rating }: { rating: number }) {
+function Badge({ label, cor }: { label: string; cor: string }) {
   return (
-    <span style={{ color: '#EF9F27', fontSize: 13, fontWeight: 600 }}>
-      {'★'.repeat(Math.floor(rating))}
-      <span style={{ color: 'rgba(255,255,255,.2)' }}>{'★'.repeat(5 - Math.floor(rating))}</span>
-      <span style={{ color: 'rgba(255,255,255,.5)', marginLeft: 6, fontSize: 12 }}>{rating.toFixed(1)}</span>
-    </span>
-  )
-}
-
-function BadgeComplexidade({ nivel }: { nivel: 'alta' | 'muito-alta' }) {
-  const cor = nivel === 'muito-alta' ? '#E05A4B' : '#EF9F27'
-  const label = nivel === 'muito-alta' ? 'Muito Alta' : 'Alta'
-  return (
-    <span style={{ background: cor + '22', border: `1px solid ${cor}55`, borderRadius: 6, padding: '2px 10px', fontSize: 11, fontWeight: 600, color: cor, letterSpacing: '0.04em' }}>
+    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: cor + '20', color: cor, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
       {label}
     </span>
   )
 }
 
-// ─── Visão Geral Tab (agora com dados reais) ──────────────────────────────────
-function VisaoGeralTab({ casos, loading }: { casos: CasoEmSupervimento[]; loading: boolean }) {
-  const casosAtivos    = casos.filter(c => c.status === 'ativo').length
-  const totalSessoes   = 0  // será alimentado quando tivermos tabela de sessões de supervisão
-  const proximosCasos  = [...casos].sort((a, b) => {
-    if (!a.proxima_sessao) return 1
-    if (!b.proxima_sessao) return -1
-    return new Date(a.proxima_sessao).getTime() - new Date(b.proxima_sessao).getTime()
-  })
-  const proximo = proximosCasos[0]
-
-  if (loading) return (
-    <div style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, padding: 20 }}>Carregando...</div>
-  )
-
+function KPI({ label, value, cor, sub }: { label: string; value: string | number; cor: string; sub?: string }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {casos.length > 0 && (
-        <div style={{ background: 'rgba(139,127,232,.1)', border: '1px solid rgba(139,127,232,.35)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(139,127,232,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B7FE8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" /><path d="M12 8v4m0 4h.01" />
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#8B7FE8', marginBottom: 4 }}>FractaEngine — Recomendação de Supervisão</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', lineHeight: 1.6 }}>
-              O sistema identificou <strong style={{ color: 'rgba(255,255,255,.85)' }}>{casos.length} {casos.length === 1 ? 'caso com necessidade' : 'casos com necessidade'} de supervisão</strong> com base em previsibilidade baixa, progresso abaixo do esperado e complexidade clínica elevada.
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-        <MetricCard label="Casos supervisionados" value={casosAtivos}   sub="ativos agora"         cor="#1D9E75" />
-        <MetricCard label="Sessões realizadas"     value={totalSessoes} sub="últimos 90 dias"      cor="#378ADD" />
-        <MetricCard label="Em supervisão"          value={casos.length} sub="total na plataforma"  cor="#8B7FE8" />
-        <MetricCard
-          label="Próximo caso"
-          value={proximo ? new Date(proximo.proxima_sessao!).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '—'}
-          sub={proximo ? proximo.supervisor_nome : 'Sem agendamentos'}
-          cor="#EF9F27"
-        />
-      </div>
-
-      {casos.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'rgba(255,255,255,.3)', fontSize: 13, border: '1px dashed rgba(26,58,92,.5)', borderRadius: 12 }}>
-          Nenhum caso em supervisão. Use a aba Supervisores para solicitar supervisão.
-        </div>
-      ) : (
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.5)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Casos monitorados pelo Engine
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {casos.map((caso) => (
-              <div key={caso.id} style={{ background: 'rgba(13,32,53,.75)', border: '1px solid rgba(26,58,92,.5)', borderRadius: 12, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(29,158,117,.15)', border: '1px solid rgba(29,158,117,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                  </svg>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 600, color: 'rgba(255,255,255,.9)', fontSize: 14 }}>
-                      {caso.crianca_nome}{caso.crianca_idade > 0 ? `, ${caso.crianca_idade} anos` : ''}
-                    </span>
-                    <BadgeComplexidade nivel={caso.complexidade} />
-                    <span style={{
-                      background: caso.status === 'ativo' ? 'rgba(29,158,117,.15)' : 'rgba(239,159,39,.15)',
-                      border: `1px solid ${caso.status === 'ativo' ? 'rgba(29,158,117,.35)' : 'rgba(239,159,39,.35)'}`,
-                      borderRadius: 6, padding: '2px 10px', fontSize: 11, fontWeight: 600,
-                      color: caso.status === 'ativo' ? '#1D9E75' : '#EF9F27',
-                    }}>
-                      {caso.status === 'ativo' ? 'Ativo' : 'Pendente'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', marginBottom: 8 }}>
-                    Supervisor: {caso.supervisor_nome}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', marginBottom: 10, lineHeight: 1.5 }}>
-                    {caso.foco}
-                  </div>
-                  {caso.progresso > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,.08)', borderRadius: 2 }}>
-                        <div style={{ height: '100%', width: `${caso.progresso}%`, background: '#1D9E75', borderRadius: 2 }} />
-                      </div>
-                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', width: 36, textAlign: 'right' }}>{caso.progresso}%</span>
-                    </div>
-                  )}
-                </div>
-                {caso.proxima_sessao && (
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Próxima sessão</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#EF9F27' }}>
-                      {new Date(caso.proxima_sessao).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
-                      {new Date(caso.proxima_sessao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    <Card style={{ padding: '18px 20px' }}>
+      <div style={{ fontSize: 11, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: cor, lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: c.sub, marginTop: 4 }}>{sub}</div>}
+    </Card>
   )
 }
 
-// ─── Casos Tab (agora com dados reais) ───────────────────────────────────────
-function CasosTab({ casos, loading }: { casos: CasoEmSupervimento[]; loading: boolean }) {
-  const [selecionado, setSelecionado] = useState<string | null>(null)
-
-  if (loading) return (
-    <div style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, padding: 20 }}>Carregando casos...</div>
-  )
-
+function TabBar({ tabs, active, onChange }: { tabs: { id: string; label: string; badge?: number }[]; active: string; onChange: (id: string) => void }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          {casos.length} {casos.length === 1 ? 'caso' : 'casos'} em supervisão
-        </div>
-      </div>
-
-      {casos.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'rgba(255,255,255,.3)', fontSize: 13, border: '1px dashed rgba(26,58,92,.5)', borderRadius: 12 }}>
-          Nenhum caso em supervisão ativo.
-        </div>
-      ) : casos.map((caso) => (
-        <div
-          key={caso.id}
-          onClick={() => setSelecionado(selecionado === caso.id ? null : caso.id)}
-          style={{
-            background: selecionado === caso.id ? 'rgba(139,127,232,.08)' : 'rgba(13,32,53,.75)',
-            border: `1px solid ${selecionado === caso.id ? 'rgba(139,127,232,.4)' : 'rgba(26,58,92,.5)'}`,
-            borderRadius: 12, padding: '20px', cursor: 'pointer', transition: 'all 0.2s',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <span style={{ fontWeight: 700, color: 'rgba(255,255,255,.9)', fontSize: 15 }}>
-                  {caso.crianca_nome}{caso.crianca_idade > 0 ? `, ${caso.crianca_idade} anos` : ''}
-                </span>
-                <BadgeComplexidade nivel={caso.complexidade} />
-              </div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', marginBottom: 10 }}>
-                {caso.supervisor_nome}
-                {caso.proxima_sessao && (
-                  <> · Próxima sessão: {new Date(caso.proxima_sessao).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</>
-                )}
-              </div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.65)', lineHeight: 1.6 }}>{caso.foco}</div>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              style={{ transform: selecionado === caso.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0, marginLeft: 12 }}>
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-
-          {selecionado === caso.id && (
-            <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                {caso.progresso > 0 && (
-                  <div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Progresso do caso</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,.08)', borderRadius: 3 }}>
-                        <div style={{ height: '100%', width: `${caso.progresso}%`, background: 'linear-gradient(90deg, #1D9E75, #23c48f)', borderRadius: 3 }} />
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#1D9E75' }}>{caso.progresso}%</span>
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Complexidade</div>
-                  <span style={{ fontSize: 22, fontWeight: 700, color: caso.complexidade === 'muito-alta' ? '#E05A4B' : '#EF9F27' }}>
-                    {caso.complexidade === 'muito-alta' ? 'Muito Alta' : 'Alta'}
-                  </span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button style={{ flex: 1, background: 'rgba(139,127,232,.15)', border: '1px solid rgba(139,127,232,.35)', borderRadius: 8, padding: '10px', color: '#8B7FE8', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                  Agendar sessão
-                </button>
-                <button style={{ flex: 1, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, padding: '10px', color: 'rgba(255,255,255,.6)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                  Ver histórico
-                </button>
-              </div>
-            </div>
+    <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(255,255,255,.04)', borderRadius: 10, padding: 4 }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={() => onChange(t.id)} style={{
+          flex: 1, padding: '9px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          background: active === t.id ? 'rgba(139,127,232,.2)' : 'transparent',
+          border: active === t.id ? '1px solid rgba(139,127,232,.35)' : '1px solid transparent',
+          borderRadius: 8, color: active === t.id ? c.purple : c.muted,
+          fontSize: 13, fontWeight: active === t.id ? 600 : 400,
+          cursor: 'pointer', fontFamily: 'var(--font-sans)',
+        }}>
+          {t.label}
+          {t.badge !== undefined && t.badge > 0 && (
+            <span style={{ minWidth: 16, height: 16, borderRadius: 8, background: c.coral, color: 'white', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+              {t.badge}
+            </span>
           )}
-        </div>
+        </button>
       ))}
     </div>
   )
 }
 
-// ─── Supervisores Tab ─────────────────────────────────────────────────────────
-function SupervisoresTab() {
-  const { terapeuta } = useClinicContext()
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODO TERAPEUTA — Supervisão que RECEBO
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function MinhaSupervisaoTab({ casos, loading }: { casos: CasoRecebendo[]; loading: boolean }) {
+  if (loading) return <div style={{ color: c.muted, fontSize: 13, padding: 20 }}>Carregando...</div>
+
+  const ativos   = casos.filter(x => x.status === 'ativo').length
+  const pendentes = casos.filter(x => x.status === 'pendente').length
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+        <KPI label="Casos com supervisor" value={ativos}   cor={c.teal}   sub="ativos agora" />
+        <KPI label="Aguardando resposta"  value={pendentes} cor={c.amber}  sub="solicitações enviadas" />
+        <KPI label="Total de vínculos"    value={casos.length} cor={c.purple} sub="histórico completo" />
+      </div>
+
+      {casos.length === 0 ? (
+        <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 13, color: c.muted, marginBottom: 16 }}>
+            Você ainda não tem supervisão ativa.
+          </div>
+          <div style={{ fontSize: 12, color: c.sub }}>
+            Use a aba "Buscar Supervisor" para solicitar suporte clínico.
+          </div>
+        </Card>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 11, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 4 }}>
+            Meus vínculos de supervisão
+          </div>
+          {casos.map(caso => (
+            <Card key={caso.id} style={{ padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: c.text }}>{caso.supervisor_nome}</span>
+                    <Badge label={caso.status === 'ativo' ? 'Ativo' : 'Pendente'} cor={caso.status === 'ativo' ? c.teal : c.amber} />
+                  </div>
+                  <div style={{ fontSize: 12, color: c.muted, lineHeight: 1.6 }}>{caso.foco}</div>
+                  <div style={{ fontSize: 11, color: c.sub, marginTop: 6 }}>
+                    Desde {new Date(caso.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BuscarSupervisorTab({ terapeutaId }: { terapeutaId: string }) {
   const [supervisores, setSupervisores] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [solicitando, setSolicitando] = useState<string | null>(null)
-  const [solicitados, setSolicitados] = useState<Set<string>>(new Set())
+  const [loading,      setLoading]      = useState(true)
+  const [solicitando,  setSolicitando]  = useState<string | null>(null)
+  const [solicitados,  setSolicitados]  = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    const carregar = async () => {
-      const { supabase } = await import('@/lib/supabase')
-      const { data } = await supabase
-        .from('supervisor_profiles')
-        .select('*, profiles(nome, nivel_senioridade)')
-        .eq('disponivel', true)
-        .order('criado_em', { ascending: false })
-      setSupervisores(data ?? [])
-      setLoading(false)
-    }
-    carregar()
+    supabase
+      .from('supervisor_profiles')
+      .select('*, profiles(nome, nivel_senioridade)')
+      .eq('disponivel', true)
+      .order('criado_em', { ascending: false })
+      .then(({ data }) => { setSupervisores(data ?? []); setLoading(false) })
   }, [])
 
-  const solicitarSessao = async (supId: string, supervisorTerapeutaId: string) => {
-    if (!terapeuta) return
+  async function solicitar(supId: string, supervisorTerapeutaId: string) {
     setSolicitando(supId)
-    const { supabase } = await import('@/lib/supabase')
     await supabase.from('supervisor_requests').insert({
-      terapeuta_id: terapeuta.id,
+      terapeuta_id:  terapeutaId,
       supervisor_id: supervisorTerapeutaId,
-      tipo: 'duvida_clinica',
-      mensagem: 'Solicitação de sessão de supervisão via marketplace.',
-      status: 'pendente',
+      tipo:          'duvida_clinica',
+      mensagem:      'Solicitação de supervisão clínica via marketplace.',
+      status:        'pendente',
     })
     setSolicitados(prev => new Set([...prev, supId]))
     setSolicitando(null)
   }
 
-  if (loading) return (
-    <div style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, padding: 20 }}>Carregando supervisores...</div>
-  )
+  if (loading) return <div style={{ color: c.muted, fontSize: 13, padding: 20 }}>Carregando supervisores...</div>
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ fontSize: 11, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 4 }}>
         Supervisores disponíveis na plataforma
       </div>
 
       {supervisores.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'rgba(255,255,255,.3)', fontSize: 13, border: '1px dashed rgba(26,58,92,.5)', borderRadius: 12 }}>
-          Nenhum supervisor disponível no momento.
-        </div>
-      ) : supervisores.map((sup) => {
-        const nome = sup.profiles?.nome ?? 'Supervisor'
-        const iniciais = nome.trim().split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()
-        const jaSolicitou = solicitados.has(sup.id)
+        <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 13, color: c.muted }}>Nenhum supervisor disponível no momento.</div>
+        </Card>
+      ) : supervisores.map(sup => {
+        const nome    = sup.profiles?.nome ?? 'Supervisor'
+        const iniciais = nome.trim().split(' ').map((p: string) => p[0]).slice(0,2).join('').toUpperCase()
+        const jaSolicitou    = solicitados.has(sup.id)
         const estaSolicitando = solicitando === sup.id
 
         return (
-          <div key={sup.id} style={{ background: 'rgba(13,32,53,.75)', border: '1px solid rgba(26,58,92,.5)', borderRadius: 12, padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(139,127,232,.2)', border: '1px solid rgba(139,127,232,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#8B7FE8', flexShrink: 0 }}>
+          <Card key={sup.id} style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 12, background: 'rgba(139,127,232,.2)', border: '1px solid rgba(139,127,232,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: c.purple, flexShrink: 0 }}>
                 {iniciais}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 700, color: 'rgba(255,255,255,.9)', fontSize: 15 }}>{nome}</span>
-                  <span style={{ background: sup.disponivel ? 'rgba(29,158,117,.15)' : 'rgba(255,255,255,.06)', border: `1px solid ${sup.disponivel ? 'rgba(29,158,117,.35)' : 'rgba(255,255,255,.12)'}`, borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600, color: sup.disponivel ? '#1D9E75' : 'rgba(255,255,255,.3)' }}>
-                    {sup.disponivel ? 'Disponível' : 'Indisponível'}
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: c.text }}>{nome}</span>
+                  <Badge label={sup.disponivel ? 'Disponível' : 'Indisponível'} cor={sup.disponivel ? c.teal : c.muted} />
                 </div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', marginBottom: 8 }}>{sup.titulo ?? '—'}</div>
-                {sup.rating && <StarRating rating={sup.rating} />}
-                {sup.sessoes_total && (
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>{sup.sessoes_total} sessões realizadas</div>
-                )}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+                {sup.titulo && <div style={{ fontSize: 12, color: c.muted, marginBottom: 8 }}>{sup.titulo}</div>}
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
                   {(sup.especialidades ?? []).map((esp: string) => (
-                    <span key={esp} style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 6, padding: '3px 10px', fontSize: 11, color: 'rgba(255,255,255,.5)' }}>
-                      {esp}
-                    </span>
+                    <span key={esp} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: 'rgba(255,255,255,.05)', color: c.muted, border: `1px solid ${c.border}` }}>{esp}</span>
                   ))}
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 {sup.preco_sessao && (
-                  <>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>por sessão</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,.9)' }}>R$ {sup.preco_sessao}</div>
-                  </>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: c.text, marginBottom: 8 }}>R$ {sup.preco_sessao}</div>
                 )}
                 <button
                   disabled={!sup.disponivel || jaSolicitou || estaSolicitando}
-                  onClick={() => solicitarSessao(sup.id, sup.terapeuta_id)}
+                  onClick={() => solicitar(sup.id, sup.terapeuta_id)}
                   style={{
-                    marginTop: 10,
+                    padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                     background: jaSolicitou ? 'rgba(29,158,117,.15)' : sup.disponivel ? 'rgba(139,127,232,.2)' : 'rgba(255,255,255,.04)',
-                    border: `1px solid ${jaSolicitou ? 'rgba(29,158,117,.35)' : sup.disponivel ? 'rgba(139,127,232,.45)' : 'rgba(255,255,255,.08)'}`,
-                    borderRadius: 8, padding: '8px 16px',
-                    color: jaSolicitou ? '#1D9E75' : sup.disponivel ? '#8B7FE8' : 'rgba(255,255,255,.2)',
-                    fontSize: 12, fontWeight: 600,
+                    border: `1px solid ${jaSolicitou ? 'rgba(29,158,117,.35)' : sup.disponivel ? 'rgba(139,127,232,.4)' : c.border}`,
+                    color: jaSolicitou ? c.teal : sup.disponivel ? c.purple : c.muted,
                     cursor: sup.disponivel && !jaSolicitou ? 'pointer' : 'not-allowed',
-                    whiteSpace: 'nowrap' as const,
-                    fontFamily: 'var(--font-sans)',
+                    fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' as const,
                   }}
                 >
-                  {jaSolicitou ? 'Solicitado' : estaSolicitando ? 'Enviando...' : sup.disponivel ? 'Solicitar sessão' : 'Indisponível'}
+                  {jaSolicitou ? 'Solicitado' : estaSolicitando ? 'Enviando...' : 'Solicitar supervisão'}
                 </button>
               </div>
             </div>
-          </div>
+          </Card>
         )
       })}
     </div>
   )
 }
 
-// ─── Histórico Tab (agora com dados reais) ────────────────────────────────────
-function HistoricoTab({ historico, loading }: { historico: HistoricoSessao[]; loading: boolean }) {
-  if (loading) return (
-    <div style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, padding: 20 }}>Carregando histórico...</div>
-  )
+function HistoricoRecebidoTab({ historico, loading }: { historico: HistoricoItem[]; loading: boolean }) {
+  if (loading) return <div style={{ color: c.muted, fontSize: 13, padding: 20 }}>Carregando...</div>
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
-        {historico.length} {historico.length === 1 ? 'sessão registrada' : 'sessões registradas'}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: 11, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 4 }}>
+        {historico.length} sessão(ões) de supervisão concluída(s)
       </div>
-
       {historico.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'rgba(255,255,255,.3)', fontSize: 13, border: '1px dashed rgba(26,58,92,.5)', borderRadius: 12 }}>
-          Nenhuma sessão de supervisão registrada ainda.
-        </div>
-      ) : historico.map((sessao) => (
-        <div key={sessao.id} style={{ background: 'rgba(13,32,53,.75)', border: '1px solid rgba(26,58,92,.5)', borderRadius: 12, padding: '18px 20px', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 2 }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#8B7FE8', flexShrink: 0 }} />
-            <div style={{ width: 1, flex: 1, background: 'rgba(139,127,232,.2)', marginTop: 6 }} />
+        <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 13, color: c.muted }}>Nenhuma sessão de supervisão concluída ainda.</div>
+        </Card>
+      ) : historico.map((h, i) => (
+        <div key={h.id} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 4, flexShrink: 0 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.purple }} />
+            {i < historico.length - 1 && <div style={{ width: 1, height: 40, background: 'rgba(139,127,232,.2)', marginTop: 4 }} />}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14, color: 'rgba(255,255,255,.9)', marginBottom: 2 }}>
-                  {sessao.crianca_nome} · {sessao.supervisor_nome}
-                </div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)' }}>
-                  {new Date(sessao.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                  {sessao.duracao > 0 && ` · ${sessao.duracao} min`}
-                </div>
-              </div>
+          <Card style={{ flex: 1, padding: '14px 16px', marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: c.text, marginBottom: 3 }}>{h.supervisor_nome}</div>
+            <div style={{ fontSize: 12, color: c.muted, marginBottom: 4 }}>{h.foco}</div>
+            <div style={{ fontSize: 11, color: c.sub }}>
+              {new Date(h.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
             </div>
-            {sessao.tema && (
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', fontWeight: 500, marginBottom: 8 }}>
-                {sessao.tema}
-              </div>
-            )}
-            {sessao.nota && (
-              <div style={{ background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'rgba(255,255,255,.5)', lineHeight: 1.6 }}>
-                <span style={{ color: 'rgba(139,127,232,.8)', fontWeight: 600 }}>Encaminhamentos: </span>
-                {sessao.nota}
-              </div>
-            )}
-          </div>
+          </Card>
         </div>
       ))}
     </div>
   )
 }
 
-// ─── Inbox Tab ────────────────────────────────────────────────────────────────
-function InboxTab() {
-  const { terapeuta } = useClinicContext()
-  const [requests, setRequests] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODO SUPERVISOR — Supervisão que MINISTRO + MINHA EQUIPE
+// ═══════════════════════════════════════════════════════════════════════════════
 
-  useEffect(() => {
-    const carregar = async () => {
-      if (!terapeuta) { setLoading(false); return }
-      const { supabase } = await import('@/lib/supabase')
-      const { data } = await supabase
-        .from('supervisor_requests')
-        .select('*')
-        .eq('supervisor_id', terapeuta.id)
-        .order('criado_em', { ascending: false })
-      setRequests(data ?? [])
-      setLoading(false)
-    }
-    carregar()
-  }, [terapeuta])
+function PainelSupervisorTab({ requests, loading, onAcao }: {
+  requests: RequestInbox[]
+  loading: boolean
+  onAcao: (id: string, acao: 'em_andamento' | 'resolvido') => void
+}) {
+  if (loading) return <div style={{ color: c.muted, fontSize: 13, padding: 20 }}>Carregando...</div>
 
-  const marcarResolvido = async (id: string) => {
-    const { supabase } = await import('@/lib/supabase')
-    await supabase.from('supervisor_requests').update({ status: 'resolvido', resolvido_em: new Date().toISOString() }).eq('id', id)
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'resolvido' } : r))
-  }
-
-  const marcarEmAndamento = async (id: string) => {
-    const { supabase } = await import('@/lib/supabase')
-    await supabase.from('supervisor_requests').update({ status: 'em_andamento' }).eq('id', id)
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'em_andamento' } : r))
-  }
-
-  const pendentes    = requests.filter(r => r.status === 'pendente')
-  const emAndamento  = requests.filter(r => r.status === 'em_andamento')
-  const resolvidos   = requests.filter(r => r.status === 'resolvido')
-
-  const s = {
-    card: 'rgba(13,32,53,0.75)', border: 'rgba(26,58,92,0.5)',
-    teal: '#1D9E75', amber: '#EF9F27', coral: '#E05A4B', purple: '#8B7FE8',
-    muted: 'rgba(255,255,255,.4)', text: 'rgba(255,255,255,.85)',
-  }
-
-  const StatusBadge = ({ status }: { status: string }) => {
-    const cfg: Record<string, { label: string; cor: string }> = {
-      pendente:     { label: 'Pendente',     cor: s.coral  },
-      em_andamento: { label: 'Em andamento', cor: s.amber  },
-      resolvido:    { label: 'Resolvido',    cor: s.teal   },
-    }
-    const c = cfg[status] ?? cfg.pendente
-    return (
-      <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 20, background: c.cor + '20', color: c.cor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {c.label}
-      </span>
-    )
-  }
-
-  const RequestCard = ({ r }: { r: any }) => (
-    <div style={{ background: s.card, border: `1px solid ${s.border}`, borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: s.text, marginBottom: 4 }}>
-            {r.programa_nome ?? 'Solicitação de supervisão'}
-          </div>
-          <div style={{ fontSize: 11, color: s.muted }}>
-            {new Date(r.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-          </div>
-        </div>
-        <StatusBadge status={r.status} />
-      </div>
-      {r.mensagem && (
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', lineHeight: 1.6, padding: '10px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 7 }}>
-          {r.mensagem}
-        </div>
-      )}
-      {r.status !== 'resolvido' && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-          {r.status === 'pendente' && (
-            <button onClick={() => marcarEmAndamento(r.id)} style={{ flex: 1, padding: '8px', borderRadius: 7, border: `1px solid ${s.amber}44`, background: 'rgba(239,159,39,0.08)', color: s.amber, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
-              Iniciar atendimento
-            </button>
-          )}
-          <button onClick={() => marcarResolvido(r.id)} style={{ flex: 1, padding: '8px', borderRadius: 7, border: `1px solid ${s.teal}44`, background: 'rgba(29,158,117,0.08)', color: s.teal, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Marcar como resolvido
-          </button>
-        </div>
-      )}
-    </div>
-  )
-
-  if (loading) return <div style={{ color: s.muted, fontSize: 13, padding: 32 }}>Carregando inbox...</div>
+  const pendentes   = requests.filter(r => r.status === 'pendente')
+  const emAndamento = requests.filter(r => r.status === 'em_andamento')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
-        {[
-          { label: 'Pendentes',    value: pendentes.length,   cor: s.coral },
-          { label: 'Em andamento', value: emAndamento.length, cor: s.amber },
-          { label: 'Resolvidos',   value: resolvidos.length,  cor: s.teal  },
-        ].map(m => (
-          <div key={m.label} style={{ background: s.card, border: `1px solid ${s.border}`, borderRadius: 10, padding: '16px 20px' }}>
-            <div style={{ fontSize: 11, color: s.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{m.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 600, color: m.cor }}>{m.value}</div>
-          </div>
-        ))}
+        <KPI label="Aguardando ação"  value={pendentes.length}   cor={c.coral}  sub="novas solicitações" />
+        <KPI label="Em andamento"     value={emAndamento.length} cor={c.amber}  sub="casos ativos" />
+        <KPI label="Total recebidos"  value={requests.length}    cor={c.purple} sub="histórico" />
       </div>
 
       {pendentes.length > 0 && (
         <div>
-          <div style={{ fontSize: 11, color: s.coral, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Aguardando ação</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {pendentes.map(r => <RequestCard key={r.id} r={r} />)}
+          <div style={{ fontSize: 11, color: c.coral, textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 10 }}>
+            Novas solicitações
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {pendentes.map(r => <RequestCard key={r.id} r={r} onAcao={onAcao} />)}
           </div>
         </div>
       )}
+
       {emAndamento.length > 0 && (
         <div>
-          <div style={{ fontSize: 11, color: s.amber, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Em andamento</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {emAndamento.map(r => <RequestCard key={r.id} r={r} />)}
+          <div style={{ fontSize: 11, color: c.amber, textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 10 }}>
+            Em andamento
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {emAndamento.map(r => <RequestCard key={r.id} r={r} onAcao={onAcao} />)}
           </div>
         </div>
       )}
-      {resolvidos.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, color: s.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Resolvidos</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {resolvidos.map(r => <RequestCard key={r.id} r={r} />)}
-          </div>
-        </div>
-      )}
+
       {requests.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '48px 20px', color: s.muted, fontSize: 13, border: `1px dashed ${s.border}`, borderRadius: 12 }}>
-          Nenhuma solicitação recebida ainda.
+        <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 13, color: c.muted }}>Nenhuma solicitação de supervisão recebida ainda.</div>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+function RequestCard({ r, onAcao }: { r: RequestInbox; onAcao: (id: string, acao: 'em_andamento' | 'resolvido') => void }) {
+  return (
+    <Card style={{ padding: '16px 20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: c.text, marginBottom: 2 }}>{r.terapeuta_nome}</div>
+          <div style={{ fontSize: 11, color: c.sub }}>
+            {new Date(r.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </div>
+        <Badge label={r.status === 'pendente' ? 'Novo' : 'Em andamento'} cor={r.status === 'pendente' ? c.coral : c.amber} />
+      </div>
+      {r.mensagem && (
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', lineHeight: 1.6, padding: '8px 10px', background: 'rgba(0,0,0,.2)', borderRadius: 7, marginBottom: 10 }}>
+          {r.mensagem}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8 }}>
+        {r.status === 'pendente' && (
+          <button onClick={() => onAcao(r.id, 'em_andamento')} style={{ flex: 1, padding: '8px', borderRadius: 7, border: `1px solid ${c.amber}44`, background: 'rgba(239,159,39,.08)', color: c.amber, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Iniciar atendimento
+          </button>
+        )}
+        <button onClick={() => onAcao(r.id, 'resolvido')} style={{ flex: 1, padding: '8px', borderRadius: 7, border: `1px solid ${c.teal}44`, background: 'rgba(29,158,117,.08)', color: c.teal, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Marcar resolvido
+        </button>
+      </div>
+    </Card>
+  )
+}
+
+function MinhaEquipeTab({ supervisorId, nivel }: { supervisorId: string; nivel: string }) {
+  const [membros,        setMembros]        = useState<MembroEquipe[]>([])
+  const [notificacoes,   setNotificacoes]   = useState<NotificacaoEquipe[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [convidando,     setConvidando]     = useState(false)
+  const [emailConvite,   setEmailConvite]   = useState('')
+  const [enviandoConvite,setEnviandoConvite]= useState(false)
+  const [erroConvite,    setErroConvite]    = useState<string | null>(null)
+
+  const limiteEquipe = nivel === 'supervisor' ? 999 : 2
+
+  useEffect(() => {
+    carregar()
+  }, [supervisorId])
+
+  async function carregar() {
+    setLoading(true)
+
+    const { data: membrosRaw } = await supabase
+      .from('equipe_membros')
+      .select('*')
+      .eq('supervisor_id', supervisorId)
+      .order('criado_em', { ascending: false })
+
+    if (membrosRaw && membrosRaw.length > 0) {
+      const membroIds = membrosRaw.map((m: any) => m.membro_id)
+      const { data: perfis } = await supabase
+        .from('profiles')
+        .select('id, nome, email')
+        .in('id', membroIds)
+
+      const perfilMap = new Map<string, { nome: string; email: string }>()
+      for (const p of (perfis ?? [])) {
+        perfilMap.set(p.id, { nome: p.nome ?? p.email ?? 'Membro', email: p.email ?? '' })
+      }
+
+      setMembros(membrosRaw.map((m: any) => ({
+        id:               m.id,
+        membro_id:        m.membro_id,
+        nome:             perfilMap.get(m.membro_id)?.nome ?? 'Membro',
+        email:            perfilMap.get(m.membro_id)?.email ?? '',
+        status:           m.status,
+        limite_pacientes: m.limite_pacientes,
+        criado_em:        m.criado_em,
+      })))
+    } else {
+      setMembros([])
+    }
+
+    const { data: notifs } = await supabase
+      .from('equipe_notificacoes')
+      .select('*')
+      .eq('supervisor_id', supervisorId)
+      .eq('lida', false)
+      .order('criado_em', { ascending: false })
+      .limit(20)
+
+    if (notifs && notifs.length > 0) {
+      const membroIds = [...new Set(notifs.map((n: any) => n.membro_id))]
+      const { data: perfis } = await supabase
+        .from('profiles')
+        .select('id, nome')
+        .in('id', membroIds)
+      const perfilMap = new Map<string, string>()
+      for (const p of (perfis ?? [])) perfilMap.set(p.id, p.nome ?? 'Membro')
+
+      setNotificacoes(notifs.map((n: any) => ({
+        id:          n.id,
+        membro_id:   n.membro_id,
+        membro_nome: perfilMap.get(n.membro_id) ?? 'Membro',
+        tipo:        n.tipo,
+        mensagem:    n.mensagem,
+        lida:        n.lida,
+        criado_em:   n.criado_em,
+      })))
+    } else {
+      setNotificacoes([])
+    }
+
+    setLoading(false)
+  }
+
+  async function marcarLida(id: string) {
+    await supabase.from('equipe_notificacoes').update({ lida: true }).eq('id', id)
+    setNotificacoes(prev => prev.filter(n => n.id !== id))
+  }
+
+  async function convidarMembro() {
+    if (!emailConvite.trim()) return
+    if (membros.length >= limiteEquipe) {
+      setErroConvite(`Limite de ${limiteEquipe} membro(s) para o seu nível.`)
+      return
+    }
+    setEnviandoConvite(true)
+    setErroConvite(null)
+
+    // Busca o profile pelo email
+    const { data: perfil } = await supabase
+      .from('profiles')
+      .select('id, nome')
+      .eq('email', emailConvite.trim())
+      .maybeSingle()
+
+    if (!perfil) {
+      setErroConvite('Usuário não encontrado. O aplicador precisa ter conta no FractaClinic.')
+      setEnviandoConvite(false)
+      return
+    }
+
+    const { error } = await supabase.from('equipe_membros').insert({
+      supervisor_id:    supervisorId,
+      membro_id:        perfil.id,
+      status:           'convidado',
+      limite_pacientes: 5,
+    })
+
+    if (error) {
+      setErroConvite(error.code === '23505' ? 'Este membro já está na sua equipe.' : 'Erro ao convidar. Tente novamente.')
+    } else {
+      setEmailConvite('')
+      setConvidando(false)
+      await carregar()
+    }
+    setEnviandoConvite(false)
+  }
+
+  const TIPO_NOTIF: Record<string, { label: string; cor: string }> = {
+    sessao_iniciada:  { label: 'Sessão iniciada',  cor: c.teal   },
+    sessao_encerrada: { label: 'Sessão encerrada', cor: c.blue   },
+    alerta_clinico:   { label: 'Alerta clínico',   cor: c.coral  },
+    novo_paciente:    { label: 'Novo paciente',    cor: c.purple },
+  }
+
+  if (loading) return <div style={{ color: c.muted, fontSize: 13, padding: 20 }}>Carregando equipe...</div>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+        <KPI label="Membros ativos"   value={membros.filter(m => m.status === 'ativo').length}   cor={c.teal}   sub={`de ${limiteEquipe === 999 ? 'ilimitados' : limiteEquipe}`} />
+        <KPI label="Convidados"       value={membros.filter(m => m.status === 'convidado').length} cor={c.amber}  sub="aguardando aceite" />
+        <KPI label="Notificações"     value={notificacoes.length}                                  cor={c.coral}  sub="não lidas" />
+      </div>
+
+      {/* Notificações em tempo real */}
+      {notificacoes.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, color: c.coral, textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 10 }}>
+            Alertas da equipe
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {notificacoes.map(n => {
+              const cfg = TIPO_NOTIF[n.tipo] ?? { label: n.tipo, cor: c.muted }
+              return (
+                <Card key={n.id} style={{ padding: '12px 16px', borderLeft: `3px solid ${cfg.cor}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Badge label={cfg.label} cor={cfg.cor} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: c.text }}>{n.membro_nome}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: c.muted }}>{n.mensagem}</div>
+                      <div style={{ fontSize: 11, color: c.sub, marginTop: 4 }}>
+                        {new Date(n.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <button onClick={() => marcarLida(n.id)} style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${c.border}`, background: 'transparent', color: c.muted, fontSize: 11, cursor: 'pointer', flexShrink: 0, marginLeft: 12, fontFamily: 'inherit' }}>
+                      Lida
+                    </button>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Lista de membros */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: '.08em' }}>
+            Minha equipe — {membros.length}/{limiteEquipe === 999 ? 'ilimitado' : limiteEquipe}
+          </div>
+          {membros.length < limiteEquipe && (
+            <button onClick={() => { setConvidando(!convidando); setErroConvite(null) }} style={{
+              padding: '7px 14px', borderRadius: 8, border: `1px solid rgba(139,127,232,.35)`,
+              background: 'rgba(139,127,232,.15)', color: c.purple, fontSize: 12, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'var(--font-sans)',
+            }}>
+              {convidando ? 'Cancelar' : '+ Convidar membro'}
+            </button>
+          )}
+        </div>
+
+        {convidando && (
+          <Card style={{ padding: '16px 20px', marginBottom: 12, border: '1px solid rgba(139,127,232,.3)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: c.purple, marginBottom: 10 }}>Convidar aplicador / AT / estagiário</div>
+            <div style={{ fontSize: 11, color: c.muted, marginBottom: 12 }}>
+              O profissional precisa ter conta ativa no FractaClinic. Ele aparecerá no marketplace sob sua supervisão.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={emailConvite}
+                onChange={e => setEmailConvite(e.target.value)}
+                placeholder="email@profissional.com"
+                style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: `1px solid ${c.border}`, background: 'rgba(13,32,53,.6)', color: c.text, fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none' }}
+              />
+              <button onClick={convidarMembro} disabled={!emailConvite || enviandoConvite} style={{
+                padding: '9px 16px', borderRadius: 8, border: 'none',
+                background: emailConvite ? 'rgba(139,127,232,.3)' : 'rgba(255,255,255,.05)',
+                color: emailConvite ? c.purple : c.muted, fontSize: 13, fontWeight: 600,
+                cursor: emailConvite ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-sans)',
+              }}>
+                {enviandoConvite ? 'Enviando...' : 'Convidar'}
+              </button>
+            </div>
+            {erroConvite && (
+              <div style={{ fontSize: 12, color: c.coral, marginTop: 8 }}>{erroConvite}</div>
+            )}
+          </Card>
+        )}
+
+        {membros.length === 0 ? (
+          <Card style={{ padding: '40px 24px', textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: c.muted, marginBottom: 8 }}>Sua equipe está vazia.</div>
+            <div style={{ fontSize: 12, color: c.sub }}>
+              Convide aplicadores, ATs ou estagiários para atender sob sua responsabilidade técnica.
+            </div>
+          </Card>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {membros.map(m => {
+              const iniciais = m.nome.trim().split(' ').map((p: string) => p[0]).slice(0,2).join('').toUpperCase()
+              const corStatus = m.status === 'ativo' ? c.teal : m.status === 'convidado' ? c.amber : c.muted
+              return (
+                <Card key={m.id} style={{ padding: '16px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(55,138,221,.2)', border: '1px solid rgba(55,138,221,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: c.blue, flexShrink: 0 }}>
+                      {iniciais}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: c.text }}>{m.nome}</span>
+                        <Badge label={m.status === 'ativo' ? 'Ativo' : m.status === 'convidado' ? 'Convidado' : 'Inativo'} cor={corStatus} />
+                      </div>
+                      <div style={{ fontSize: 12, color: c.muted }}>{m.email}</div>
+                      <div style={{ fontSize: 11, color: c.sub, marginTop: 2 }}>
+                        Limite: {m.limite_pacientes} paciente(s) · Desde {new Date(m.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {nivel === 'coordenador' && (
+        <div style={{ padding: '12px 16px', background: 'rgba(239,159,39,.06)', border: '1px solid rgba(239,159,39,.2)', borderRadius: 10, fontSize: 12, color: 'rgba(239,159,39,.8)', lineHeight: 1.6 }}>
+          Como Coordenador, você pode ter até 2 membros na equipe. Avance para Supervisor para equipes ilimitadas e notificações em tempo real.
         </div>
       )}
     </div>
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+function HistoricoMinistradoTab({ supervisorId }: { supervisorId: string }) {
+  const [historico, setHistorico] = useState<any[]>([])
+  const [loading,   setLoading]   = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('supervisor_requests')
+      .select('id, criado_em, mensagem, resolvido_em, terapeuta_id')
+      .eq('supervisor_id', supervisorId)
+      .eq('status', 'resolvido')
+      .order('resolvido_em', { ascending: false })
+      .limit(30)
+      .then(async ({ data }) => {
+        if (!data || data.length === 0) { setHistorico([]); setLoading(false); return }
+        const ids = [...new Set(data.map((r: any) => r.terapeuta_id))]
+        const { data: perfis } = await supabase.from('profiles').select('id, nome').in('id', ids)
+        const map = new Map<string, string>()
+        for (const p of (perfis ?? [])) map.set(p.id, p.nome ?? 'Terapeuta')
+        setHistorico(data.map((r: any) => ({ ...r, terapeuta_nome: map.get(r.terapeuta_id) ?? 'Terapeuta' })))
+        setLoading(false)
+      })
+  }, [supervisorId])
+
+  if (loading) return <div style={{ color: c.muted, fontSize: 13, padding: 20 }}>Carregando...</div>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontSize: 11, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 4 }}>
+        {historico.length} supervisão(ões) concluída(s)
+      </div>
+      {historico.length === 0 ? (
+        <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 13, color: c.muted }}>Nenhuma supervisão concluída ainda.</div>
+        </Card>
+      ) : historico.map((h, i) => (
+        <div key={h.id} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 4, flexShrink: 0 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.teal }} />
+            {i < historico.length - 1 && <div style={{ width: 1, height: 40, background: 'rgba(29,158,117,.2)', marginTop: 4 }} />}
+          </div>
+          <Card style={{ flex: 1, padding: '14px 16px', marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: c.text, marginBottom: 3 }}>{h.terapeuta_nome}</div>
+            {h.mensagem && <div style={{ fontSize: 12, color: c.muted, marginBottom: 4 }}>{h.mensagem}</div>}
+            <div style={{ fontSize: 11, color: c.sub }}>
+              Concluída em {new Date(h.resolvido_em ?? h.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+            </div>
+          </Card>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPONENTE PRINCIPAL
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function SupervisaoPage() {
   const { terapeuta } = useClinicContext()
-  const [tab, setTab] = useState<Tab>('visao-geral')
+  const nivel = terapeuta?.nivel ?? 'terapeuta'
+  const isSupervisor = nivel === 'supervisor' || nivel === 'coordenador'
 
-  // Estado compartilhado entre Visão Geral, Casos e Histórico
-  const [casos,         setCasos]         = useState<CasoEmSupervimento[]>([])
-  const [historico,     setHistorico]     = useState<HistoricoSessao[]>([])
-  const [loadingCasos,  setLoadingCasos]  = useState(true)
+  // Estado modo terapeuta
+  const [tabT,          setTabT]          = useState<TabTerapeuta>('minha-supervisao')
+  const [casosRecebendo, setCasosRecebendo] = useState<CasoRecebendo[]>([])
+  const [historicoRec,  setHistoricoRec]  = useState<HistoricoItem[]>([])
+  const [loadingRec,    setLoadingRec]    = useState(true)
   const [loadingHist,   setLoadingHist]   = useState(true)
 
-  // ── Carregar casos de supervisão ─────────────────────────────────────────
-  // Os casos vêm de supervisor_requests (solicitações aceitas/em andamento)
-  // cruzadas com criancas para obter nome/idade e com profiles do supervisor para o nome
-  useEffect(() => {
-    if (!terapeuta) { setLoadingCasos(false); return }
-    const carregar = async () => {
-      setLoadingCasos(true)
-      const { supabase } = await import('@/lib/supabase')
+  // Estado modo supervisor
+  const [tabS,       setTabS]       = useState<TabSupervisor>('painel')
+  const [requests,   setRequests]   = useState<RequestInbox[]>([])
+  const [loadingReq, setLoadingReq] = useState(true)
 
-      // Busca requests onde o terapeuta está envolvido (como solicitante)
-      // e que tenham status ativo ou pendente
-      const { data: requests } = await supabase
+  // ── Carregar dados modo terapeuta ────────────────────────────────────────
+  useEffect(() => {
+    if (!terapeuta) { setLoadingRec(false); setLoadingHist(false); return }
+
+    // Casos que estou recebendo supervisão
+    const carregarCasos = async () => {
+      const { data } = await supabase
         .from('supervisor_requests')
-        .select('id, status, criado_em, mensagem, supervisor_id, terapeuta_id, programa_id, programa_nome')
+        .select('id, status, criado_em, mensagem, supervisor_id')
         .eq('terapeuta_id', terapeuta.id)
         .in('status', ['pendente', 'em_andamento'])
         .order('criado_em', { ascending: false })
 
-      if (!requests || requests.length === 0) {
-        setCasos([])
-        setLoadingCasos(false)
-        return
-      }
-
-      // Buscar nomes dos supervisores
-      const supervisorIds = [...new Set(requests.map((r: any) => r.supervisor_id))]
-      const { data: supervisorProfiles } = await supabase
-        .from('profiles')
-        .select('id, nome')
-        .in('id', supervisorIds)
-
-      const supervisorMap = new Map<string, string>()
-      for (const sp of (supervisorProfiles ?? [])) {
-        supervisorMap.set(sp.id, sp.nome ?? 'Supervisor')
-      }
-
-      // Montar casos
-      const casosFormatados: CasoEmSupervimento[] = requests.map((r: any) => ({
-        id:            r.id,
-        crianca_nome:  r.programa_nome ?? 'Caso clínico',
-        crianca_idade: 0,
-        supervisor_nome: supervisorMap.get(r.supervisor_id) ?? 'Supervisor',
-        proxima_sessao: null,
-        complexidade:  r.status === 'em_andamento' ? 'muito-alta' : 'alta',
-        status:        r.status === 'em_andamento' ? 'ativo' : 'pendente',
-        foco:          r.mensagem ?? 'Supervisão clínica solicitada.',
-        progresso:     r.status === 'em_andamento' ? 40 : 0,
-      }))
-
-      setCasos(casosFormatados)
-      setLoadingCasos(false)
+      if (!data || data.length === 0) { setCasosRecebendo([]); setLoadingRec(false); return }
+      const ids = [...new Set(data.map((r: any) => r.supervisor_id))]
+      const { data: perfis } = await supabase.from('profiles').select('id, nome').in('id', ids)
+      const map = new Map<string, string>()
+      for (const p of (perfis ?? [])) map.set(p.id, p.nome ?? 'Supervisor')
+      setCasosRecebendo(data.map((r: any) => ({
+        id: r.id, supervisor_nome: map.get(r.supervisor_id) ?? 'Supervisor',
+        foco: r.mensagem ?? 'Supervisão clínica', status: r.status === 'em_andamento' ? 'ativo' : 'pendente',
+        criado_em: r.criado_em,
+      })))
+      setLoadingRec(false)
     }
-    carregar()
-  }, [terapeuta])
 
-  // ── Carregar histórico ───────────────────────────────────────────────────
-  useEffect(() => {
-    if (!terapeuta) { setLoadingHist(false); return }
-    const carregar = async () => {
-      setLoadingHist(true)
-      const { supabase } = await import('@/lib/supabase')
-
-      const { data: requests } = await supabase
+    // Histórico resolvido
+    const carregarHist = async () => {
+      const { data } = await supabase
         .from('supervisor_requests')
-        .select('id, status, criado_em, mensagem, supervisor_id, programa_nome, resolvido_em')
+        .select('id, resolvido_em, criado_em, mensagem, supervisor_id')
         .eq('terapeuta_id', terapeuta.id)
         .eq('status', 'resolvido')
         .order('resolvido_em', { ascending: false })
         .limit(20)
 
-      if (!requests || requests.length === 0) {
-        setHistorico([])
-        setLoadingHist(false)
-        return
-      }
-
-      const supervisorIds = [...new Set(requests.map((r: any) => r.supervisor_id))]
-      const { data: supervisorProfiles } = await supabase
-        .from('profiles')
-        .select('id, nome')
-        .in('id', supervisorIds)
-
-      const supervisorMap = new Map<string, string>()
-      for (const sp of (supervisorProfiles ?? [])) {
-        supervisorMap.set(sp.id, sp.nome ?? 'Supervisor')
-      }
-
-      const historicoFormatado: HistoricoSessao[] = requests.map((r: any) => ({
-        id:              r.id,
-        data:            r.resolvido_em ?? r.criado_em,
-        supervisor_nome: supervisorMap.get(r.supervisor_id) ?? 'Supervisor',
-        crianca_nome:    r.programa_nome ?? 'Caso clínico',
-        duracao:         0,
-        tema:            r.mensagem ?? '',
-        nota:            '',
-      }))
-
-      setHistorico(historicoFormatado)
+      if (!data || data.length === 0) { setHistoricoRec([]); setLoadingHist(false); return }
+      const ids = [...new Set(data.map((r: any) => r.supervisor_id))]
+      const { data: perfis } = await supabase.from('profiles').select('id, nome').in('id', ids)
+      const map = new Map<string, string>()
+      for (const p of (perfis ?? [])) map.set(p.id, p.nome ?? 'Supervisor')
+      setHistoricoRec(data.map((r: any) => ({
+        id: r.id, supervisor_nome: map.get(r.supervisor_id) ?? 'Supervisor',
+        foco: r.mensagem ?? '', data: r.resolvido_em ?? r.criado_em,
+      })))
       setLoadingHist(false)
     }
-    carregar()
+
+    carregarCasos()
+    carregarHist()
   }, [terapeuta])
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'visao-geral',  label: 'Visão Geral'  },
-    { id: 'casos',        label: 'Casos'        },
-    { id: 'supervisores', label: 'Supervisores' },
-    { id: 'historico',    label: 'Histórico'    },
-    { id: 'inbox',        label: 'Inbox'        },
-  ]
+  // ── Carregar dados modo supervisor ───────────────────────────────────────
+  useEffect(() => {
+    if (!terapeuta || !isSupervisor) { setLoadingReq(false); return }
+
+    supabase
+      .from('supervisor_requests')
+      .select('id, status, criado_em, mensagem, terapeuta_id, programa_nome')
+      .eq('supervisor_id', terapeuta.id)
+      .neq('status', 'resolvido')
+      .order('criado_em', { ascending: false })
+      .then(async ({ data }) => {
+        if (!data || data.length === 0) { setRequests([]); setLoadingReq(false); return }
+        const ids = [...new Set(data.map((r: any) => r.terapeuta_id))]
+        const { data: perfis } = await supabase.from('profiles').select('id, nome').in('id', ids)
+        const map = new Map<string, string>()
+        for (const p of (perfis ?? [])) map.set(p.id, p.nome ?? 'Terapeuta')
+        setRequests(data.map((r: any) => ({
+          id: r.id, terapeuta_nome: map.get(r.terapeuta_id) ?? 'Terapeuta',
+          mensagem: r.mensagem ?? '', status: r.status,
+          criado_em: r.criado_em, programa_nome: r.programa_nome ?? null,
+        })))
+        setLoadingReq(false)
+      })
+  }, [terapeuta, isSupervisor])
+
+  async function handleAcaoRequest(id: string, acao: 'em_andamento' | 'resolvido') {
+    await supabase.from('supervisor_requests')
+      .update({ status: acao, ...(acao === 'resolvido' ? { resolvido_em: new Date().toISOString() } : {}) })
+      .eq('id', id)
+    setRequests(prev => acao === 'resolvido'
+      ? prev.filter(r => r.id !== id)
+      : prev.map(r => r.id === id ? { ...r, status: acao } : r)
+    )
+  }
+
+  const naoLidas = 0 // alimentado via notificacoes quando supervisor
+
+  // ── Header dinâmico ──────────────────────────────────────────────────────
+  const headerLabel = isSupervisor
+    ? 'Supervisão que você ministra'
+    : 'Supervisão clínica'
+  const headerSub = isSupervisor
+    ? 'Gerencie os terapeutas que você supervisiona e sua equipe de aplicadores'
+    : 'Suporte clínico especializado para seus casos'
 
   return (
-    <div style={{ minHeight: '100vh', background: '#07111f', color: 'rgba(255,255,255,.85)', fontFamily: 'var(--font-sans, system-ui)', padding: '32px' }}>
+    <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'var(--font-sans, system-ui)', padding: '32px' }}>
+
+      {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(139,127,232,.2)', border: '1px solid rgba(139,127,232,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B7FE8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c.purple} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -715,32 +829,55 @@ export default function SupervisaoPage() {
             </svg>
           </div>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'rgba(255,255,255,.95)' }}>Supervisão</h1>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,.4)', margin: 0 }}>Suporte clínico especializado para seus casos</p>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'rgba(255,255,255,.95)' }}>
+              {headerLabel}
+            </h1>
+            <p style={{ fontSize: 13, color: c.muted, margin: 0 }}>{headerSub}</p>
           </div>
+          {isSupervisor && (
+            <div style={{ marginLeft: 'auto' }}>
+              <Badge label="Você supervisiona" cor={c.purple} />
+            </div>
+          )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 28, background: 'rgba(255,255,255,.04)', borderRadius: 10, padding: 4 }}>
-        {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            flex: 1, padding: '9px 0',
-            background: tab === t.id ? 'rgba(139,127,232,.2)' : 'transparent',
-            border: tab === t.id ? '1px solid rgba(139,127,232,.35)' : '1px solid transparent',
-            borderRadius: 8, color: tab === t.id ? '#8B7FE8' : 'rgba(255,255,255,.4)',
-            fontSize: 13, fontWeight: tab === t.id ? 600 : 400,
-            cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'var(--font-sans)',
-          }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* ── MODO TERAPEUTA ── */}
+      {!isSupervisor && (
+        <>
+          <TabBar
+            tabs={[
+              { id: 'minha-supervisao',   label: 'Minha Supervisão' },
+              { id: 'buscar-supervisor',  label: 'Buscar Supervisor' },
+              { id: 'historico',          label: 'Histórico' },
+            ]}
+            active={tabT}
+            onChange={id => setTabT(id as TabTerapeuta)}
+          />
+          {tabT === 'minha-supervisao'  && <MinhaSupervisaoTab   casos={casosRecebendo} loading={loadingRec} />}
+          {tabT === 'buscar-supervisor' && <BuscarSupervisorTab   terapeutaId={terapeuta?.id ?? ''} />}
+          {tabT === 'historico'         && <HistoricoRecebidoTab  historico={historicoRec} loading={loadingHist} />}
+        </>
+      )}
 
-      {tab === 'visao-geral'  && <VisaoGeralTab casos={casos} loading={loadingCasos} />}
-      {tab === 'casos'        && <CasosTab      casos={casos} loading={loadingCasos} />}
-      {tab === 'supervisores' && <SupervisoresTab />}
-      {tab === 'historico'    && <HistoricoTab  historico={historico} loading={loadingHist} />}
-      {tab === 'inbox'        && <InboxTab />}
+      {/* ── MODO SUPERVISOR / COORDENADOR ── */}
+      {isSupervisor && (
+        <>
+          <TabBar
+            tabs={[
+              { id: 'painel',              label: 'Painel',       badge: requests.filter(r => r.status === 'pendente').length },
+              { id: 'minha-equipe',        label: 'Minha Equipe'  },
+              { id: 'historico-ministrado',label: 'Histórico'     },
+            ]}
+            active={tabS}
+            onChange={id => setTabS(id as TabSupervisor)}
+          />
+          {tabS === 'painel'               && <PainelSupervisorTab   requests={requests} loading={loadingReq} onAcao={handleAcaoRequest} />}
+          {tabS === 'minha-equipe'         && <MinhaEquipeTab         supervisorId={terapeuta?.id ?? ''} nivel={nivel} />}
+          {tabS === 'historico-ministrado' && <HistoricoMinistradoTab supervisorId={terapeuta?.id ?? ''} />}
+        </>
+      )}
+
     </div>
   )
 }
