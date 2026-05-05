@@ -360,6 +360,12 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
         .single()
 
       if (data) {
+        // Responsável sem nível não tem acesso ao Clinic
+        if (!data.nivel_senioridade) {
+          router.replace('/care/dashboard')
+          return
+        }
+
         const nomes = (data.nome ?? 'W I').split(' ')
         const iniciais = nomes.length >= 2
           ? `${nomes[0][0]}${nomes[nomes.length - 1][0]}`.toUpperCase()
@@ -372,8 +378,8 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
           iniciais,
         })
       } else {
-        // Fallback mock enquanto tabela não existe
-        setTerapeuta({ id: user.id, nome: 'Wilson Isola', nivel: 'coordenador', iniciais: 'WI' })
+        router.replace('/clinic/login')
+        return
       }
     }
     carregarTerapeuta()
