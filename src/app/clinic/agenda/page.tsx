@@ -6,7 +6,7 @@ import { useClinicContext } from "../layout";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type Visao        = "semana" | "dia" | "mes";
-type StatusSessao = "pendente" | "aguardando_responsavel" | "confirmada" | "realizada" | "cancelada" | "faltou";
+type StatusSessao = "agendado" | "pendente" | "aguardando_responsavel" | "confirmada" | "realizada" | "cancelada" | "faltou";
 type Modalidade   = "presencial" | "domiciliar" | "teleconsulta";
 type TipoSessao   = "atendimento" | "acompanhamento_terapeutico" | "supervisao";
 
@@ -44,6 +44,7 @@ interface Paciente {
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<StatusSessao, { label: string; cor: string; bg: string; borda: string }> = {
+  agendado:               { label: "Agendado",        cor: "#4d6d8a", bg: "rgba(77,109,138,.15)",  borda: "rgba(77,109,138,.3)"  },
   pendente:               { label: "Pendente",        cor: "#4d6d8a", bg: "rgba(77,109,138,.15)",  borda: "rgba(77,109,138,.3)"  },
   aguardando_responsavel: { label: "Aguard. família", cor: "#EF9F27", bg: "rgba(239,159,39,.15)",  borda: "rgba(239,159,39,.3)"  },
   confirmada:             { label: "Confirmada",       cor: "#1D9E75", bg: "rgba(29,158,117,.15)",  borda: "rgba(29,158,117,.3)"  },
