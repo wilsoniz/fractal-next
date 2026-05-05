@@ -661,7 +661,7 @@ export default function AgendaPage() {
                   )}
 
                   <div style={{ display: "flex", gap: 10 }}>
-                    {s.status === "confirmada" && (
+                    {(s.status === "confirmada" || s.status === "agendado") && (
                       <Link
                         href={`/clinic/sessao?pacienteId=${s.pacienteId}&duracao=${s.duracaoMin}&tipo=${s.tipoSessao}&local=${s.local === "Clínica" ? "presencial" : s.local}&agendaId=${s.id}`}
                         style={{ flex: 1, padding: 11, borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".82rem", textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -669,7 +669,7 @@ export default function AgendaPage() {
                         Iniciar sessão →
                       </Link>
                     )}
-                    {s.status === "pendente" && (
+                    {(s.status === "pendente") && (
                       <button style={{ flex: 1, padding: 11, borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".82rem", cursor: "pointer" }}>
                         Confirmar sessão
                       </button>
