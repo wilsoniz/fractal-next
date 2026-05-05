@@ -244,6 +244,44 @@ function SessaoInner() {
   const timerRef = useRef<ReturnType<typeof setInterval>|null>(null)
   const duracaoContratadaSeg = duracaoMin * 60
 
+  // ── Persistência localStorage ─────────────────────────────────────────────────
+  const STORAGE_KEY = "fracta_sessao_ativa"
+
+  // Salva estado crítico sempre que muda
+  useEffect(() => {
+    if (fase !== "sessao" || !sessaoDbId) return
+    const state = {
+      sessaoDbId, fase, tipoSessao, localSessao, duracaoMin,
+      pacienteId, stages, acoes, eventos, segundos,
+      familiaComunic, notaEncerr,
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  }, [sessaoDbId, fase, stages, acoes, eventos, segundos])
+
+  // Restaura ao montar se existe sessão salva
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (!saved) return
+      const s = JSON.parse(saved)
+      // Só restaura se for o mesmo paciente
+      if (s.pacienteId !== pacienteId) return
+      if (s.fase === "sessao" && s.sessaoDbId) {
+        setSessaoDbId(s.sessaoDbId)
+        setFase("sessao")
+        setTipoSessao(s.tipoSessao ?? tipoParam)
+        setLocalSessao(s.localSessao ?? localParam)
+        setDuracaoMin(s.duracaoMin ?? duracaoParam)
+        setStages(s.stages ?? STAGE_KEYS.map(key => ({ key, status: "pending" as StageStatus })))
+        setAcoes(s.acoes ?? [])
+        setEventos(s.eventos ?? [])
+        setSegundos(s.segundos ?? 0)
+        if (s.familiaComunic !== undefined) setFamiliaComunic(s.familiaComunic)
+        if (s.notaEncerr) setNotaEncerr(s.notaEncerr)
+      }
+    } catch { /* ignora erro de parse */ }
+  }, [])
+
   // ── Encerramento ──────────────────────────────────────────────────────────────
   const [showEncModal,    setShowEncModal]    = useState(false)
   const [familiaComunic,  setFamiliaComunic]  = useState<boolean|null>(null)
@@ -580,6 +618,7 @@ function SessaoInner() {
 
     setSalvandoEnc(false)
     setShowEncModal(false)
+    localStorage.removeItem(STORAGE_KEY)
     setFase("encerramento")
   }
 
