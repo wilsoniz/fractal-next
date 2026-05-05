@@ -151,18 +151,21 @@ export default function ClinicWalletPage() {
       inicioMes.setHours(0, 0, 0, 0)
 
       const { data: sessoesMes } = await supabase
-        .from("sessoes_clinicas")
-        .select("crianca_id, concluida, criado_em")
-        .in("crianca_id", criancaIds)
+        .from("financial_transactions")
+        .select("crianca_id, valor_bruto, valor_comissao, valor_repasse, status, criado_em")
+        .eq("terapeuta_id", terapeuta!.id)
         .gte("criado_em", inicioMes.toISOString())
 
       // 3. Montar pacientes financeiros
       // CORREÇÃO: modelo_financeiro e valor_sessao agora vêm do banco quando disponíveis
       const comissao = CARE_COMISSAO[terapeuta?.nivel ?? "coordenador"] ?? 0.10
       const result: PacienteFinanceiro[] = Array.from(criancaMap.entries()).map(([id, { nome, planos: cPlanos }], i) => {
-        const sessoesC   = (sessoesMes ?? []).filter(s => s.crianca_id === id)
-        const realizadas = sessoesC.filter(s => s.concluida).length
-        const canceladas = sessoesC.filter(s => !s.concluida).length
+        const sessoesC   = (sessoesMes ?? []).filter((s:any) => s.crianca_id === id)
+        const realizadas = sessoesC.filter((s:any) => s.status !== 'cancelado').length
+        const canceladas = sessoesC.filter((s:any) => s.status === 'cancelado').length
+        const receitaBrutaReal   = sessoesC.reduce((a:number,s:any) => a + (s.valor_bruto ?? 0), 0)
+        const comissaoReal       = sessoesC.reduce((a:number,s:any) => a + (s.valor_comissao ?? 0), 0)
+        const receitaLiquidaReal = sessoesC.reduce((a:number,s:any) => a + (s.valor_repasse ?? 0), 0)
 
         // Usa valor do banco se disponível; fallback 250 é explícito e documentado
         const primeiroPlano = cPlanos[0]
@@ -170,10 +173,10 @@ export default function ClinicWalletPage() {
         // modelo_financeiro: campo que deve existir no banco; fallback "care" se ausente
         const modelo: "ffs" | "care" = (primeiroPlano?.modelo_financeiro as "ffs" | "care" | null) ?? "care"
 
-        const receitaBruta    = realizadas * valorSessao
-        const comissaoCare    = receitaBruta * comissao
+        const receitaBruta    = receitaBrutaReal > 0 ? receitaBrutaReal : realizadas * valorSessao
+        const comissaoCare    = comissaoReal > 0 ? comissaoReal : receitaBruta * comissao
         const custoPlataforma = modelo === "ffs" ? planoFFS(realizadas).valor : comissaoCare
-        const receitaLiquida  = receitaBruta - custoPlataforma
+        const receitaLiquida  = receitaLiquidaReal > 0 ? receitaLiquidaReal : receitaBruta - custoPlataforma
 
         return {
           id, nome,
