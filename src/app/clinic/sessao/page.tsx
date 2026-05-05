@@ -204,6 +204,7 @@ function SessaoInner() {
   const searchParams   = useSearchParams()
   const router         = useRouter()
   const pacienteId     = searchParams.get("pacienteId")
+  const agendaId       = searchParams.get("agendaId")
   const tipoParam      = (searchParams.get("tipo") ?? "atendimento") as TipoSessao
   const duracaoParam   = parseInt(searchParams.get("duracao") ?? "60")
   const localParam     = searchParams.get("local") ?? "presencial"
@@ -385,6 +386,10 @@ function SessaoInner() {
         }
         setStages(prev => prev.map((s,i) => i === 0 ? { ...s, status: "active" } : s))
       }
+    }
+    // Atualizar slot da agenda para em_andamento
+    if (agendaId) {
+      await supabase.from("agenda_eventos").update({ status: "em_andamento", sessao_id: data?.id ?? null }).eq("id", agendaId)
     }
     setFase("sessao")
     if (tipoSessao !== "supervisao") {
@@ -618,6 +623,10 @@ function SessaoInner() {
 
     setSalvandoEnc(false)
     setShowEncModal(false)
+    // Atualizar slot da agenda para realizado
+    if (agendaId) {
+      await supabase.from("agenda_eventos").update({ status: "realizado" }).eq("id", agendaId)
+    }
     localStorage.removeItem(STORAGE_KEY)
     setFase("encerramento")
   }
