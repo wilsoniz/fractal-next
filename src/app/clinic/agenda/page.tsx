@@ -531,7 +531,7 @@ export default function AgendaPage() {
                       </button>
                     )}
                     {s.status === "confirmada" && (
-                      <Link href={`/clinic/sessao?pacienteId=${s.pacienteId}`} style={{ flex: 1, padding: 11, borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".82rem", textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Link href={`/clinic/sessao?pacienteId=${s.pacienteId}&duracao=${s.duracaoMin}&tipo=${s.modalidade === 'teleconsulta' ? 'atendimento' : 'atendimento'}&local=${s.modalidade === 'teleconsulta' ? 'remoto' : s.modalidade === 'domiciliar' ? 'ambiente_natural' : 'presencial'}&agendaId=${s.id}`} style={{ flex: 1, padding: 11, borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".82rem", textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         Iniciar sessão →
                       </Link>
                     )}
