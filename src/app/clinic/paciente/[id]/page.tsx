@@ -10,6 +10,7 @@ import {
 import { generateForecastFromProfile, type ForecastGoal, type ForecastResult } from "@/lib/forecast";
 import { useClinicContext } from "../../layout";
 import { supabase } from "@/lib/supabase";
+import { HistoricoSessoes, ContratoTab } from "./tabs";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type RadarSnapshot = {
@@ -23,7 +24,7 @@ type Program = { id: string; name: string; domain: string; status: "active" | "c
 type ClinicalAlert = { id: string; title: string; description: string; level: "low" | "medium" | "high" };
 type LearnerProfile = { id: string; name: string; age: number; diagnosis?: string; radar: RadarSnapshot[]; skills: Skill[]; programs: Program[]; alerts: ClinicalAlert[] };
 
-type Tab = "visao-geral" | "programas" | "skill-graph" | "forecast" | "avaliacoes";
+type Tab = "visao-geral" | "programas" | "skill-graph" | "forecast" | "avaliacoes" | "contrato" | "historico";
 
 // ─── FORECAST GOALS ──────────────────────────────────────────────────────────
 const FORECAST_GOALS: ForecastGoal[] = [
@@ -294,6 +295,8 @@ export default function PerfilPacientePage() {
     { id: "skill-graph", label: "Skill Graph"   },
     { id: "forecast",    label: "Forecast"      },
     { id: "avaliacoes",  label: "Avaliações"    },
+    { id: "historico",   label: "Histórico"     },
+    { id: "contrato",    label: "Contrato"      },
   ];
 
   return (
@@ -733,6 +736,20 @@ export default function PerfilPacientePage() {
           </div>
 
         </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB: HISTÓRICO */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {tab === "historico" && (
+        <HistoricoSessoes criancaId={params.id as string} />
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB: CONTRATO */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {tab === "contrato" && (
+        <ContratoTab criancaId={params.id as string} terapeutaId={terapeuta?.id ?? ""} />
       )}
 
     </div>
