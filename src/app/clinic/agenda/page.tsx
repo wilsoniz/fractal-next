@@ -345,7 +345,7 @@ export default function AgendaPage() {
               titulo:                `Sessão — ${pac.nome}`,
               data_hora:             dataHora.toISOString(),
               duracao_minutos:       form.duracaoMin,
-              status:                "pendente",
+              status:                "agendado",
               tipo_sessao:           form.tipoSessao,
               local:                 form.local,
               confirmado_terapeuta:  true,
