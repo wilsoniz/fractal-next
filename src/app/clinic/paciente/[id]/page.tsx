@@ -326,10 +326,10 @@ export default function PerfilPacientePage() {
     const avgSuccess  = data.programs.length > 0
       ? Math.round(data.programs.reduce((a, p) => a + p.success, 0) / data.programs.length)
       : 0;
-    const radarValues = [latest.communication, latest.social, latest.attention, latest.regulation, latest.autonomy, latest.flexibility, latest.play, latest.motivation];
+    const radarValues = [latest?.communication ?? 0, latest?.social ?? 0, latest?.attention ?? 0, latest?.regulation ?? 0, latest?.autonomy ?? 0, latest?.flexibility ?? 0, latest?.play ?? 0, latest?.motivation ?? 0];
     const avg         = Math.round(radarValues.reduce((a, b) => a + b, 0) / radarValues.length);
-    const weakest     = Object.entries({ Comunicação: latest.communication, Atenção: latest.attention, Regulação: latest.regulation, Flexibilidade: latest.flexibility }).sort((a, b) => a[1] - b[1])[0];
-    const strongest   = Object.entries({ Autonomia: latest.autonomy, Social: latest.social, Motivação: latest.motivation, Brincadeira: latest.play }).sort((a, b) => b[1] - a[1])[0];
+    const weakest     = Object.entries({ Comunicação: latest?.communication ?? 0, Atenção: latest?.attention ?? 0, Regulação: latest?.regulation ?? 0, Flexibilidade: latest?.flexibility ?? 0 }).sort((a, b) => a[1] - b[1])[0];
+    const strongest   = Object.entries({ Autonomia: latest?.autonomy ?? 0, Social: latest?.social ?? 0, Motivação: latest?.motivation ?? 0, Brincadeira: latest?.play ?? 0 }).sort((a, b) => b[1] - a[1])[0];
     const habDominadas = habilidades.filter(h => h.status === "dominada").length;
     const habEmerg     = habilidades.filter(h => h.status === "emergente" || h.status === "em_aquisicao").length;
     return { activeProgs, avgSuccess, avg, weakest, strongest, habDominadas, habEmerg };
@@ -338,8 +338,8 @@ export default function PerfilPacientePage() {
   const insights = useMemo(() => {
     if (!data || !latest || !summary) return [];
     const out: string[] = [];
-    if (latest.communication < 60 && latest.social >= 60) out.push("Boa base social disponível para ampliar comunicação funcional com alta chance de ganho clínico.");
-    if (latest.attention >= 50) out.push("Atenção sustentada já sustenta programas mais estruturados e instruções de 1–2 passos.");
+    if ((latest?.communication ?? 0) < 60 && (latest?.social ?? 0) >= 60) out.push("Boa base social disponível para ampliar comunicação funcional com alta chance de ganho clínico.");
+    if ((latest?.attention ?? 0) >= 50) out.push("Atenção sustentada já sustenta programas mais estruturados e instruções de 1–2 passos.");
     if (summary.weakest[0] === "Flexibilidade") out.push("Flexibilidade é o domínio mais sensível — deve entrar como alvo transversal na rotina clínica.");
     if (data.programs.some(p => p.status === "stalled")) out.push("Existe programa em estagnação — revisar critério, nível de dica ou reforçadores.");
     if (habilidades.filter(h => h.status === "em_aquisicao").length > 0) out.push(`${habilidades.filter(h=>h.status==="em_aquisicao").length} habilidade(s) em aquisição — sessões frequentes aumentam velocidade de consolidação.`);
