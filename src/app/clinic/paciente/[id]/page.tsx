@@ -298,25 +298,25 @@ export default function PerfilPacientePage() {
   const radarData = useMemo(() => {
     if (!latest) return [];
     return [
-      { domain: "Comunicação",  value: latest.communication },
-      { domain: "Social",       value: latest.social        },
-      { domain: "Atenção",      value: latest.attention     },
-      { domain: "Regulação",    value: latest.regulation    },
-      { domain: "Autonomia",    value: latest.autonomy      },
-      { domain: "Flexibilidade",value: latest.flexibility   },
-      { domain: "Brincadeira",  value: latest.play          },
-      { domain: "Motivação",    value: latest.motivation    },
+      { domain: "Comunicação",  value: latest?.communication ?? 0 },
+      { domain: "Social",       value: latest?.social        ?? 0 },
+      { domain: "Atenção",      value: latest?.attention     ?? 0 },
+      { domain: "Regulação",    value: latest?.regulation    ?? 0 },
+      { domain: "Autonomia",    value: latest?.autonomy      ?? 0 },
+      { domain: "Flexibilidade",value: latest?.flexibility   ?? 0 },
+      { domain: "Brincadeira",  value: latest?.play          ?? 0 },
+      { domain: "Motivação",    value: latest?.motivation    ?? 0 },
     ];
   }, [latest]);
 
   const evolutionData = useMemo(() => {
     if (!data) return [];
-    return data.radar.map(r => ({
-      date: r.date,
-      Comunicação: r.communication,
-      Atenção:     r.attention,
-      Regulação:   r.regulation,
-      Social:      r.social,
+    return (data.radar ?? []).map(r => ({
+      date: r?.date ?? '',
+      Comunicação: r?.communication ?? 0,
+      Atenção:     r?.attention     ?? 0,
+      Regulação:   r?.regulation    ?? 0,
+      Social:      r?.social        ?? 0,
     }));
   }, [data]);
 
