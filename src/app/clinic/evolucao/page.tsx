@@ -432,7 +432,7 @@ export default function EvolucaoPage() {
                   {/* Mini linha de evolução */}
                   <div style={{ height: 60, minHeight: 60, marginBottom: 12 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={p.radar.map(r => ({ date: r.date, val: Math.round([r.communication,r.social,r.attention,r.regulation,r.autonomy,r.flexibility,r.play,r.motivation].reduce((a,b)=>a+b,0)/8) }))}>
+                      <LineChart data={(p.radar ?? []).map(r => ({ date: r?.date ?? '', val: r ? Math.round([(r.communication??0),(r.social??0),(r.attention??0),(r.regulation??0),(r.autonomy??0),(r.flexibility??0),(r.play??0),(r.motivation??0)].reduce((a,b)=>a+b,0)/8) : 0 }))}>
                         <Line type="monotone" dataKey="val" stroke={p.cor} strokeWidth={2} dot={false} />
                         <Tooltip {...tooltipStyle} formatter={(v: unknown) => [`${Number(v)}%`, "Média"] as [string, string]} />
                       </LineChart>
