@@ -196,18 +196,18 @@ export default function PerfilPacientePage() {
         // Mapear radar
         const radarFormatado: RadarSnapshot[] = (radares ?? []).map((r: any, i: number) => ({
           date: `Semana ${(i + 1) * 4}`,
-          communication: r.score_comunicacao   ?? 50,
-          social:        r.score_social        ?? 50,
-          attention:     r.score_atencao       ?? 50,
-          regulation:    r.score_regulacao     ?? 50,
-          autonomy:      r.score_autonomia     ?? 50,
-          flexibility:   r.score_flexibilidade ?? 50,
-          play:          r.score_brincadeira   ?? 50,
-          motivation:    r.score_motivacao     ?? 50,
+          communication: r.score_comunicacao   ?? 0,
+          social:        r.score_social        ?? 0,
+          attention:     r.score_atencao       ?? 0,
+          regulation:    r.score_regulacao     ?? 0,
+          autonomy:      r.score_autonomia     ?? 0,
+          flexibility:   r.score_flexibilidade ?? 0,
+          play:          r.score_brincadeira   ?? 0,
+          motivation:    r.score_motivacao     ?? 0,
         }));
 
         if (radarFormatado.length === 0) {
-          radarFormatado.push({ date: "Início", communication:50, social:50, attention:50, regulation:50, autonomy:50, flexibility:50, play:50, motivation:50 });
+          // sem radar ainda — não injeta dados falsos
         }
 
         // Mapear programas
