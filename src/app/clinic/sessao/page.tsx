@@ -85,7 +85,7 @@ function getHierarquia(tipo: "motora" | "verbal" | "generica"): HItem[] {
 }
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
-const STAGE_KEYS: StageKey[] = ["warmup_pairing","assent_checklist","clinical_actions","closing_preparation"]
+const STAGE_KEYS: StageKey[] = ["warmup_pairing","assent_checklist","preference_assessment","clinical_actions","break","closing_preparation"]
 
 const STAGES_CFG: Record<StageKey, { label: string; icone: string; cor: string; descricao: string }> = {
   warmup_pairing:        { label: "Vínculo",      icone: "🤝", cor: "#1D9E75", descricao: "Reduza exigências e estabeleça vínculo"    },
@@ -925,6 +925,7 @@ function SessaoInner() {
         {showEncModal && (
           <ModalEncerramento
             segundos={segundos} totalOps={totalOps} taxaGeral={taxaGeral}
+            familiaComunic={familiaComunic} setFamiliaComunic={setFamiliaComunic}
             notaEncerr={notaEncerr} setNotaEncerr={setNotaEncerr}
             salvando={salvandoEnc}
             tipoSessao={tipoSessao}
@@ -1099,8 +1100,9 @@ function SessaoInner() {
                         style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".75rem", fontFamily: "var(--font-sans)", outline: "none", boxSizing: "border-box", marginBottom: 10 }}
                       />
 
-                      {/* Hierarquia de dicas */}
-                      {(() => {
+                      {acao.tipo === "assessment" ? (
+                        <RegistroAvaliacao acao={acao} pacienteId={paciente?.id ?? ""} sessaoId={sessaoDbId ?? ""} terapeutaId={terapeuta?.id ?? ""} />
+                      ) : (() => {
                         const hier = getHierarquia(acao.hierarquiaTipo ?? "generica")
                         return (
                           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1166,6 +1168,7 @@ function SessaoInner() {
         {showEncModal && (
           <ModalEncerramento
             segundos={segundos} totalOps={totalOps} taxaGeral={taxaGeral}
+            familiaComunic={familiaComunic} setFamiliaComunic={setFamiliaComunic}
             notaEncerr={notaEncerr} setNotaEncerr={setNotaEncerr}
             salvando={salvandoEnc}
             tipoSessao={tipoSessao}
@@ -1348,6 +1351,352 @@ ${notaEncerr || "—"}`
     </div>
   )
 }
+// ─── REGISTRO DE AVALIAÇÃO ───────────────────────────────────────────────────
+// Cole este bloco ANTES de "function AvisoTempo" no sessao/page.tsx
+
+function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId }: {
+  acao: Acao; pacienteId: string; sessaoId: string; terapeutaId: string
+}) {
+  const isPref = acao.itemId === "pref_mswo" || acao.itemId === "pref_livre"
+  const isMSWO = acao.itemId === "pref_mswo"
+  const isAF   = acao.itemId === "af_exp"
+  const isMAS  = acao.itemId === "af_mas"
+
+  // Estado Preferências
+  const [itens,         setItens]         = useState<{id:string;nome:string;categoria:string;naturalOcorre:boolean}[]>([])
+  const [novoItem,      setNovoItem]      = useState({nome:"",categoria:"objeto"})
+  const [apresentacoes, setApresentacoes] = useState<{escolhido:string}[]>([])
+  const [salvando,      setSalvando]      = useState(false)
+  const [salvo,         setSalvo]         = useState(false)
+  const [obsGenerico,   setObsGenerico]   = useState("")
+
+  // Estado AF Experimental
+  const [condicaoAtiva,  setCondicaoAtiva]  = useState<"atencao"|"fuga"|"tangivel"|"controle">("atencao")
+  const [registrosAF,    setRegistrosAF]    = useState<{condicao:string;freq:number}[]>([])
+  const [intervaloAtual, setIntervaloAtual] = useState(1)
+
+  // Estado MAS
+  const MAS_PERGUNTAS = [
+    "O comportamento ocorre continuamente, por longos períodos?",
+    "O comportamento ocorre quando você tira um item favorito?",
+    "O comportamento ocorre durante atividades prazerosas?",
+    "O comportamento cessa quando você para a atividade/exigência?",
+    "O comportamento ocorre quando você não está prestando atenção?",
+    "O comportamento ocorre quando a criança está sozinha?",
+    "O comportamento ocorre quando você pede que ela pare?",
+    "O comportamento ocorre mesmo quando a criança está satisfeita?",
+    "O comportamento cessa quando você dá atenção?",
+    "O comportamento ocorre para obter um item específico?",
+    "O comportamento ocorre independentemente do contexto?",
+    "O comportamento ocorre quando exigências são colocadas?",
+    "O comportamento ocorre quando você ignora a criança?",
+    "O comportamento ocorre para conseguir comida/brinquedo?",
+    "O comportamento parece automático ou repetitivo?",
+    "O comportamento cessa quando você remove a exigência?",
+  ]
+  const [respostasMAS, setRespostasMAS] = useState<number[]>(new Array(MAS_PERGUNTAS.length).fill(-1))
+
+  const inp: React.CSSProperties = {
+    padding: "8px 10px", borderRadius: 8,
+    border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)",
+    color: "#e8f0f8", fontSize: ".78rem", fontFamily: "var(--font-sans)",
+    outline: "none", boxSizing: "border-box" as const,
+  }
+
+  function uid2() { return Math.random().toString(36).slice(2,9) }
+
+  function adicionarItem() {
+    if (!novoItem.nome.trim()) return
+    setItens(prev => [...prev, { id: uid2(), nome: novoItem.nome, categoria: novoItem.categoria, naturalOcorre: false }])
+    setNovoItem({ nome: "", categoria: "objeto" })
+  }
+
+  function registrarEscolha(escolhido: string) {
+    setApresentacoes(prev => [...prev, { escolhido }])
+  }
+
+  function calcularRanking() {
+    const pontos: Record<string,number> = {}
+    itens.forEach(it => { pontos[it.id] = 0 })
+    apresentacoes.forEach((ap, idx) => {
+      pontos[ap.escolhido] = (pontos[ap.escolhido] ?? 0) + (itens.length - idx)
+    })
+    return itens
+      .map(it => ({ id: it.id, nome: it.nome, pontos: pontos[it.id] ?? 0, naturalOcorre: it.naturalOcorre }))
+      .sort((a,b) => b.pontos - a.pontos)
+  }
+
+  const densidade = itens.length > 0
+    ? Math.round(itens.filter(it => it.naturalOcorre).length / itens.length * 100)
+    : 0
+
+  async function salvarPreferencias() {
+    if (!pacienteId) return
+    setSalvando(true)
+    const ranking = calcularRanking()
+    const { data: av } = await supabase.from("avaliacoes_clinicas").insert({
+      crianca_id:    pacienteId,
+      sessao_id:     sessaoId || null,
+      terapeuta_id:  terapeutaId,
+      tipo:          isMSWO ? "preferencias_mswo" : "preferencias_livre",
+      resultado_json:{ ranking, densidade, apresentacoes, itens },
+    }).select("id").single()
+    if (av) {
+      for (let i = 0; i < ranking.length; i++) {
+        const item = itens.find(it => it.id === ranking[i].id)
+        if (!item) continue
+        await supabase.from("reforçadores_paciente").insert({
+          crianca_id: pacienteId, avaliacao_id: av.id,
+          nome: item.nome, categoria: item.categoria,
+          ranking: i + 1, ocorre_natural: item.naturalOcorre, ativo: true,
+        })
+      }
+      await supabase.from("variaveis_clinicas").upsert({
+        crianca_id: pacienteId,
+        responsividade_reforco: densidade,
+        atualizado_em: new Date().toISOString(),
+      }, { onConflict: "crianca_id" })
+    }
+    setSalvo(true)
+    setSalvando(false)
+  }
+
+  async function salvarAF() {
+    setSalvando(true)
+    const totais: Record<string,number> = {}
+    registrosAF.forEach(r => { totais[r.condicao] = (totais[r.condicao] ?? 0) + r.freq })
+    const funcao = Object.entries(totais).sort((a,b) => b[1]-a[1])[0]?.[0] ?? "indeterminada"
+    await supabase.from("avaliacoes_clinicas").insert({
+      crianca_id: pacienteId, sessao_id: sessaoId || null,
+      terapeuta_id: terapeutaId, tipo: "af_experimental",
+      resultado_json: { totais, funcao, registros: registrosAF },
+    })
+    setSalvo(true)
+    setSalvando(false)
+  }
+
+  async function salvarMAS() {
+    setSalvando(true)
+    const scores = { atencao: 0, fuga: 0, tangivel: 0, automatico: 0 }
+    const MAP = ["automatico","tangivel","automatico","fuga","atencao","automatico","fuga","automatico","atencao","tangivel","automatico","fuga","atencao","tangivel","automatico","fuga"]
+    respostasMAS.forEach((r, i) => {
+      if (r >= 0) { const fn = MAP[i] as keyof typeof scores; scores[fn] += r }
+    })
+    const funcao = Object.entries(scores).sort((a,b) => b[1]-a[1])[0][0]
+    await supabase.from("avaliacoes_clinicas").insert({
+      crianca_id: pacienteId, sessao_id: sessaoId || null,
+      terapeuta_id: terapeutaId, tipo: "af_mas",
+      resultado_json: { scores, funcao, respostas: respostasMAS },
+    })
+    setSalvo(true)
+    setSalvando(false)
+  }
+
+  async function salvarGenerico() {
+    setSalvando(true)
+    await supabase.from("avaliacoes_clinicas").insert({
+      crianca_id: pacienteId, sessao_id: sessaoId || null,
+      terapeuta_id: terapeutaId, tipo: "vbmapp",
+      resultado_json: { tipo: acao.itemId, observacoes: obsGenerico },
+      observacoes: obsGenerico || null,
+    })
+    setSalvo(true)
+    setSalvando(false)
+  }
+
+  if (salvo) return (
+    <div style={{ padding: "16px", background: "rgba(29,158,117,.08)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 10, textAlign: "center" }}>
+      <div style={{ fontSize: ".85rem", fontWeight: 700, color: "#1D9E75", marginBottom: 4 }}>Avaliação registrada</div>
+      <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.5)" }}>Resultados salvos e repertório atualizado</div>
+    </div>
+  )
+
+  // ── PREFERÊNCIAS ────────────────────────────────────────────────────────────
+  if (isPref) {
+    const ranking = calcularRanking()
+    const disponiveis = isMSWO
+      ? itens.filter(it => !apresentacoes.some(ap => ap.escolhido === it.id))
+      : itens
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".06em" }}>
+          {isMSWO ? "MSWO — Remove o item escolhido a cada rodada" : "Livre escolha — Observação naturalística"}
+        </div>
+
+        {/* Adicionar itens */}
+        <div style={{ padding: "12px 14px", background: "rgba(26,58,92,.2)", borderRadius: 10, border: "1px solid rgba(26,58,92,.4)" }}>
+          <div style={{ fontSize: ".72rem", color: "rgba(170,210,245,.7)", marginBottom: 8 }}>Itens disponíveis</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            <input value={novoItem.nome}
+              onChange={e => setNovoItem(p => ({ ...p, nome: e.target.value }))}
+              onKeyDown={e => { if (e.key === "Enter") adicionarItem() }}
+              placeholder="Nome do item..."
+              style={{ ...inp, flex: 1 }}
+            />
+            <select value={novoItem.categoria}
+              onChange={e => setNovoItem(p => ({ ...p, categoria: e.target.value }))}
+              style={{ ...inp, width: 110 }}>
+              <option value="objeto">Objeto</option>
+              <option value="comida">Comida</option>
+              <option value="atividade">Atividade</option>
+              <option value="social">Social</option>
+              <option value="sensorial">Sensorial</option>
+            </select>
+            <button onClick={adicionarItem}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(29,158,117,.2)", color: "#1D9E75", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" as const }}>
+              + Add
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const }}>
+            {itens.map(it => (
+              <span key={it.id} style={{ fontSize: ".7rem", padding: "3px 10px", borderRadius: 20, background: "rgba(55,138,221,.1)", border: "1px solid rgba(55,138,221,.2)", color: "#378ADD" }}>
+                {it.nome}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Registro de escolhas */}
+        {itens.length >= 2 && disponiveis.length > 0 && (
+          <div style={{ padding: "12px 14px", background: "rgba(26,58,92,.2)", borderRadius: 10, border: "1px solid rgba(139,127,232,.2)" }}>
+            <div style={{ fontSize: ".72rem", color: "#8B7FE8", fontWeight: 600, marginBottom: 10 }}>
+              {isMSWO ? `Rodada ${apresentacoes.length + 1}` : "Registrar escolha"} — qual a criança escolheu?
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+              {disponiveis.map(it => (
+                <button key={it.id} onClick={() => registrarEscolha(it.id)}
+                  style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(139,127,232,.3)", background: "rgba(139,127,232,.1)", color: "#8B7FE8", fontSize: ".78rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  {it.nome}
+                </button>
+              ))}
+            </div>
+            {apresentacoes.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: ".68rem", color: "rgba(160,200,235,.4)" }}>
+                {apresentacoes.length} escolha(s) registrada(s)
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Ranking */}
+        {ranking.length > 0 && apresentacoes.length > 0 && (
+          <div style={{ padding: "12px 14px", background: "rgba(26,58,92,.2)", borderRadius: 10 }}>
+            <div style={{ fontSize: ".72rem", color: "rgba(170,210,245,.7)", marginBottom: 10 }}>Hierarquia de preferência</div>
+            {ranking.map((r, i) => (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 22, height: 22, borderRadius: "50%", background: i === 0 ? "#1D9E75" : i === 1 ? "#EF9F27" : "rgba(26,58,92,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".65rem", fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                  {i+1}
+                </div>
+                <div style={{ flex: 1, fontSize: ".78rem", color: "#e8f0f8" }}>{r.nome}</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: ".65rem", color: "rgba(160,200,235,.4)", cursor: "pointer" }}>
+                  <input type="checkbox" checked={r.naturalOcorre}
+                    onChange={e => setItens(prev => prev.map(it => it.id === r.id ? { ...it, naturalOcorre: e.target.checked } : it))} />
+                  Natural
+                </label>
+              </div>
+            ))}
+            <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)", marginTop: 4 }}>
+              Densidade natural: <strong style={{ color: "#1D9E75" }}>{densidade}%</strong>
+            </div>
+          </div>
+        )}
+
+        <button onClick={salvarPreferencias} disabled={salvando || apresentacoes.length === 0}
+          style={{ padding: "11px", borderRadius: 9, border: "none", background: apresentacoes.length > 0 ? "linear-gradient(135deg,#1D9E75,#0f8f7a)" : "rgba(26,58,92,.4)", color: apresentacoes.length > 0 ? "#07111f" : "rgba(160,200,235,.3)", fontSize: ".82rem", fontWeight: 700, cursor: apresentacoes.length > 0 ? "pointer" : "not-allowed", fontFamily: "var(--font-sans)" }}>
+          {salvando ? "Salvando..." : "Salvar e atualizar repertório"}
+        </button>
+      </div>
+    )
+  }
+
+  // ── AF EXPERIMENTAL ──────────────────────────────────────────────────────────
+  if (isAF) {
+    const COR_AF: Record<string,string>   = { atencao:"#8B7FE8", fuga:"#E05A4B", tangivel:"#EF9F27", controle:"#1D9E75" }
+    const LABEL_AF: Record<string,string> = { atencao:"Atenção", fuga:"Fuga", tangivel:"Tangível", controle:"Controle" }
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".06em" }}>
+          AF Experimental — 4 condições · 10 min cada
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {(["atencao","fuga","tangivel","controle"] as const).map(c => {
+            const total = registrosAF.filter(r => r.condicao === c).reduce((a,r) => a + r.freq, 0)
+            return (
+              <button key={c} onClick={() => setCondicaoAtiva(c)}
+                style={{ flex: 1, padding: "10px 6px", borderRadius: 9, border: `1px solid ${condicaoAtiva === c ? COR_AF[c]+"55" : "rgba(26,58,92,.4)"}`, background: condicaoAtiva === c ? COR_AF[c]+"15" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                <div style={{ fontSize: ".72rem", fontWeight: 700, color: COR_AF[c] }}>{LABEL_AF[c]}</div>
+                <div style={{ fontSize: ".65rem", color: "rgba(160,200,235,.4)", marginTop: 2 }}>{total} ocorrências</div>
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ fontSize: ".72rem", color: "rgba(170,210,245,.7)" }}>Intervalo {intervaloAtual}:</div>
+          <button onClick={() => setRegistrosAF(prev => [...prev, { condicao: condicaoAtiva, freq: 1 }])}
+            style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "rgba(224,90,75,.2)", color: "#E05A4B", fontSize: ".85rem", fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            + 1 ocorrência
+          </button>
+          <button onClick={() => setIntervaloAtual(p => p + 1)}
+            style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "transparent", color: "rgba(160,200,235,.5)", fontSize: ".72rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            Próximo intervalo →
+          </button>
+        </div>
+        <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.35)" }}>
+          {registrosAF.reduce((a,r) => a + r.freq, 0)} ocorrências totais registradas
+        </div>
+        <button onClick={salvarAF} disabled={salvando || registrosAF.length === 0}
+          style={{ padding: "11px", borderRadius: 9, border: "none", background: registrosAF.length > 0 ? "linear-gradient(135deg,#1D9E75,#0f8f7a)" : "rgba(26,58,92,.4)", color: registrosAF.length > 0 ? "#07111f" : "rgba(160,200,235,.3)", fontSize: ".82rem", fontWeight: 700, cursor: registrosAF.length > 0 ? "pointer" : "not-allowed", fontFamily: "var(--font-sans)" }}>
+          {salvando ? "Salvando..." : "Salvar AF e identificar função"}
+        </button>
+      </div>
+    )
+  }
+
+  // ── MAS ───────────────────────────────────────────────────────────────────────
+  if (isMAS) return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".06em" }}>
+        MAS — Motivation Assessment Scale · 16 perguntas · escala 0–6
+      </div>
+      {MAS_PERGUNTAS.map((q, i) => (
+        <div key={i} style={{ padding: "10px 12px", background: "rgba(26,58,92,.2)", borderRadius: 9 }}>
+          <div style={{ fontSize: ".75rem", color: "#e8f0f8", marginBottom: 8 }}>{i+1}. {q}</div>
+          <div style={{ display: "flex", gap: 4 }}>
+            {[0,1,2,3,4,5,6].map(v => (
+              <button key={v} onClick={() => setRespostasMAS(prev => prev.map((r,idx) => idx===i ? v : r))}
+                style={{ flex: 1, padding: "5px", borderRadius: 6, border: `1px solid ${respostasMAS[i]===v ? "#8B7FE855" : "rgba(26,58,92,.4)"}`, background: respostasMAS[i]===v ? "rgba(139,127,232,.2)" : "transparent", color: respostasMAS[i]===v ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".7rem", fontWeight: respostasMAS[i]===v ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      <button onClick={salvarMAS} disabled={salvando || respostasMAS.some(r => r < 0)}
+        style={{ padding: "11px", borderRadius: 9, border: "none", background: !respostasMAS.some(r => r < 0) ? "linear-gradient(135deg,#1D9E75,#0f8f7a)" : "rgba(26,58,92,.4)", color: !respostasMAS.some(r => r < 0) ? "#07111f" : "rgba(160,200,235,.3)", fontSize: ".82rem", fontWeight: 700, cursor: !respostasMAS.some(r => r < 0) ? "pointer" : "not-allowed", fontFamily: "var(--font-sans)" }}>
+        {salvando ? "Salvando..." : "Salvar MAS e identificar função"}
+      </button>
+    </div>
+  )
+
+  // ── GENÉRICO (VB-MAPP, PEAK, ABLLS) ──────────────────────────────────────────
+  return (
+    <div style={{ padding: "14px", background: "rgba(26,58,92,.2)", borderRadius: 10 }}>
+      <div style={{ fontSize: ".78rem", color: "rgba(170,210,245,.7)", marginBottom: 8 }}>{acao.itemNome}</div>
+      <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.4)", lineHeight: 1.6, marginBottom: 12 }}>
+        Protocolo completo em desenvolvimento. Registre observações e conclusões abaixo.
+      </div>
+      <textarea value={obsGenerico} onChange={e => setObsGenerico(e.target.value)}
+        placeholder="Observações, scores, conclusões..." rows={4}
+        style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".75rem", fontFamily: "var(--font-sans)", resize: "none" as const, outline: "none", boxSizing: "border-box" as const }}
+      />
+      <button onClick={salvarGenerico} disabled={salvando}
+        style={{ marginTop: 10, width: "100%", padding: "10px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".82rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+        {salvando ? "Salvando..." : "Registrar avaliação"}
+      </button>
+    </div>
+  )
+}
 
 // ─── COMPONENTES AUXILIARES ──────────────────────────────────────────────────
 
@@ -1376,27 +1725,20 @@ function AvisoTempo({ onContinuar, onEncerrar }: { onContinuar: () => void; onEn
   )
 }
 
-function ModalEncerramento({ segundos, totalOps, taxaGeral, notaEncerr, setNotaEncerr, salvando, tipoSessao, onCancelar, onConfirmar }: {
+function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setFamiliaComunic, notaEncerr, setNotaEncerr, salvando, tipoSessao, onCancelar, onConfirmar }: {
   segundos: number; totalOps: number; taxaGeral: number
+  familiaComunic: boolean|null; setFamiliaComunic: (v: boolean) => void
   notaEncerr: string; setNotaEncerr: (v: string) => void
   salvando: boolean; tipoSessao: TipoSessao
   onCancelar: () => void; onConfirmar: () => void
 }) {
   const card: React.CSSProperties = { background: "rgba(13,32,53,.9)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 14 }
   const ehSupervisao = tipoSessao === "supervisao"
-  const [motivoEncerr, setMotivoEncerr] = useState<string | null>(null)
-  const podeFinalizar = ehSupervisao || motivoEncerr !== null
-
-  const MOTIVOS = [
-    { id: "completa",       label: "Sessão completa",   cor: "#1D9E75", desc: "Todos os programas foram aplicados" },
-    { id: "tempo",          label: "Tempo esgotado",    cor: "#EF9F27", desc: "Tempo contratado encerrou"          },
-    { id: "crianca",        label: "Criança sinalizou", cor: "#378ADD", desc: "A criança pediu encerramento"       },
-    { id: "intercorrencia", label: "Intercorrência",    cor: "#E05A4B", desc: "Evento inesperado na sessão"        },
-  ]
+  const podeFinalizar = ehSupervisao || familiaComunic !== null
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
-      <div style={{ ...card, padding: 28, width: "100%", maxWidth: 480 }}>
+      <div style={{ ...card, padding: 28, width: "100%", maxWidth: 460 }}>
         <div style={{ fontSize: "1rem", fontWeight: 800, color: "#e8f0f8", marginBottom: 4 }}>Encerrar sessão</div>
         <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.5)", marginBottom: 20 }}>
           {fmt(segundos)} · {totalOps} operantes · {taxaGeral}% acerto
@@ -1404,36 +1746,26 @@ function ModalEncerramento({ segundos, totalOps, taxaGeral, notaEncerr, setNotaE
 
         {!ehSupervisao && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: ".75rem", color: "rgba(170,210,245,.7)", marginBottom: 10 }}>Motivo do encerramento</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {MOTIVOS.map(m => (
-                <button key={m.id} onClick={() => setMotivoEncerr(m.id)}
-                  style={{ padding: "10px 12px", borderRadius: 9, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" as const, border: `1px solid ${motivoEncerr === m.id ? m.cor + "55" : "rgba(26,58,92,.5)"}`, background: motivoEncerr === m.id ? m.cor + "18" : "transparent" }}>
-                  <div style={{ fontSize: ".78rem", fontWeight: 600, color: motivoEncerr === m.id ? m.cor : "#e8f0f8", marginBottom: 2 }}>{m.label}</div>
-                  <div style={{ fontSize: ".65rem", color: "rgba(160,200,235,.4)" }}>{m.desc}</div>
+            <div style={{ fontSize: ".75rem", color: "rgba(170,210,245,.7)", marginBottom: 10 }}>A família foi comunicada sobre a sessão?</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[{ v: true, l: "Sim, comunicada", c: "#1D9E75" }, { v: false, l: "Não comunicada", c: "#E05A4B" }].map(r => (
+                <button key={String(r.v)} onClick={() => setFamiliaComunic(r.v)}
+                  style={{ flex: 1, padding: "10px", borderRadius: 9, cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".78rem", border: `1px solid ${familiaComunic === r.v ? r.c : "rgba(26,58,92,.5)"}`, background: familiaComunic === r.v ? `${r.c}18` : "transparent", color: familiaComunic === r.v ? r.c : "rgba(160,200,235,.5)" }}>
+                  {r.l}
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {!ehSupervisao && (
-          <div style={{ marginBottom: 16, padding: "10px 14px", background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 9 }}>
-            <div style={{ fontSize: ".72rem", color: "#1D9E75", fontWeight: 600, marginBottom: 2 }}>Notificação automática</div>
-            <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)", lineHeight: 1.5 }}>
-              A família receberá um resumo da sessão automaticamente pelo FractaCare ao encerrar.
-            </div>
-          </div>
-        )}
-
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: ".75rem", color: "rgba(170,210,245,.7)", marginBottom: 6 }}>
-            {ehSupervisao ? "Observações finais" : "Observação clínica (opcional)"}
+            {ehSupervisao ? "Encaminhamentos e observações finais" : "Observação de encerramento (opcional)"}
           </div>
           <textarea value={notaEncerr} onChange={e => setNotaEncerr(e.target.value)}
             placeholder={ehSupervisao ? "Resumo da supervisão, pontos principais discutidos..." : "Comportamentos relevantes, intercorrências, próximos passos..."}
             rows={3}
-            style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".78rem", fontFamily: "var(--font-sans)", resize: "none" as const, outline: "none", boxSizing: "border-box" as const }}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".78rem", fontFamily: "var(--font-sans)", resize: "none", outline: "none", boxSizing: "border-box" }}
           />
         </div>
 
@@ -1450,6 +1782,7 @@ function ModalEncerramento({ segundos, totalOps, taxaGeral, notaEncerr, setNotaE
     </div>
   )
 }
+
 function Biblioteca({ itens, tab, setTab, busca, setBusca, onAdd, onFechar }: {
   itens: LibItem[]; tab: string; setTab: (t: any) => void
   busca: string; setBusca: (v: string) => void
