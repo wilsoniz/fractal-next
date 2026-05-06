@@ -364,6 +364,28 @@ function SessaoInner() {
   // ── Iniciar sessão ──────────────────────────────────────────────────────────
   async function iniciarSessao() {
     if (!paciente || !terapeuta) return
+
+    // Validação de horário — verifica se existe agendamento para hoje ±30min
+    if (!agendaId) {
+      const agora       = new Date()
+      const trintaMin   = 30 * 60 * 1000
+      const inicioJan   = new Date(agora.getTime() - trintaMin).toISOString()
+      const fimJan      = new Date(agora.getTime() + trintaMin).toISOString()
+      const { data: eventosHoje } = await supabase
+        .from("agenda_eventos")
+        .select("id, data_hora, status")
+        .eq("crianca_id", paciente.id)
+        .gte("data_hora", inicioJan)
+        .lte("data_hora", fimJan)
+        .neq("status", "cancelado")
+        .neq("status", "realizado")
+      if (!eventosHoje || eventosHoje.length === 0) {
+        const confirmar = window.confirm(
+          `Não há agendamento para ${paciente.nome} nos próximos 30 minutos.\n\nDeseja iniciar uma sessão avulsa mesmo assim?`
+        )
+        if (!confirmar) return
+      }
+    }
     const { data } = await supabase.from("sessoes_v2").insert({
       crianca_id:           paciente.id,
       terapeuta_id:         terapeuta.id,
