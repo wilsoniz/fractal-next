@@ -1,11 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useClinicContext } from '../layout'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type TabTerapeuta  = 'minha-supervisao' | 'buscar-supervisor' | 'historico'
-type TabSupervisor = 'painel' | 'minha-equipe' | 'inbox' | 'historico-ministrado'
+type TabSupervisor = 'painel' | 'minha-equipe' | 'inbox' | 'historico-ministrado' | 'sessao'
 
 interface CasoRecebendo {
   id: string
@@ -698,6 +698,280 @@ function HistoricoMinistradoTab({ supervisorId }: { supervisorId: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SESSÃO DE SUPERVISÃO
+// ═══════════════════════════════════════════════════════════════════════════════
+function SessaoSupevisaoTab({ supervisorId, supervisorNome }: { supervisorId: string; supervisorNome: string }) {
+  const [fase,            setFase]            = useState<'preparacao'|'ativa'|'encerrada'>('preparacao')
+  const [sessaoDbId,      setSessaoDbId]      = useState<string|null>(null)
+  const [segundos,        setSegundos]        = useState(0)
+  const [emPausa,         setEmPausa]         = useState(false)
+  const [casosPauta,      setCasosPauta]      = useState<{id:string;nome:string}[]>([])
+  const [pacientes,       setPacientes]       = useState<{id:string;nome:string}[]>([])
+  const [encaminhamentos, setEncaminhamentos] = useState<{id:string;casoNome:string;acao:string;prioridade:'alta'|'media'|'baixa'}[]>([])
+  const [novoEnc,         setNovoEnc]         = useState({casoNome:'',acao:'',prioridade:'media' as 'alta'|'media'|'baixa'})
+  const [assinaturaSup,   setAssinaturaSup]   = useState(false)
+  const [assinaturaSupv,  setAssinaturaSupv]  = useState(false)
+  const [notaSupervisao,  setNotaSupervisao]  = useState('')
+  const [salvando,        setSalvando]        = useState(false)
+  const [supervisionadoId, setSupervisionadoId] = useState('')
+  const [terapeutas,      setTerapeutas]      = useState<{id:string;nome:string}[]>([])
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const DURACAO_MIN = 60
+
+  // Carrega terapeutas da equipe e pacientes
+  useEffect(() => {
+    async function carregar() {
+      const { data: reqs } = await supabase
+        .from('supervisor_requests')
+        .select('terapeuta_id')
+        .eq('supervisor_id', supervisorId)
+        .eq('status', 'em_andamento')
+      if (!reqs || reqs.length === 0) return
+      const ids = [...new Set(reqs.map((r:any) => r.terapeuta_id))]
+      const { data: perfis } = await supabase.from('profiles').select('id, nome').in('id', ids)
+      setTerapeutas((perfis ?? []).map((p:any) => ({ id: p.id, nome: p.nome ?? '—' })))
+
+      const { data: criancas } = await supabase
+        .from('criancas')
+        .select('id, nome')
+        .in('responsavel_id', ids)
+      setPacientes((criancas ?? []).map((c:any) => ({ id: c.id, nome: c.nome })))
+    }
+    carregar()
+  }, [supervisorId])
+
+  // Timer
+  useEffect(() => {
+    if (fase !== 'ativa' || emPausa) return
+    timerRef.current = setInterval(() => setSegundos(s => s + 1), 1000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [fase, emPausa])
+
+  function fmt(s: number) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}` }
+  function uid() { return Math.random().toString(36).slice(2,9) }
+
+  async function iniciarSessao() {
+    if (!supervisionadoId) return
+    const { data } = await supabase.from('sessoes_v2').insert({
+      terapeuta_id:           supervisorId,
+      supervisionado_id:      supervisionadoId,
+      status:                 'ativa',
+      inicio:                 new Date().toISOString(),
+      tipo:                   'supervisao',
+      duracao_contratada_min: DURACAO_MIN,
+      concluida:              false,
+    }).select('id').single()
+    if (data) setSessaoDbId(data.id)
+    setFase('ativa')
+  }
+
+  async function encerrarSessao() {
+    if (!sessaoDbId) return
+    setSalvando(true)
+    const duracaoReal = Math.floor(segundos / 60)
+    await supabase.from('sessoes_v2').update({
+      status:                     'finalizada',
+      fim:                        new Date().toISOString(),
+      duracao_segundos:           segundos,
+      concluida:                  true,
+      acrescimo_min:              Math.max(0, duracaoReal - DURACAO_MIN),
+      encaminhamentos:            encaminhamentos,
+      assinatura_supervisor:      assinaturaSup,
+      assinatura_supervisionado:  assinaturaSupv,
+      horas_supervisao_validas:   assinaturaSup && assinaturaSupv,
+      observacao_geral:           notaSupervisao || null,
+    }).eq('id', sessaoDbId)
+    setSalvando(false)
+    setFase('encerrada')
+  }
+
+  const card: React.CSSProperties = { background: 'rgba(13,32,53,.75)', border: '1px solid rgba(139,127,232,.2)', borderRadius: 12, padding: 18 }
+  const inp:  React.CSSProperties = { width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(26,58,92,.5)', background: 'rgba(13,32,53,.6)', color: '#e8f0f8', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', boxSizing: 'border-box' as const }
+
+  if (fase === 'encerrada') return (
+    <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ ...card, textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
+        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#e8f0f8', marginBottom: 4 }}>Supervisão encerrada</div>
+        <div style={{ fontSize: '.8rem', color: 'rgba(160,200,235,.5)' }}>{fmt(segundos)} · {encaminhamentos.length} encaminhamentos</div>
+        {assinaturaSup && assinaturaSupv && (
+          <div style={{ marginTop: 12, fontSize: '.75rem', color: '#1D9E75', fontWeight: 600 }}>
+            Sessão validada — horas registradas para certificação
+          </div>
+        )}
+      </div>
+      {encaminhamentos.length > 0 && (
+        <div style={card}>
+          <div style={{ fontSize: '.78rem', fontWeight: 700, color: '#8B7FE8', marginBottom: 12 }}>Encaminhamentos registrados</div>
+          {encaminhamentos.map(enc => {
+            const cor = enc.prioridade === 'alta' ? '#E05A4B' : enc.prioridade === 'media' ? '#EF9F27' : '#1D9E75'
+            return (
+              <div key={enc.id} style={{ display: 'flex', gap: 10, padding: '8px 12px', background: 'rgba(26,58,92,.2)', borderRadius: 8, marginBottom: 6, border: `1px solid ${cor}22` }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: cor, flexShrink: 0, marginTop: 5 }} />
+                <div>
+                  {enc.casoNome && <div style={{ fontSize: '.7rem', color: '#8B7FE8', fontWeight: 600 }}>{enc.casoNome}</div>}
+                  <div style={{ fontSize: '.78rem', color: '#e8f0f8' }}>{enc.acao}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <button onClick={() => { setFase('preparacao'); setSessaoDbId(null); setSegundos(0); setEncaminhamentos([]); setAssinaturaSup(false); setAssinaturaSupv(false); setNotaSupervisao(''); setCasosPauta([]) }}
+        style={{ padding: '11px', borderRadius: 9, border: '1px solid rgba(139,127,232,.3)', background: 'transparent', color: '#8B7FE8', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+        Nova supervisão
+      </button>
+    </div>
+  )
+
+  if (fase === 'preparacao') return (
+    <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 520 }}>
+      <div style={card}>
+        <div style={{ fontSize: '.78rem', fontWeight: 700, color: '#8B7FE8', marginBottom: 14 }}>Iniciar sessão de supervisão</div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: '.65rem', color: 'rgba(170,210,245,.5)', textTransform: 'uppercase' as const, letterSpacing: '.08em', display: 'block', marginBottom: 6 }}>Supervisionado</label>
+          <select value={supervisionadoId} onChange={e => setSupervisionadoId(e.target.value)} style={inp}>
+            <option value="">Selecionar terapeuta...</option>
+            {terapeutas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: '.65rem', color: 'rgba(170,210,245,.5)', textTransform: 'uppercase' as const, letterSpacing: '.08em', display: 'block', marginBottom: 6 }}>Casos em pauta (opcional)</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+            {pacientes.map(p => {
+              const selecionado = casosPauta.find(c => c.id === p.id)
+              return (
+                <button key={p.id} onClick={() => setCasosPauta(prev => selecionado ? prev.filter(c => c.id !== p.id) : [...prev, p])}
+                  style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${selecionado ? '#8B7FE855' : 'rgba(26,58,92,.4)'}`, background: selecionado ? 'rgba(139,127,232,.15)' : 'transparent', color: selecionado ? '#8B7FE8' : 'rgba(160,200,235,.4)', fontSize: '.72rem', fontWeight: selecionado ? 700 : 400, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+                  {p.nome}
+                </button>
+              )
+            })}
+            {pacientes.length === 0 && <div style={{ fontSize: '.72rem', color: 'rgba(160,200,235,.3)' }}>Nenhum paciente vinculado à equipe</div>}
+          </div>
+        </div>
+        <div style={{ padding: '10px 14px', background: 'rgba(139,127,232,.06)', border: '1px solid rgba(139,127,232,.2)', borderRadius: 9, marginBottom: 16, fontSize: '.75rem', color: 'rgba(160,200,235,.6)', lineHeight: 1.6 }}>
+          A sessão será registrada com assinatura digital e contará para o histórico de horas de supervisão válidas para certificação BACB/ABPMC.
+        </div>
+        <button onClick={iniciarSessao} disabled={!supervisionadoId}
+          style={{ width: '100%', padding: '12px', borderRadius: 9, border: 'none', background: supervisionadoId ? 'linear-gradient(135deg,#8B7FE8,#6c60d4)' : 'rgba(26,58,92,.4)', color: supervisionadoId ? '#fff' : 'rgba(160,200,235,.3)', fontSize: 13, fontWeight: 700, cursor: supervisionadoId ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-sans)' }}>
+          Iniciar supervisão →
+        </button>
+      </div>
+    </div>
+  )
+
+  // FASE ATIVA
+  return (
+    <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+      {/* Topbar da sessão */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', background: 'rgba(139,127,232,.08)', border: '1px solid rgba(139,127,232,.25)', borderRadius: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '.72rem', color: '#8B7FE8', fontWeight: 700 }}>Supervisão em andamento</div>
+          <div style={{ fontSize: '.65rem', color: 'rgba(160,200,235,.4)', marginTop: 2 }}>
+            {terapeutas.find(t => t.id === supervisionadoId)?.nome ?? '—'}
+            {casosPauta.length > 0 && ` · ${casosPauta.map(c => c.nome).join(', ')}`}
+          </div>
+        </div>
+        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: emPausa ? '#EF9F27' : '#8B7FE8', fontFamily: 'monospace' }}>{fmt(segundos)}</div>
+        <button onClick={() => setEmPausa(!emPausa)}
+          style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid rgba(239,159,39,.3)', background: 'rgba(239,159,39,.08)', color: '#EF9F27', fontSize: '.72rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+          {emPausa ? '▶' : '⏸'}
+        </button>
+      </div>
+
+      {/* Encaminhamentos */}
+      <div style={card}>
+        <div style={{ fontSize: '.78rem', fontWeight: 700, color: '#8B7FE8', marginBottom: 14 }}>Encaminhamentos clínicos</div>
+        {encaminhamentos.length === 0 && (
+          <div style={{ fontSize: '.72rem', color: 'rgba(160,200,235,.3)', textAlign: 'center', padding: '12px 0', marginBottom: 10 }}>Nenhum encaminhamento registrado ainda</div>
+        )}
+        {encaminhamentos.map(enc => {
+          const cor = enc.prioridade === 'alta' ? '#E05A4B' : enc.prioridade === 'media' ? '#EF9F27' : '#1D9E75'
+          return (
+            <div key={enc.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: 'rgba(26,58,92,.2)', borderRadius: 9, marginBottom: 6, border: `1px solid ${cor}22` }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: cor, flexShrink: 0, marginTop: 5 }} />
+              <div style={{ flex: 1 }}>
+                {enc.casoNome && <div style={{ fontSize: '.7rem', color: '#8B7FE8', fontWeight: 600, marginBottom: 2 }}>{enc.casoNome}</div>}
+                <div style={{ fontSize: '.78rem', color: '#e8f0f8' }}>{enc.acao}</div>
+              </div>
+              <button onClick={() => setEncaminhamentos(prev => prev.filter(e => e.id !== enc.id))}
+                style={{ background: 'none', border: 'none', color: 'rgba(224,90,75,.5)', cursor: 'pointer', fontSize: '.8rem' }}>×</button>
+            </div>
+          )
+        })}
+        <div style={{ border: '1px solid rgba(139,127,232,.2)', borderRadius: 10, padding: 14, background: 'rgba(139,127,232,.04)' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <select value={novoEnc.casoNome} onChange={e => setNovoEnc(p => ({ ...p, casoNome: e.target.value }))}
+              style={{ flex: 1, ...inp }}>
+              <option value="">Caso (opcional)</option>
+              {casosPauta.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+            </select>
+            <select value={novoEnc.prioridade} onChange={e => setNovoEnc(p => ({ ...p, prioridade: e.target.value as any }))}
+              style={{ width: 100, ...inp }}>
+              <option value="alta">Alta</option>
+              <option value="media">Média</option>
+              <option value="baixa">Baixa</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input value={novoEnc.acao} onChange={e => setNovoEnc(p => ({ ...p, acao: e.target.value }))}
+              placeholder="Ação: revisar critério, ajustar hierarquia de dicas..."
+              style={{ flex: 1, ...inp }} />
+            <button onClick={() => {
+              if (!novoEnc.acao.trim()) return
+              setEncaminhamentos(prev => [...prev, { id: uid(), casoNome: novoEnc.casoNome, acao: novoEnc.acao, prioridade: novoEnc.prioridade }])
+              setNovoEnc({ casoNome: '', acao: '', prioridade: 'media' })
+            }} style={{ padding: '9px 14px', borderRadius: 7, border: 'none', background: 'rgba(139,127,232,.2)', color: '#8B7FE8', fontSize: '.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+              + Add
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Observações */}
+      <div style={card}>
+        <div style={{ fontSize: '.78rem', fontWeight: 700, color: '#8B7FE8', marginBottom: 10 }}>Observações da supervisão</div>
+        <textarea value={notaSupervisao} onChange={e => setNotaSupervisao(e.target.value)}
+          placeholder="Pontos discutidos, decisões tomadas, próximos passos..."
+          rows={4}
+          style={{ ...inp, resize: 'none' as const }} />
+      </div>
+
+      {/* Assinaturas */}
+      <div style={card}>
+        <div style={{ fontSize: '.78rem', fontWeight: 700, color: '#8B7FE8', marginBottom: 10 }}>Assinaturas digitais</div>
+        <div style={{ fontSize: '.72rem', color: 'rgba(160,200,235,.5)', marginBottom: 14, lineHeight: 1.6 }}>
+          Ambas as assinaturas validam esta sessão para fins de certificação BACB/ABPMC.
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: assinaturaSup && assinaturaSupv ? 12 : 0 }}>
+          {[
+            { label: 'Supervisor', state: assinaturaSup, set: setAssinaturaSup },
+            { label: 'Supervisionado', state: assinaturaSupv, set: setAssinaturaSupv },
+          ].map(a => (
+            <button key={a.label} onClick={() => a.set(!a.state)}
+              style={{ flex: 1, padding: '12px', borderRadius: 10, border: `1px solid ${a.state ? 'rgba(29,158,117,.4)' : 'rgba(139,127,232,.3)'}`, background: a.state ? 'rgba(29,158,117,.1)' : 'rgba(139,127,232,.06)', color: a.state ? '#1D9E75' : '#8B7FE8', fontSize: '.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+              {a.state ? `✓ ${a.label} assinou` : `Assinar como ${a.label}`}
+            </button>
+          ))}
+        </div>
+        {assinaturaSup && assinaturaSupv && (
+          <div style={{ padding: '8px 12px', background: 'rgba(29,158,117,.08)', border: '1px solid rgba(29,158,117,.2)', borderRadius: 8, fontSize: '.72rem', color: '#1D9E75' }}>
+            Sessão validada — {fmt(segundos)} de supervisão serão registrados no histórico de certificação.
+          </div>
+        )}
+      </div>
+
+      <button onClick={encerrarSessao} disabled={salvando}
+        style={{ padding: '13px', borderRadius: 10, border: 'none', background: salvando ? 'rgba(139,127,232,.4)' : 'linear-gradient(135deg,#8B7FE8,#6c60d4)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: salvando ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)' }}>
+        {salvando ? 'Encerrando...' : 'Encerrar supervisão →'}
+      </button>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function SupervisaoPage() {
@@ -716,6 +990,22 @@ export default function SupervisaoPage() {
   const [tabS,       setTabS]       = useState<TabSupervisor>('painel')
   const [requests,   setRequests]   = useState<RequestInbox[]>([])
   const [loadingReq, setLoadingReq] = useState(true)
+
+  // Estado sessão de supervisão
+  const [sessaoAtiva,      setSessaoAtiva]      = useState(false)
+  const [sessaoDbId,       setSessaoDbId]       = useState<string|null>(null)
+  const [sessaoSegundos,   setSessaoSegundos]   = useState(0)
+  const [sessaoEmPausa,    setSessaoEmPausa]    = useState(false)
+  const [casosPauta,       setCasosPauta]       = useState<{id:string;nome:string}[]>([])
+  const [encaminhamentos,  setEncaminhamentos]  = useState<{id:string;casoNome:string;acao:string;prioridade:'alta'|'media'|'baixa'}[]>([])
+  const [novoEnc,          setNovoEnc]          = useState({casoNome:'',acao:'',prioridade:'media' as 'alta'|'media'|'baixa'})
+  const [assinaturaSup,    setAssinaturaSup]    = useState(false)
+  const [assinaturaSupv,   setAssinaturaSupv]   = useState(false)
+  const [notaSupervisao,   setNotaSupervisao]   = useState('')
+  const [salvandoSessao,   setSalvandoSessao]   = useState(false)
+  const [pacientes,        setPacientes]        = useState<{id:string;nome:string}[]>([])
+  const sessaoTimerRef = useRef<ReturnType<typeof setInterval>|null>(null)
+  const duracaoSupMin = 60
 
   // ── Carregar dados modo terapeuta ────────────────────────────────────────
   useEffect(() => {
@@ -867,6 +1157,7 @@ export default function SupervisaoPage() {
             tabs={[
               { id: 'painel',              label: 'Painel',       badge: requests.filter(r => r.status === 'pendente').length },
               { id: 'minha-equipe',        label: 'Minha Equipe'  },
+              { id: 'sessao',              label: 'Nova Supervisão'},
               { id: 'historico-ministrado',label: 'Histórico'     },
             ]}
             active={tabS}
@@ -875,6 +1166,12 @@ export default function SupervisaoPage() {
           {tabS === 'painel'               && <PainelSupervisorTab   requests={requests} loading={loadingReq} onAcao={handleAcaoRequest} />}
           {tabS === 'minha-equipe'         && <MinhaEquipeTab         supervisorId={terapeuta?.id ?? ''} nivel={nivel} />}
           {tabS === 'historico-ministrado' && <HistoricoMinistradoTab supervisorId={terapeuta?.id ?? ''} />}
+          {tabS === 'sessao'               && (
+            <SessaoSupevisaoTab
+              supervisorId={terapeuta?.id ?? ''}
+              supervisorNome={terapeuta?.nome ?? ''}
+            />
+          )}
         </>
       )}
 
