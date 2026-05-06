@@ -293,7 +293,7 @@ export default function PerfilPacientePage() {
     setSalvandoComp(false);
   }
 
-  const latest = data?.radar[data.radar.length - 1];
+  const latest = data?.radar && data.radar.length > 0 ? data.radar[data.radar.length - 1] : undefined;
 
   const radarData = useMemo(() => {
     if (!latest) return [];
