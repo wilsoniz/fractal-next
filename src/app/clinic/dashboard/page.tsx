@@ -132,7 +132,7 @@ export default function ClinicDashboard() {
             .map((pl, i) => {
               const prog = pl.programas as any
               const cri  = pl.criancas  as any
-              const domPct = pl.score_atual ?? 50
+              const domPct = pl.score_atual ?? 0
               const st = pl.status === 'pausado' ? 'pausado'
                 : domPct < 55 ? 'revisar' : 'ativo'
               return {
@@ -182,7 +182,7 @@ export default function ClinicDashboard() {
               ].filter(Boolean) : []
               const pct = scores.length > 0
                 ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length)
-                : 50
+                : 0
 
               // Domínios mais baixos como foco
               const dominioNomes: Record<string, string> = {
@@ -253,7 +253,7 @@ export default function ClinicDashboard() {
             const prog = pl.programas as any
             const cri  = pl.criancas  as any
             if (!prog || !cri) continue
-            const score = pl.score_atual ?? 50
+            const score = pl.score_atual ?? 0
             const nome  = cri.nome.split(' ')[0]
             if (score < 50) {
               als.push({
