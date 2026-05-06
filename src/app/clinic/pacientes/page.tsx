@@ -15,6 +15,7 @@ interface Paciente {
   idade: number;
   diagnostico: string;
   taxaGeral: number;
+  avaliado: boolean;
   sessoesMes: number;
   programasAtivos: number;
   dominios: string[];
@@ -68,7 +69,6 @@ function ultimaSessaoLabel(data: string | null) {
 // ─── COMPONENTE ───────────────────────────────────────────────────────────────
 export default function PacientesPage() {
   const { terapeuta } = useClinicContext();
-  const nivel = terapeuta?.nivel ?? "coordenador";
   const [busca,     setBusca]     = useState("");
   const [filtro,    setFiltro]    = useState<FiltroAtivo>("todos");
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
@@ -78,20 +78,20 @@ export default function PacientesPage() {
   const [salvando,      setSalvando]      = useState(false);
   const [codigoConvite, setCodigoConvite] = useState('');
   const [msgVinculo,    setMsgVinculo]    = useState('');
-  const [vinculando,    setVinculando]    = useState(false);  
-  const [msgFFS,    setMsgFFS]    = useState('');
-  const [novoNome,  setNovoNome]  = useState('');
-  const [novoIdade, setNovoIdade] = useState('');
-  const [novoDiag,  setNovoDiag]  = useState('');
-  const [novoResp,  setNovoResp]  = useState('');
-  const [novoEmail, setNovoEmail] = useState('');
+  const [vinculando,    setVinculando]    = useState(false);
+  const [msgFFS,        setMsgFFS]        = useState('');
+  const [novoNome,      setNovoNome]      = useState('');
+  const [novoNasc,      setNovoNasc]      = useState('');
+  const [novoGenero,    setNovoGenero]    = useState('');
+  const [novoDiag,      setNovoDiag]      = useState('');
+  const [novoResp,      setNovoResp]      = useState('');
+  const [novoEmail,     setNovoEmail]     = useState('');
 
   useEffect(() => {
     if (!terapeuta) return;
     async function carregar() {
       setLoading(true);
       try {
-        // 1. Planos do terapeuta com criança e programa
         const { data: planos } = await supabase
           .from("planos")
           .select(`
@@ -108,7 +108,6 @@ export default function PacientesPage() {
           return;
         }
 
-        // Agrupar planos por criança
         const criancaMap = new Map<string, { crianca: any; planos: any[] }>();
         for (const pl of planos) {
           const c = pl.criancas as any;
@@ -119,7 +118,6 @@ export default function PacientesPage() {
 
         const criancaIds = Array.from(criancaMap.keys());
 
-        // 2. Radar mais recente de cada criança
         const { data: radares } = await supabase
           .from("radar_snapshots")
           .select("crianca_id, score_comunicacao, score_social, score_atencao, score_regulacao, score_brincadeira, score_flexibilidade, score_autonomia, score_motivacao, criado_em")
@@ -131,7 +129,6 @@ export default function PacientesPage() {
           if (!radarMap.has(r.crianca_id)) radarMap.set(r.crianca_id, r);
         }
 
-        // 3. Última sessão clínica de cada criança
         const { data: sessoes } = await supabase
           .from("sessoes_clinicas")
           .select("crianca_id, criado_em, concluida")
@@ -145,18 +142,16 @@ export default function PacientesPage() {
           }
         }
 
-        // 4. Montar pacientes
         const result: Paciente[] = Array.from(criancaMap.values()).map(({ crianca, planos: cPlanos }, i) => {
           const radar  = radarMap.get(crianca.id);
           const ultima = ultimaSessaoMap.get(crianca.id) ?? null;
+          const avaliado = !!radar;
 
-          // Score geral médio
           const scores = radar ? RADAR_KEYS.map(k => radar[k.key]).filter(Boolean) : [];
           const taxaGeral = scores.length > 0
             ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length)
             : 0;
 
-          // Domínios prioritários (mais baixos)
           const dominiosFoco = radar
             ? Object.entries(DOMINIO_LABELS)
                 .map(([k, v]) => ({ nome: v, val: radar[`score_${k}`] ?? 100 }))
@@ -165,7 +160,6 @@ export default function PacientesPage() {
                 .map(d => d.nome)
             : [];
 
-          // Alertas automáticos
           const alertas: { nivel: "high" | "medium" | "low"; texto: string }[] = [];
           for (const pl of cPlanos) {
             const score = pl.score_atual ?? 0;
@@ -178,12 +172,10 @@ export default function PacientesPage() {
             }
           }
 
-          // Status
           const temAlertaHigh = alertas.some(a => a.nivel === "high");
           const pausado       = cPlanos.every(pl => pl.status === "pausado");
           const status: StatusPaciente = pausado ? "pausado" : temAlertaHigh ? "alerta" : "ativo";
 
-          // Sessões no mês
           const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0,0,0,0);
           const sessoesMes = (sessoes ?? []).filter(s =>
             s.crianca_id === crianca.id && new Date(s.criado_em) >= inicioMes
@@ -197,6 +189,7 @@ export default function PacientesPage() {
             idade:           crianca.data_nascimento ? idadeAnos(crianca.data_nascimento) : 0,
             diagnostico:     crianca.diagnostico ?? "Não informado",
             taxaGeral,
+            avaliado,
             sessoesMes,
             programasAtivos: cPlanos.filter(pl => pl.status === "ativo").length,
             dominios:        dominiosFoco,
@@ -241,6 +234,13 @@ export default function PacientesPage() {
     pausados: pacientes.filter(p => p.status === "pausado").length,
   }), [pacientes]);
 
+  const fecharFFS = () => {
+    setModalFFS(false);
+    setMsgFFS('');
+    setNovoNome(''); setNovoNasc(''); setNovoGenero('');
+    setNovoDiag(''); setNovoResp(''); setNovoEmail('');
+  };
+
   const card: React.CSSProperties = {
     background: "rgba(13,32,53,.75)",
     border: "1px solid rgba(70,120,180,.5)",
@@ -258,6 +258,7 @@ export default function PacientesPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
       {/* ── HEADER ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
@@ -267,10 +268,16 @@ export default function PacientesPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setModalVinculo(true)} style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid rgba(55,138,221,0.4)", background: "rgba(55,138,221,0.08)", color: "#378ADD", fontWeight: 600, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          <button
+            onClick={() => setModalVinculo(true)}
+            style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid rgba(55,138,221,0.4)", background: "rgba(55,138,221,0.08)", color: "#378ADD", fontWeight: 600, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}
+          >
             Vincular por código
           </button>
-          <button onClick={() => setModalFFS(true)} style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          <button
+            onClick={() => setModalFFS(true)}
+            style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}
+          >
             + Novo paciente
           </button>
         </div>
@@ -303,7 +310,9 @@ export default function PacientesPage() {
           placeholder="Buscar por nome, diagnóstico ou domínio..."
           style={{ width: "100%", padding: "11px 16px 11px 38px", borderRadius: 10, border: "1px solid rgba(70,120,180,.3)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".82rem", fontFamily: "var(--font-sans)", boxSizing: "border-box", outline: "none" }}
         />
-        <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: .4 }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e8f0f8" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: .4 }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e8f0f8" strokeWidth="2" strokeLinecap="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
       </div>
 
       {/* ── LISTA ── */}
@@ -311,7 +320,7 @@ export default function PacientesPage() {
         <div style={{ ...card, padding: "48px 24px", textAlign: "center" }}>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,.3)" }}>
             {pacientes.length === 0
-              ? "Nenhum paciente vinculado ainda. Vincule-os pela tabela de planos no Supabase."
+              ? "Nenhum paciente cadastrado ainda. Cadastre um novo paciente para começar."
               : "Nenhum paciente encontrado para esse filtro."}
           </div>
         </div>
@@ -319,7 +328,8 @@ export default function PacientesPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {pacientesFiltrados.map(p => (
             <Link key={p.id} href={`/clinic/paciente/${p.id}`} style={{ textDecoration: "none" }}>
-              <div style={{ ...card, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s" }}
+              <div
+                style={{ ...card, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s" }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(55,138,221,.5)")}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(70,120,180,.5)")}
               >
@@ -332,8 +342,9 @@ export default function PacientesPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
                       <span style={{ fontSize: ".9rem", fontWeight: 700, color: "#e8f0f8" }}>{p.nome}</span>
-                      <span style={{ fontSize: ".7rem", color: "rgba(138,168,200,.5)" }}>{p.idade} anos · {p.diagnostico}</span>
-                      {/* Status badge */}
+                      <span style={{ fontSize: ".7rem", color: "rgba(138,168,200,.5)" }}>
+                        {p.idade > 0 ? `${p.idade} anos · ` : ''}{p.diagnostico}
+                      </span>
                       <span style={{
                         fontSize: ".65rem", fontWeight: 700, padding: "2px 8px", borderRadius: 6,
                         background: p.status === "alerta" ? "rgba(224,90,75,.15)" : p.status === "pausado" ? "rgba(239,159,39,.12)" : "rgba(29,158,117,.12)",
@@ -342,9 +353,13 @@ export default function PacientesPage() {
                       }}>
                         {p.status === "alerta" ? "Atenção" : p.status === "pausado" ? "Pausado" : "Ativo"}
                       </span>
+                      {!p.avaliado && (
+                        <span style={{ fontSize: ".65rem", fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: "rgba(139,127,232,.12)", color: "#8B7FE8", border: "1px solid rgba(139,127,232,.25)" }}>
+                          Aguardando avaliação
+                        </span>
+                      )}
                     </div>
 
-                    {/* Domínios */}
                     {p.dominios.length > 0 && (
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
                         {p.dominios.map(d => (
@@ -353,7 +368,6 @@ export default function PacientesPage() {
                       </div>
                     )}
 
-                    {/* Alertas */}
                     {p.alertas.slice(0, 2).map((a, i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                         <div style={{ width: 5, height: 5, borderRadius: "50%", background: a.nivel === "high" ? "#E05A4B" : a.nivel === "medium" ? "#EF9F27" : "#1D9E75", flexShrink: 0 }} />
@@ -364,37 +378,47 @@ export default function PacientesPage() {
 
                   {/* Métricas direita */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
-                    <div style={{ fontSize: "1.3rem", fontWeight: 800, color: p.taxaGeral >= 70 ? "#1D9E75" : p.taxaGeral >= 50 ? "#EF9F27" : "#E05A4B" }}>
-                      {p.taxaGeral > 0 ? `${p.taxaGeral}%` : "—"}
-                    </div>
+                    {p.avaliado ? (
+                      <div style={{ fontSize: "1.3rem", fontWeight: 800, color: p.taxaGeral >= 70 ? "#1D9E75" : p.taxaGeral >= 50 ? "#EF9F27" : "#E05A4B" }}>
+                        {p.taxaGeral}%
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: ".7rem", fontWeight: 600, color: "rgba(139,127,232,.7)", textAlign: "right", lineHeight: 1.4 }}>
+                        Não<br/>avaliado
+                      </div>
+                    )}
                     <div style={{ fontSize: ".65rem", color: "rgba(138,168,200,.4)", textAlign: "right" }}>
                       {p.programasAtivos} programas · {p.sessoesMes} sessões/mês
                     </div>
                     <div style={{ fontSize: ".65rem", color: "rgba(138,168,200,.4)" }}>
                       Última: {p.ultimaSessao}
                     </div>
-                    {/* Radar mini */}
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {p.radarMini.map(r => (
-                        <div key={r.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                          <div style={{ width: 4, height: 28, background: "rgba(255,255,255,.08)", borderRadius: 2, position: "relative", overflow: "hidden" }}>
-                            <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${r.val}%`, background: r.val >= 70 ? "#1D9E75" : r.val >= 50 ? "#EF9F27" : "#E05A4B", borderRadius: 2 }} />
+                    {p.avaliado && (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {p.radarMini.map(r => (
+                          <div key={r.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                            <div style={{ width: 4, height: 28, background: "rgba(255,255,255,.08)", borderRadius: 2, position: "relative", overflow: "hidden" }}>
+                              <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${r.val}%`, background: r.val >= 70 ? "#1D9E75" : r.val >= 50 ? "#EF9F27" : "#E05A4B", borderRadius: 2 }} />
+                            </div>
+                            <span style={{ fontSize: ".55rem", color: "rgba(138,168,200,.4)" }}>{r.label}</span>
                           </div>
-                          <span style={{ fontSize: ".55rem", color: "rgba(138,168,200,.4)" }}>{r.label}</span>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </Link>
           ))}
-</div>
+        </div>
       )}
 
       {/* ── Modal vinculação por código ── */}
       {modalVinculo && (
-        <div onClick={() => { setModalVinculo(false); setMsgVinculo(''); setCodigoConvite(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div
+          onClick={() => { setModalVinculo(false); setMsgVinculo(''); setCodigoConvite(''); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
           <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(13,32,53,0.97)', border: '1px solid rgba(55,138,221,0.3)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <div style={{ fontSize: 15, fontWeight: 500, color: '#e8eef4', marginBottom: 4 }}>Vincular paciente FractaCare</div>
@@ -402,7 +426,6 @@ export default function PacientesPage() {
                 Peça ao responsável para gerar um código de convite no FractaCare e insira abaixo para vincular o paciente à sua conta.
               </div>
             </div>
-
             <div>
               <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>Código de convite</label>
               <input
@@ -413,15 +436,18 @@ export default function PacientesPage() {
                 style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(55,138,221,0.3)', background: 'rgba(55,138,221,0.05)', color: '#e8eef4', fontSize: 16, fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box', letterSpacing: '0.15em', textAlign: 'center' }}
               />
             </div>
-
             {msgVinculo && (
               <div style={{ fontSize: 12, padding: '9px 12px', borderRadius: 8, background: msgVinculo.includes('Erro') || msgVinculo.includes('inválido') || msgVinculo.includes('expirado') ? 'rgba(224,90,75,.08)' : 'rgba(29,158,117,.08)', color: msgVinculo.includes('Erro') || msgVinculo.includes('inválido') || msgVinculo.includes('expirado') ? '#E05A4B' : '#1D9E75', border: `1px solid ${msgVinculo.includes('Erro') || msgVinculo.includes('inválido') || msgVinculo.includes('expirado') ? 'rgba(224,90,75,.2)' : 'rgba(29,158,117,.2)'}` }}>
                 {msgVinculo}
               </div>
             )}
-
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setModalVinculo(false); setMsgVinculo(''); setCodigoConvite(''); }} style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(26,58,92,0.5)', background: 'transparent', color: 'rgba(232,238,244,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+              <button
+                onClick={() => { setModalVinculo(false); setMsgVinculo(''); setCodigoConvite(''); }}
+                style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(26,58,92,0.5)', background: 'transparent', color: 'rgba(232,238,244,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Cancelar
+              </button>
               <button
                 disabled={vinculando || codigoConvite.trim().length < 4}
                 onClick={async () => {
@@ -457,30 +483,84 @@ export default function PacientesPage() {
 
       {/* ── Modal cadastro FFS ── */}
       {modalFFS && (
-        <div onClick={() => setModalFFS(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div onClick={fecharFFS} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(13,32,53,0.97)', border: '1px solid rgba(26,58,92,0.5)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: '#e8eef4', marginBottom: 4 }}>Cadastrar paciente FFS</div>
-              <div style={{ fontSize: 12, color: 'rgba(232,238,244,.4)' }}>Paciente atendido fora da plataforma Care. Você terá acesso ao FractaEngine e registro de sessões.</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: '#e8eef4', marginBottom: 4 }}>Cadastrar paciente</div>
+              <div style={{ fontSize: 12, color: 'rgba(232,238,244,.4)' }}>
+                O paciente será cadastrado sem avaliação inicial. O repertório e o radar serão construídos a partir das sessões e avaliações clínicas.
+              </div>
             </div>
 
-            {[
-              { label: 'Nome da criança *', value: novoNome, setter: setNovoNome, placeholder: 'Ex: João Silva' },
-              { label: 'Idade (anos)', value: novoIdade, setter: setNovoIdade, placeholder: 'Ex: 6' },
-              { label: 'Diagnóstico', value: novoDiag, setter: setNovoDiag, placeholder: 'Ex: TEA nível 1' },
-              { label: 'Nome do responsável', value: novoResp, setter: setNovoResp, placeholder: 'Ex: Maria Silva' },
-              { label: 'Email do responsável', value: novoEmail, setter: setNovoEmail, placeholder: 'maria@email.com' },
-            ].map(f => (
-              <div key={f.label}>
-                <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>{f.label}</label>
+            {/* Nome */}
+            <div>
+              <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Nome da criança *</label>
+              <input
+                value={novoNome}
+                onChange={e => setNovoNome(e.target.value)}
+                placeholder="Ex: João Silva"
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Data de nascimento + Gênero lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Data de nascimento</label>
                 <input
-                  value={f.value}
-                  onChange={e => f.setter(e.target.value)}
-                  placeholder={f.placeholder}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                  type="date"
+                  value={novoNasc}
+                  onChange={e => setNovoNasc(e.target.value)}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: novoNasc ? '#e8eef4' : 'rgba(232,238,244,.3)', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }}
                 />
               </div>
-            ))}
+              <div>
+                <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Gênero</label>
+                <select
+                  value={novoGenero}
+                  onChange={e => setNovoGenero(e.target.value)}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(13,32,53,0.97)', color: novoGenero ? '#e8eef4' : 'rgba(232,238,244,.3)', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                >
+                  <option value="">Selecionar</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="feminino">Feminino</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Diagnóstico */}
+            <div>
+              <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Diagnóstico</label>
+              <input
+                value={novoDiag}
+                onChange={e => setNovoDiag(e.target.value)}
+                placeholder="Ex: TEA nível 1"
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Responsável */}
+            <div>
+              <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Nome do responsável</label>
+              <input
+                value={novoResp}
+                onChange={e => setNovoResp(e.target.value)}
+                placeholder="Ex: Maria Silva"
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Email responsável */}
+            <div>
+              <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Email do responsável</label>
+              <input
+                value={novoEmail}
+                onChange={e => setNovoEmail(e.target.value)}
+                placeholder="maria@email.com"
+                type="email"
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
 
             {msgFFS && (
               <div style={{ fontSize: 12, padding: '9px 12px', borderRadius: 8, background: msgFFS.includes('Erro') ? 'rgba(224,90,75,.08)' : 'rgba(29,158,117,.08)', color: msgFFS.includes('Erro') ? '#E05A4B' : '#1D9E75', border: `1px solid ${msgFFS.includes('Erro') ? 'rgba(224,90,75,.2)' : 'rgba(29,158,117,.2)'}` }}>
@@ -489,7 +569,12 @@ export default function PacientesPage() {
             )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <button onClick={() => { setModalFFS(false); setMsgFFS(''); }} style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(26,58,92,0.5)', background: 'transparent', color: 'rgba(232,238,244,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+              <button
+                onClick={fecharFFS}
+                style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(26,58,92,0.5)', background: 'transparent', color: 'rgba(232,238,244,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Cancelar
+              </button>
               <button
                 disabled={salvando || !novoNome.trim()}
                 onClick={async () => {
@@ -498,15 +583,43 @@ export default function PacientesPage() {
                   setMsgFFS('')
                   try {
                     const criancaId = crypto.randomUUID()
+
+                    // 1. Cadastra a criança com dados completos
                     const { error: errCrianca } = await supabase
                       .from('criancas')
-                      .insert({ id: criancaId, nome: novoNome.trim(), idade_anos: novoIdade ? parseInt(novoIdade) : null, diagnostico: novoDiag.trim() || null })
+                      .insert({
+                        id: criancaId,
+                        nome: novoNome.trim(),
+                        data_nascimento: novoNasc || null,
+                        genero: novoGenero || null,
+                        diagnostico: novoDiag.trim() || null,
+                        ativo: true,
+                      })
                     if (errCrianca) { setMsgFFS('Erro ao cadastrar criança: ' + errCrianca.message); setSalvando(false); return }
-                    const { error: errPlano } = await supabase.from('planos').insert({ crianca_id: criancaId, terapeuta_id: terapeuta.id, status: 'ativo', tipo_plano: 'ffs' })
+
+                    // 2. Cria plano terapêutico
+                    const { error: errPlano } = await supabase
+                      .from('planos')
+                      .insert({ crianca_id: criancaId, terapeuta_id: terapeuta.id, status: 'ativo', tipo_plano: 'ffs' })
                     if (errPlano) { setMsgFFS('Erro ao criar plano: ' + errPlano.message); setSalvando(false); return }
+
+                    // 3. Inicializa variáveis clínicas com estado nao_avaliado
+                    // Não cria radar_snapshots — o radar só nasce após avaliação real
+                    await supabase
+                      .from('variaveis_clinicas')
+                      .insert({
+                        crianca_id: criancaId,
+                        status_repertorio: 'nao_avaliado',
+                        assentimento_pct: null,
+                        tolerancia_exigencia: null,
+                        responsividade_reforco: null,
+                        revogacoes_por_sessao: null,
+                      })
+
                     setMsgFFS('Paciente cadastrado com sucesso!')
-                    setNovoNome(''); setNovoIdade(''); setNovoDiag(''); setNovoResp(''); setNovoEmail('')
-                    setTimeout(() => { setModalFFS(false); setMsgFFS('') }, 1500)
+                    fecharFFS()
+                    // Recarrega a lista
+                    setTimeout(() => window.location.reload(), 1200)
                   } catch { setMsgFFS('Erro inesperado. Tente novamente.') }
                   setSalvando(false)
                 }}
