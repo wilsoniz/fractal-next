@@ -85,7 +85,7 @@ function getHierarquia(tipo: "motora" | "verbal" | "generica"): HItem[] {
 }
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
-const STAGE_KEYS: StageKey[] = ["warmup_pairing","assent_checklist","preference_assessment","clinical_actions","break","closing_preparation"]
+const STAGE_KEYS: StageKey[] = ["warmup_pairing","assent_checklist","clinical_actions","closing_preparation"]
 
 const STAGES_CFG: Record<StageKey, { label: string; icone: string; cor: string; descricao: string }> = {
   warmup_pairing:        { label: "Vínculo",      icone: "🤝", cor: "#1D9E75", descricao: "Reduza exigências e estabeleça vínculo"    },
@@ -709,7 +709,7 @@ function SessaoInner() {
           <div style={{ ...card, padding: 16 }}>
             <div style={{ fontSize: ".65rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Tipo de sessão</div>
             <div style={{ display: "flex", gap: 6 }}>
-              {(["atendimento","acompanhamento_terapeutico","supervisao"] as TipoSessao[]).map(t => (
+              {(["atendimento","acompanhamento_terapeutico"] as TipoSessao[]).map(t => (
                 <button key={t} onClick={() => setTipoSessao(t)} style={{ flex: 1, padding: "9px 6px", borderRadius: 9, border: `1px solid ${tipoSessao === t ? "rgba(29,158,117,.5)" : "rgba(26,58,92,.4)"}`, background: tipoSessao === t ? "rgba(29,158,117,.15)" : "transparent", color: tipoSessao === t ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                   {TIPO_LABELS[t]}
                 </button>
@@ -925,7 +925,6 @@ function SessaoInner() {
         {showEncModal && (
           <ModalEncerramento
             segundos={segundos} totalOps={totalOps} taxaGeral={taxaGeral}
-            familiaComunic={familiaComunic} setFamiliaComunic={setFamiliaComunic}
             notaEncerr={notaEncerr} setNotaEncerr={setNotaEncerr}
             salvando={salvandoEnc}
             tipoSessao={tipoSessao}
@@ -1167,7 +1166,6 @@ function SessaoInner() {
         {showEncModal && (
           <ModalEncerramento
             segundos={segundos} totalOps={totalOps} taxaGeral={taxaGeral}
-            familiaComunic={familiaComunic} setFamiliaComunic={setFamiliaComunic}
             notaEncerr={notaEncerr} setNotaEncerr={setNotaEncerr}
             salvando={salvandoEnc}
             tipoSessao={tipoSessao}
@@ -1378,20 +1376,27 @@ function AvisoTempo({ onContinuar, onEncerrar }: { onContinuar: () => void; onEn
   )
 }
 
-function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setFamiliaComunic, notaEncerr, setNotaEncerr, salvando, tipoSessao, onCancelar, onConfirmar }: {
+function ModalEncerramento({ segundos, totalOps, taxaGeral, notaEncerr, setNotaEncerr, salvando, tipoSessao, onCancelar, onConfirmar }: {
   segundos: number; totalOps: number; taxaGeral: number
-  familiaComunic: boolean|null; setFamiliaComunic: (v: boolean) => void
   notaEncerr: string; setNotaEncerr: (v: string) => void
   salvando: boolean; tipoSessao: TipoSessao
   onCancelar: () => void; onConfirmar: () => void
 }) {
   const card: React.CSSProperties = { background: "rgba(13,32,53,.9)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 14 }
   const ehSupervisao = tipoSessao === "supervisao"
-  const podeFinalizar = ehSupervisao || familiaComunic !== null
+  const [motivoEncerr, setMotivoEncerr] = useState<string | null>(null)
+  const podeFinalizar = ehSupervisao || motivoEncerr !== null
+
+  const MOTIVOS = [
+    { id: "completa",       label: "Sessão completa",   cor: "#1D9E75", desc: "Todos os programas foram aplicados" },
+    { id: "tempo",          label: "Tempo esgotado",    cor: "#EF9F27", desc: "Tempo contratado encerrou"          },
+    { id: "crianca",        label: "Criança sinalizou", cor: "#378ADD", desc: "A criança pediu encerramento"       },
+    { id: "intercorrencia", label: "Intercorrência",    cor: "#E05A4B", desc: "Evento inesperado na sessão"        },
+  ]
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
-      <div style={{ ...card, padding: 28, width: "100%", maxWidth: 460 }}>
+      <div style={{ ...card, padding: 28, width: "100%", maxWidth: 480 }}>
         <div style={{ fontSize: "1rem", fontWeight: 800, color: "#e8f0f8", marginBottom: 4 }}>Encerrar sessão</div>
         <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.5)", marginBottom: 20 }}>
           {fmt(segundos)} · {totalOps} operantes · {taxaGeral}% acerto
@@ -1399,26 +1404,36 @@ function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setF
 
         {!ehSupervisao && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: ".75rem", color: "rgba(170,210,245,.7)", marginBottom: 10 }}>A família foi comunicada sobre a sessão?</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {[{ v: true, l: "Sim, comunicada", c: "#1D9E75" }, { v: false, l: "Não comunicada", c: "#E05A4B" }].map(r => (
-                <button key={String(r.v)} onClick={() => setFamiliaComunic(r.v)}
-                  style={{ flex: 1, padding: "10px", borderRadius: 9, cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".78rem", border: `1px solid ${familiaComunic === r.v ? r.c : "rgba(26,58,92,.5)"}`, background: familiaComunic === r.v ? `${r.c}18` : "transparent", color: familiaComunic === r.v ? r.c : "rgba(160,200,235,.5)" }}>
-                  {r.l}
+            <div style={{ fontSize: ".75rem", color: "rgba(170,210,245,.7)", marginBottom: 10 }}>Motivo do encerramento</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {MOTIVOS.map(m => (
+                <button key={m.id} onClick={() => setMotivoEncerr(m.id)}
+                  style={{ padding: "10px 12px", borderRadius: 9, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" as const, border: `1px solid ${motivoEncerr === m.id ? m.cor + "55" : "rgba(26,58,92,.5)"}`, background: motivoEncerr === m.id ? m.cor + "18" : "transparent" }}>
+                  <div style={{ fontSize: ".78rem", fontWeight: 600, color: motivoEncerr === m.id ? m.cor : "#e8f0f8", marginBottom: 2 }}>{m.label}</div>
+                  <div style={{ fontSize: ".65rem", color: "rgba(160,200,235,.4)" }}>{m.desc}</div>
                 </button>
               ))}
             </div>
           </div>
         )}
 
+        {!ehSupervisao && (
+          <div style={{ marginBottom: 16, padding: "10px 14px", background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 9 }}>
+            <div style={{ fontSize: ".72rem", color: "#1D9E75", fontWeight: 600, marginBottom: 2 }}>Notificação automática</div>
+            <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)", lineHeight: 1.5 }}>
+              A família receberá um resumo da sessão automaticamente pelo FractaCare ao encerrar.
+            </div>
+          </div>
+        )}
+
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: ".75rem", color: "rgba(170,210,245,.7)", marginBottom: 6 }}>
-            {ehSupervisao ? "Encaminhamentos e observações finais" : "Observação de encerramento (opcional)"}
+            {ehSupervisao ? "Observações finais" : "Observação clínica (opcional)"}
           </div>
           <textarea value={notaEncerr} onChange={e => setNotaEncerr(e.target.value)}
             placeholder={ehSupervisao ? "Resumo da supervisão, pontos principais discutidos..." : "Comportamentos relevantes, intercorrências, próximos passos..."}
             rows={3}
-            style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".78rem", fontFamily: "var(--font-sans)", resize: "none", outline: "none", boxSizing: "border-box" }}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".78rem", fontFamily: "var(--font-sans)", resize: "none" as const, outline: "none", boxSizing: "border-box" as const }}
           />
         </div>
 
@@ -1435,7 +1450,6 @@ function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setF
     </div>
   )
 }
-
 function Biblioteca({ itens, tab, setTab, busca, setBusca, onAdd, onFechar }: {
   itens: LibItem[]; tab: string; setTab: (t: any) => void
   busca: string; setBusca: (v: string) => void
