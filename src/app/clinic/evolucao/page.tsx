@@ -76,7 +76,8 @@ function iniciais(nome: string) {
 function mediaRadar(snapshots: RadarSnapshot[]): number {
   if (!snapshots.length) return 0;
   const last = snapshots[snapshots.length - 1];
-  const vals = [last.communication, last.social, last.attention, last.regulation, last.autonomy, last.flexibility, last.play, last.motivation];
+  if (!last) return 0;
+  const vals = [last.communication ?? 0, last.social ?? 0, last.attention ?? 0, last.regulation ?? 0, last.autonomy ?? 0, last.flexibility ?? 0, last.play ?? 0, last.motivation ?? 0];
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
 function deltaRadar(snapshots: RadarSnapshot[]): number {
