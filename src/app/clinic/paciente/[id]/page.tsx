@@ -363,7 +363,7 @@ export default function PerfilPacientePage() {
       <div style={{ fontSize: ".85rem", color: "rgba(160,200,235,.84)" }}>Carregando perfil...</div>
     </div>
   );
-  if (!data || !latest || !summary) return null;
+  if (!data) return null;
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "visao-geral", label: "Visão geral"   },
@@ -414,10 +414,10 @@ export default function PerfilPacientePage() {
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10, marginBottom: 20 }}>
         {[
-          { l: "Média radar",       v: `${summary.avg}%`,       c: summary.avg >= 70 ? "#1D9E75" : summary.avg >= 50 ? "#EF9F27" : "#E05A4B" },
-          { l: "Habs. dominadas",   v: summary.habDominadas,    c: "#1D9E75" },
-          { l: "Em aquisição",      v: summary.habEmerg,        c: "#EF9F27" },
-          { l: "Programas ativos",  v: summary.activeProgs,     c: "#378ADD" },
+          { l: "Média radar",       v: summary ? `${summary.avg}%` : "—",  c: summary && summary.avg >= 70 ? "#1D9E75" : summary && summary.avg >= 50 ? "#EF9F27" : "#E05A4B" },
+          { l: "Habs. dominadas",   v: summary?.habDominadas ?? 0,         c: "#1D9E75" },
+          { l: "Em aquisição",      v: summary?.habEmerg ?? 0,             c: "#EF9F27" },
+          { l: "Programas ativos",  v: summary?.activeProgs ?? 0,          c: "#378ADD" },
         ].map(k => (
           <div key={k.l} style={{ ...card, padding: "14px 16px" }}>
             <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>{k.l}</div>
