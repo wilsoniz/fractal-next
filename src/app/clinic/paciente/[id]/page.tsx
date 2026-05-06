@@ -752,45 +752,41 @@ export default function PerfilPacientePage() {
               Baseado nos dados de sessão, radar e repertório atual. Atualizado a cada sessão encerrada.
             </div>
           </div>
-          {forecastResults.map(f => (
-            <div key={f.goalId} style={{ ...card, padding: 20, border: `1px solid ${f.health === "stalled" ? "rgba(224,90,75,.2)" : f.health === "watch" ? "rgba(239,159,39,.15)" : "rgba(29,158,117,.15)"}` }}>
+          {forecastResults.map(f => {
+            const corSaude = f.goalHealth === "stalled" ? "#E05A4B" : f.goalHealth === "watch" ? "#EF9F27" : "#1D9E75"
+            const labelSaude = f.goalHealth === "on_track" ? "Em curso" : f.goalHealth === "watch" ? "Monitorar" : f.goalHealth === "stalled" ? "Travada" : f.goalHealth === "accelerating" ? "Acelerando" : "Consolidando"
+            return (
+            <div key={f.goalId} style={{ ...card, padding: 20, border: `1px solid ${f.goalHealth === "stalled" ? "rgba(224,90,75,.2)" : f.goalHealth === "watch" ? "rgba(239,159,39,.15)" : "rgba(29,158,117,.15)"}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
                 <div>
                   <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>{f.goalName}</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: ".65rem", color: "#378ADD" }}>Domínio: {DOMINIO_PT[f.primaryDomain] ?? f.primaryDomain}</span>
-                    <span style={{ fontSize: ".65rem", color: f.health === "stalled" ? "#E05A4B" : f.health === "watch" ? "#EF9F27" : "#1D9E75", fontWeight: 600 }}>
-                      {f.health === "on_track" ? "Em curso" : f.health === "watch" ? "Monitorar" : f.health === "stalled" ? "Travada" : f.health === "accelerating" ? "Acelerando" : "Consolidando"}
-                    </span>
+                    <span style={{ fontSize: ".65rem", color: corSaude, fontWeight: 600 }}>{labelSaude}</span>
+                    <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.4)" }}>Confiança: {f.confidence}</span>
                   </div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.88)", marginBottom: 2 }}>Estimativa</div>
-                  <div style={{ fontSize: "1rem", fontWeight: 800, color: "#EF9F27" }}>
-                    {f.estimatedSessions === null ? "—" : `${f.estimatedSessions} sessões`}
-                  </div>
-                  {f.estimatedWeeks !== null && (
-                    <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>~{f.estimatedWeeks} semanas</div>
-                  )}
+                  <div style={{ fontSize: "1rem", fontWeight: 800, color: "#EF9F27" }}>{f.min}–{f.max} sessões</div>
                 </div>
               </div>
               <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden", marginBottom: 10 }}>
-                <div style={{ height: "100%", width: `${f.currentProgress}%`, background: f.health === "stalled" ? "#E05A4B" : "#1D9E75" }} />
+                <div style={{ height: "100%", width: `${Math.min(100, Math.round(f.min / Math.max(f.max,1) * 100))}%`, background: corSaude }} />
               </div>
-              <div style={{ display: "flex", gap: 14, marginBottom: f.barriers.length > 0 ? 10 : 0 }}>
-                <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>Progresso atual: <strong style={{ color: "#e8f0f8" }}>{f.currentProgress}%</strong></div>
-                {f.requiredDomainGain > 0 && <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>Ganho necessário: <strong style={{ color: "#EF9F27" }}>+{f.requiredDomainGain}pts</strong></div>}
+              <div style={{ display: "flex", gap: 14, marginBottom: f.rationale.length > 0 ? 10 : 0 }}>
+                <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>Barreiras: <strong style={{ color: f.inferredBarriers > 1 ? "#E05A4B" : "#e8f0f8" }}>{f.inferredBarriers}</strong></div>
+                <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>Ação: <strong style={{ color: "#e8f0f8" }}>{f.recommendedAction.replace(/_/g," ")}</strong></div>
               </div>
-              {f.barriers.length > 0 && (
-                <div style={{ background: "rgba(224,90,75,.06)", border: "1px solid rgba(224,90,75,.15)", borderRadius: 9, padding: "10px 12px" }}>
-                  <div style={{ fontSize: ".65rem", color: "#E05A4B", fontWeight: 600, marginBottom: 5 }}>Barreiras identificadas</div>
-                  {f.barriers.map((b, i) => (
+              {f.rationale.length > 0 && (
+                <div style={{ background: "rgba(26,58,92,.2)", border: "1px solid rgba(26,58,92,.4)", borderRadius: 9, padding: "10px 12px" }}>
+                  {f.rationale.map((b: string, i: number) => (
                     <div key={i} style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)", marginBottom: 3 }}>• {b}</div>
                   ))}
                 </div>
               )}
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
