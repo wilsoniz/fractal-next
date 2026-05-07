@@ -1,632 +1,931 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { useParams } from "next/navigation";
+import {
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+} from "recharts";
+import { generateForecastFromProfile, type ForecastGoal, type ForecastResult } from "@/lib/forecast";
 import { useClinicContext } from "../../layout";
+import { supabase } from "@/lib/supabase";
+import { HistoricoSessoes, ContratoTab } from "./tabs";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
-type StatusPaciente = "ativo" | "alerta" | "pausado";
-type FiltroAtivo    = "todos" | "alerta" | "hoje" | "pausado";
-interface Paciente {
-  id: string;
-  nome: string;
-  iniciais: string;
-  gradient: string;
-  idade: number;
-  diagnostico: string;
-  taxaGeral: number;
-  avaliado: boolean;
-  sessoesMes: number;
-  programasAtivos: number;
-  dominios: string[];
-  ultimaSessao: string;
-  proximaSessao: string | null;
-  status: StatusPaciente;
-  alertas: { nivel: "high" | "medium" | "low"; texto: string }[];
-  radarMini: { label: string; val: number }[];
-  semSupervisor: boolean;
-  cuidadorAtivo: boolean;
-}
+type RadarSnapshot = {
+  date: string;
+  communication: number; social: number; attention: number;
+  regulation: number; autonomy: number; flexibility: number;
+  play: number; motivation: number;
+};
+
+type Program = {
+  id: string; name: string; domain: string;
+  status: "active" | "completed" | "stalled";
+  success: number; independence: number; relatedPrograms?: string[]
+};
+
+type ClinicalAlert = { id: string; title: string; description: string; level: "low" | "medium" | "high" };
+
+type LearnerProfile = {
+  id: string; name: string; age: number; diagnosis?: string;
+  radar: RadarSnapshot[]; programs: Program[]; alerts: ClinicalAlert[];
+};
+
+// Repertório
+type Habilidade = {
+  id: string; dominio: string; habilidade: string; operante: string | null;
+  status: "ausente" | "emergente" | "em_aquisicao" | "dominada";
+  score: number; independencia: number; generalizacao: number; manutencao: number;
+};
+
+type Comportamento = {
+  id: string; nome: string; topografia: string | null; funcao: string | null;
+  frequencia: string | null; intensidade: string | null; contexto: string | null;
+  status: "ativo" | "reduzindo" | "controlado";
+};
+
+type VariaveisClinicas = {
+  assentimento_pct: number; tempo_medio_assentimento: number;
+  revogacoes_por_sessao: number; tolerancia_exigencia: number; responsividade_reforco: number;
+};
+
+type Tab = "visao-geral" | "programas" | "skill-graph" | "forecast" | "avaliacoes" | "contrato" | "historico";
+
+// ─── FORECAST GOALS ──────────────────────────────────────────────────────────
+const FORECAST_GOALS: ForecastGoal[] = [
+  { id: "g1", name: "Pedir o que quer (mando básico)", type: "acquisition",    targetDomain: "communication", requiredSkills: [],       relatedPrograms: ["Atenção conjunta"] },
+  { id: "g2", name: "Esperar 3 segundos",              type: "acquisition",    targetDomain: "regulation",    requiredSkills: ["g1"],   relatedPrograms: ["Troca de turnos"] },
+  { id: "g3", name: "Troca de turnos simples",         type: "acquisition",    targetDomain: "social",        requiredSkills: ["g1"],   relatedPrograms: ["Pedir o que quer"] },
+  { id: "g4", name: "Seguir instrução de 1 passo",     type: "acquisition",    targetDomain: "attention",     requiredSkills: [],       relatedPrograms: [] },
+  { id: "g5", name: "Redução de fuga de demanda",      type: "reduction",      targetDomain: "regulation",    requiredSkills: ["g2"],   relatedPrograms: ["Esperar 3 segundos"] },
+  { id: "g6", name: "Brincar funcionalmente por 5 min",type: "acquisition",    targetDomain: "play",          requiredSkills: ["g1"],   relatedPrograms: ["Troca de turnos"] },
+];
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
-const GRADIENTS = [
-  "linear-gradient(135deg,#1D9E75,#378ADD)",
-  "linear-gradient(135deg,#378ADD,#8B7FE8)",
-  "linear-gradient(135deg,#8B7FE8,#E05A4B)",
-  "linear-gradient(135deg,#EF9F27,#1D9E75)",
-  "linear-gradient(135deg,#E05A4B,#EF9F27)",
-]
-const DOMINIO_LABELS: Record<string, string> = {
-  comunicacao: "Comunicação", social: "Social", atencao: "Atenção",
-  regulacao: "Regulação", brincadeira: "Brincadeira",
-  flexibilidade: "Flexibilidade", autonomia: "Autonomia", motivacao: "Motivação",
-}
-const RADAR_KEYS = [
-  { key: "score_comunicacao", label: "Com" },
-  { key: "score_social",      label: "Soc" },
-  { key: "score_atencao",     label: "Ate" },
-  { key: "score_regulacao",   label: "Reg" },
-]
-function iniciais(nome: string) {
-  const p = nome.trim().split(" ")
-  return p.length >= 2
-    ? `${p[0][0]}${p[p.length - 1][0]}`.toUpperCase()
-    : nome.slice(0, 2).toUpperCase()
-}
-function idadeAnos(dataNasc: string) {
-  const diff = Date.now() - new Date(dataNasc).getTime()
-  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25))
-}
-function ultimaSessaoLabel(data: string | null) {
-  if (!data) return "Nunca"
-  const diff = Date.now() - new Date(data).getTime()
-  const d = Math.floor(diff / 86400000)
-  if (d === 0) return "hoje"
-  if (d === 1) return "ontem"
-  return `${d} dias atrás`
-}
+const STATUS_PROG = {
+  active:    { label: "Ativo",     cor: "#1D9E75", bg: "rgba(29,158,117,.12)", borda: "rgba(29,158,117,.25)" },
+  completed: { label: "Concluído", cor: "#378ADD", bg: "rgba(55,138,221,.12)", borda: "rgba(55,138,221,.25)" },
+  stalled:   { label: "Travado",   cor: "#E05A4B", bg: "rgba(224,90,75,.12)",  borda: "rgba(224,90,75,.25)"  },
+};
+const ALERT_COR   = { high: "#E05A4B", medium: "#EF9F27", low: "#1D9E75" };
+const ALERT_BG    = { high: "rgba(224,90,75,.08)", medium: "rgba(239,159,39,.08)", low: "rgba(29,158,117,.08)" };
+const ALERT_BORDA = { high: "rgba(224,90,75,.25)", medium: "rgba(239,159,39,.2)", low: "rgba(29,158,117,.2)" };
 
-// ─── COMPONENTE ───────────────────────────────────────────────────────────────
-export default function PacientesPage() {
+const DOMINIO_PT: Record<string, string> = {
+  comunicacao:"Comunicação", social:"Social", atencao:"Atenção",
+  regulacao:"Regulação", autonomia:"Autonomia", flexibilidade:"Flexibilidade",
+  brincadeira:"Brincadeira", cognicao:"Cognição", motricidade:"Motricidade",
+  communication:"Comunicação", attention:"Atenção", regulation:"Regulação",
+  autonomy:"Autonomia", flexibility:"Flexibilidade", play:"Brincadeira", motivation:"Motivação",
+};
+
+const STATUS_HAB: Record<string, { label: string; cor: string; bg: string }> = {
+  ausente:      { label: "Ausente",       cor: "#4d6d8a", bg: "rgba(77,109,138,.12)"  },
+  emergente:    { label: "Emergente",     cor: "#EF9F27", bg: "rgba(239,159,39,.12)"  },
+  em_aquisicao: { label: "Em aquisição",  cor: "#378ADD", bg: "rgba(55,138,221,.12)"  },
+  dominada:     { label: "Dominada",      cor: "#1D9E75", bg: "rgba(29,158,117,.12)"  },
+};
+
+const STATUS_COMP: Record<string, { label: string; cor: string }> = {
+  ativo:      { label: "Ativo",      cor: "#E05A4B" },
+  reduzindo:  { label: "Reduzindo",  cor: "#EF9F27" },
+  controlado: { label: "Controlado", cor: "#1D9E75" },
+};
+
+const DOMINIOS = ["comunicacao","social","atencao","regulacao","brincadeira","cognicao","autonomia","flexibilidade","motricidade"];
+
+// ─── PAGE ────────────────────────────────────────────────────────────────────
+export default function PerfilPacientePage() {
   const { terapeuta } = useClinicContext();
-  const [busca,     setBusca]     = useState("");
-  const [filtro,    setFiltro]    = useState<FiltroAtivo>("todos");
-  const [pacientes, setPacientes] = useState<Paciente[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [modalFFS,      setModalFFS]      = useState(false);
-  const [modalVinculo,  setModalVinculo]  = useState(false);
-  const [salvando,      setSalvando]      = useState(false);
-  const [codigoConvite, setCodigoConvite] = useState('');
-  const [msgVinculo,    setMsgVinculo]    = useState('');
-  const [vinculando,    setVinculando]    = useState(false);
-  const [msgFFS,        setMsgFFS]        = useState('');
-  const [novoNome,      setNovoNome]      = useState('');
-  const [novoNasc,      setNovoNasc]      = useState('');
-  const [novoGenero,    setNovoGenero]    = useState('');
-  const [novoDiag,      setNovoDiag]      = useState('');
-  const [novoResp,      setNovoResp]      = useState('');
-  const [novoEmail,     setNovoEmail]     = useState('');
+  const params = useParams();
+  const nivel = terapeuta?.nivel ?? "coordenador";
+
+  const [data,         setData]         = useState<LearnerProfile | null>(null);
+  const [habilidades,  setHabilidades]  = useState<Habilidade[]>([]);
+  const [comportamentos,setComportamentos]=useState<Comportamento[]>([]);
+  const [variaveis,    setVariaveis]    = useState<VariaveisClinicas | null>(null);
+  const [tab,          setTab]          = useState<Tab>("visao-geral");
+  const [loading,      setLoading]      = useState(true);
+  const [responsaveis, setResponsaveis] = useState<{ id: string; nome: string; email: string; tipo: string }[]>([]);
+
+  // Modal de adicionar habilidade
+  const [modalHab,     setModalHab]     = useState(false);
+  const [novaHab,      setNovaHab]      = useState({ dominio: "comunicacao", habilidade: "", operante: "", status: "ausente" as Habilidade["status"] });
+  const [salvandoHab,  setSalvandoHab]  = useState(false);
+
+  // Modal de adicionar comportamento
+  const [modalComp,    setModalComp]    = useState(false);
+  const [novoComp,     setNovoComp]     = useState({ nome: "", topografia: "", funcao: "fuga", intensidade: "leve", contexto: "" });
+  const [salvandoComp, setSalvandoComp] = useState(false);
 
   useEffect(() => {
-    if (!terapeuta) return;
     async function carregar() {
       setLoading(true);
       try {
-        const { data: planos } = await supabase
-          .from("planos")
-          .select(`
-            id, status, score_atual, criado_em,
-            criancas ( id, nome, data_nascimento, diagnostico ),
-            programas ( id, nome, dominio )
-          `)
-          .eq("terapeuta_id", terapeuta!.id)
-          .order("criado_em", { ascending: false });
+        const criancaId = params.id as string;
 
-        if (!planos || planos.length === 0) {
-          setPacientes([]);
-          setLoading(false);
-          return;
-        }
+        // 1. Dados da criança
+        const { data: crianca } = await supabase
+          .from("criancas")
+          .select("id, nome, data_nascimento, diagnostico")
+          .eq("id", criancaId)
+          .single();
 
-        const criancaMap = new Map<string, { crianca: any; planos: any[] }>();
-        for (const pl of planos) {
-          const c = pl.criancas as any;
-          if (!c) continue;
-          if (!criancaMap.has(c.id)) criancaMap.set(c.id, { crianca: c, planos: [] });
-          criancaMap.get(c.id)!.planos.push(pl);
-        }
-
-        const criancaIds = Array.from(criancaMap.keys());
-
+        // 2. Radar snapshots
         const { data: radares } = await supabase
           .from("radar_snapshots")
-          .select("crianca_id, score_comunicacao, score_social, score_atencao, score_regulacao, score_brincadeira, score_flexibilidade, score_autonomia, score_motivacao, criado_em")
-          .in("crianca_id", criancaIds)
+          .select("score_comunicacao, score_social, score_atencao, score_regulacao, score_brincadeira, score_flexibilidade, score_autonomia, score_motivacao, criado_em")
+          .eq("crianca_id", criancaId)
+          .order("criado_em", { ascending: true });
+
+        // 3. Planos ativos
+        const { data: planos } = await supabase
+          .from("planos")
+          .select("id, status, score_atual, programas ( id, nome, dominio )")
+          .eq("crianca_id", criancaId)
           .order("criado_em", { ascending: false });
 
-        const radarMap = new Map<string, any>();
-        for (const r of (radares ?? [])) {
-          if (!radarMap.has(r.crianca_id)) radarMap.set(r.crianca_id, r);
-        }
+        // 4. Responsáveis vinculados
+        const { data: vinculos } = await supabase
+          .from("crianca_responsaveis")
+          .select("tipo, responsavel_id")
+          .eq("crianca_id", criancaId);
 
-        const { data: sessoes } = await supabase
-          .from("sessoes_clinicas")
-          .select("crianca_id, criado_em, concluida")
-          .in("crianca_id", criancaIds)
-          .order("criado_em", { ascending: false });
-
-        const ultimaSessaoMap = new Map<string, string>();
-        for (const s of (sessoes ?? [])) {
-          if (!ultimaSessaoMap.has(s.crianca_id)) {
-            ultimaSessaoMap.set(s.crianca_id, s.criado_em);
+        if (vinculos && vinculos.length > 0) {
+          const respIds = vinculos.map((v: any) => v.responsavel_id);
+          const { data: perfis } = await supabase
+            .from("profiles")
+            .select("id, nome, email")
+            .in("id", respIds);
+          if (perfis) {
+            setResponsaveis(perfis.map((p: any) => ({
+              id: p.id,
+              nome: p.nome ?? p.email ?? "Responsável",
+              email: p.email ?? "",
+              tipo: vinculos.find((v: any) => v.responsavel_id === p.id)?.tipo ?? "primario",
+            })));
           }
         }
 
-        const result: Paciente[] = Array.from(criancaMap.values()).map(({ crianca, planos: cPlanos }, i) => {
-          const radar  = radarMap.get(crianca.id);
-          const ultima = ultimaSessaoMap.get(crianca.id) ?? null;
-          const avaliado = !!radar;
+        // 5. Repertório de habilidades
+        const { data: habs } = await supabase
+          .from("repertorio_habilidades")
+          .select("*")
+          .eq("crianca_id", criancaId)
+          .order("dominio");
+        setHabilidades(habs ?? []);
 
-          const scores = radar ? RADAR_KEYS.map(k => radar[k.key]).filter(Boolean) : [];
-          const taxaGeral = scores.length > 0
-            ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length)
-            : 0;
+        // 6. Comportamentos interferentes
+        const { data: comps } = await supabase
+          .from("repertorio_comportamentos")
+          .select("*")
+          .eq("crianca_id", criancaId)
+          .order("status");
+        setComportamentos(comps ?? []);
 
-          const dominiosFoco = radar
-            ? Object.entries(DOMINIO_LABELS)
-                .map(([k, v]) => ({ nome: v, val: radar[`score_${k}`] ?? 100 }))
-                .sort((a, b) => a.val - b.val)
-                .slice(0, 3)
-                .map(d => d.nome)
-            : [];
+        // 7. Variáveis clínicas
+        const { data: vars } = await supabase
+          .from("variaveis_clinicas")
+          .select("*")
+          .eq("crianca_id", criancaId)
+          .single();
+        if (vars) setVariaveis(vars);
 
-          const alertas: { nivel: "high" | "medium" | "low"; texto: string }[] = [];
-          for (const pl of cPlanos) {
-            const score = pl.score_atual ?? 0;
+        // Mapear radar
+        const radarFormatado: RadarSnapshot[] = (radares ?? []).map((r: any, i: number) => ({
+          date: `Semana ${(i + 1) * 4}`,
+          communication: r.score_comunicacao   ?? 0,
+          social:        r.score_social        ?? 0,
+          attention:     r.score_atencao       ?? 0,
+          regulation:    r.score_regulacao     ?? 0,
+          autonomy:      r.score_autonomia     ?? 0,
+          flexibility:   r.score_flexibilidade ?? 0,
+          play:          r.score_brincadeira   ?? 0,
+          motivation:    r.score_motivacao     ?? 0,
+        }));
+
+        if (radarFormatado.length === 0) {
+          // sem radar ainda — não injeta dados falsos
+        }
+
+        // Mapear programas
+        const programs: Program[] = (planos ?? [])
+          .filter((pl: any) => pl.programas)
+          .map((pl: any) => {
             const prog  = pl.programas as any;
-            if (!prog) continue;
-            if (score > 0 && score < 50) {
-              alertas.push({ nivel: "high", texto: `Score baixo em ${prog.nome} (${score}%)` });
-            } else if (score >= 75) {
-              alertas.push({ nivel: "low", texto: `${prog.nome} próximo de critério` });
-            }
-          }
+            const score = pl.score_atual ?? 50;
+            return {
+              id: pl.id, name: prog.nome, domain: prog.dominio,
+              status: pl.status === "pausado" ? "stalled" : score >= 80 ? "completed" : "active",
+              success: score, independence: Math.max(0, score - 15),
+            };
+          });
 
-          const temAlertaHigh = alertas.some(a => a.nivel === "high");
-          const pausado       = cPlanos.every(pl => pl.status === "pausado");
-          const status: StatusPaciente = pausado ? "pausado" : temAlertaHigh ? "alerta" : "ativo";
+        // Alertas automáticos
+        const alerts: ClinicalAlert[] = [];
+        for (const pl of (planos ?? [])) {
+          const prog  = (pl as any).programas as any;
+          if (!prog) continue;
+          const score = (pl as any).score_atual ?? 0;
+          if (score > 0 && score < 50) alerts.push({ id: pl.id + "_h", title: "Score baixo", description: `${prog.nome} com ${score}%`, level: "high" });
+          else if (score >= 80) alerts.push({ id: pl.id + "_l", title: "Próximo de critério", description: `${prog.nome} atingiu ${score}%`, level: "low" });
+        }
 
-          const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0,0,0,0);
-          const sessoesMes = (sessoes ?? []).filter(s =>
-            s.crianca_id === crianca.id && new Date(s.criado_em) >= inicioMes
-          ).length;
+        const idade = crianca?.data_nascimento
+          ? Math.floor((Date.now() - new Date(crianca.data_nascimento).getTime()) / (1000*60*60*24*365.25))
+          : 0;
 
-          return {
-            id:              crianca.id,
-            nome:            crianca.nome,
-            iniciais:        iniciais(crianca.nome),
-            gradient:        GRADIENTS[i % GRADIENTS.length],
-            idade:           crianca.data_nascimento ? idadeAnos(crianca.data_nascimento) : 0,
-            diagnostico:     crianca.diagnostico ?? "Não informado",
-            taxaGeral,
-            avaliado,
-            sessoesMes,
-            programasAtivos: cPlanos.filter(pl => pl.status === "ativo").length,
-            dominios:        dominiosFoco,
-            ultimaSessao:    ultimaSessaoLabel(ultima),
-            proximaSessao:   null,
-            status,
-            alertas,
-            radarMini:       RADAR_KEYS.map(k => ({ label: k.label, val: radar?.[k.key] ?? 0 })),
-            semSupervisor:   false,
-            cuidadorAtivo:   true,
-          };
+        setData({
+          id:        criancaId,
+          name:      crianca?.nome ?? "Paciente",
+          age:       idade,
+          diagnosis: crianca?.diagnostico ?? "Não informado",
+          radar:     radarFormatado,
+          programs,
+          alerts,
         });
-
-        setPacientes(result);
       } catch (err) {
-        console.error("Erro ao carregar pacientes:", err);
+        console.error("Erro ao carregar perfil:", err);
       }
       setLoading(false);
     }
     carregar();
-  }, [terapeuta]);
+  }, [params.id]);
 
-  const pacientesFiltrados = useMemo(() => {
-    return pacientes.filter(p => {
-      const matchBusca =
-        p.nome.toLowerCase().includes(busca.toLowerCase()) ||
-        p.diagnostico.toLowerCase().includes(busca.toLowerCase()) ||
-        p.dominios.some(d => d.toLowerCase().includes(busca.toLowerCase()));
-      const matchFiltro =
-        filtro === "todos"   ? true :
-        filtro === "alerta"  ? p.alertas.some(a => a.nivel === "high" || a.nivel === "medium") :
-        filtro === "hoje"    ? p.ultimaSessao === "hoje" :
-        filtro === "pausado" ? p.status === "pausado" : true;
-      return matchBusca && matchFiltro;
+  // Adicionar habilidade
+  async function adicionarHabilidade() {
+    if (!novaHab.habilidade.trim()) return;
+    setSalvandoHab(true);
+    await supabase.from("repertorio_habilidades").insert({
+      crianca_id:  params.id,
+      dominio:     novaHab.dominio,
+      habilidade:  novaHab.habilidade,
+      operante:    novaHab.operante || null,
+      status:      novaHab.status,
+      score:       novaHab.status === "dominada" ? 100 : novaHab.status === "em_aquisicao" ? 50 : novaHab.status === "emergente" ? 20 : 0,
     });
-  }, [busca, filtro, pacientes]);
-
-  const stats = useMemo(() => ({
-    total:    pacientes.length,
-    alertas:  pacientes.filter(p => p.alertas.some(a => a.nivel === "high")).length,
-    hoje:     pacientes.filter(p => p.ultimaSessao === "hoje").length,
-    pausados: pacientes.filter(p => p.status === "pausado").length,
-  }), [pacientes]);
-
-  const fecharFFS = () => {
-    setModalFFS(false);
-    setMsgFFS('');
-    setNovoNome(''); setNovoNasc(''); setNovoGenero('');
-    setNovoDiag(''); setNovoResp(''); setNovoEmail('');
-  };
-
-  const card: React.CSSProperties = {
-    background: "rgba(13,32,53,.75)",
-    border: "1px solid rgba(70,120,180,.5)",
-    borderRadius: 14,
-    backdropFilter: "blur(8px)",
-  };
-
-  if (loading) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
-        <div style={{ fontSize: 13, color: "rgba(160,200,235,.9)" }}>Carregando pacientes...</div>
-      </div>
-    );
+    const { data: habs } = await supabase.from("repertorio_habilidades").select("*").eq("crianca_id", params.id).order("dominio");
+    setHabilidades(habs ?? []);
+    setModalHab(false);
+    setNovaHab({ dominio: "comunicacao", habilidade: "", operante: "", status: "ausente" });
+    setSalvandoHab(false);
   }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+  // Adicionar comportamento
+  async function adicionarComportamento() {
+    if (!novoComp.nome.trim()) return;
+    setSalvandoComp(true);
+    await supabase.from("repertorio_comportamentos").insert({
+      crianca_id:  params.id,
+      nome:        novoComp.nome,
+      topografia:  novoComp.topografia || null,
+      funcao:      novoComp.funcao,
+      intensidade: novoComp.intensidade,
+      contexto:    novoComp.contexto || null,
+      status:      "ativo",
+    });
+    const { data: comps } = await supabase.from("repertorio_comportamentos").select("*").eq("crianca_id", params.id).order("status");
+    setComportamentos(comps ?? []);
+    setModalComp(false);
+    setNovoComp({ nome: "", topografia: "", funcao: "fuga", intensidade: "leve", contexto: "" });
+    setSalvandoComp(false);
+  }
 
-      {/* ── HEADER ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#e8f0f8", margin: 0, marginBottom: 4 }}>Pacientes</h1>
-          <div style={{ fontSize: ".75rem", color: "rgba(138,168,200,.5)" }}>
-            {stats.total} pacientes · {stats.hoje} com sessão hoje
+  const latest = data?.radar && data.radar.length > 0 ? data.radar[data.radar.length - 1] : undefined;
+
+  const radarData = useMemo(() => {
+    if (!latest) return [];
+    return [
+      { domain: "Comunicação",  value: latest?.communication ?? 0 },
+      { domain: "Social",       value: latest?.social        ?? 0 },
+      { domain: "Atenção",      value: latest?.attention     ?? 0 },
+      { domain: "Regulação",    value: latest?.regulation    ?? 0 },
+      { domain: "Autonomia",    value: latest?.autonomy      ?? 0 },
+      { domain: "Flexibilidade",value: latest?.flexibility   ?? 0 },
+      { domain: "Brincadeira",  value: latest?.play          ?? 0 },
+      { domain: "Motivação",    value: latest?.motivation    ?? 0 },
+    ];
+  }, [latest]);
+
+  const evolutionData = useMemo(() => {
+    if (!data) return [];
+    return (data.radar ?? []).map(r => ({
+      date: r?.date ?? '',
+      Comunicação: r?.communication ?? 0,
+      Atenção:     r?.attention     ?? 0,
+      Regulação:   r?.regulation    ?? 0,
+      Social:      r?.social        ?? 0,
+    }));
+  }, [data]);
+
+  const summary = useMemo(() => {
+    if (!data || !latest) return null;
+    const activeProgs = data.programs.filter(p => p.status === "active").length;
+    const avgSuccess  = data.programs.length > 0
+      ? Math.round(data.programs.reduce((a, p) => a + p.success, 0) / data.programs.length)
+      : 0;
+    const radarValues = [latest?.communication ?? 0, latest?.social ?? 0, latest?.attention ?? 0, latest?.regulation ?? 0, latest?.autonomy ?? 0, latest?.flexibility ?? 0, latest?.play ?? 0, latest?.motivation ?? 0];
+    const avg         = Math.round(radarValues.reduce((a, b) => a + b, 0) / radarValues.length);
+    const weakest     = Object.entries({ Comunicação: latest?.communication ?? 0, Atenção: latest?.attention ?? 0, Regulação: latest?.regulation ?? 0, Flexibilidade: latest?.flexibility ?? 0 }).sort((a, b) => a[1] - b[1])[0];
+    const strongest   = Object.entries({ Autonomia: latest?.autonomy ?? 0, Social: latest?.social ?? 0, Motivação: latest?.motivation ?? 0, Brincadeira: latest?.play ?? 0 }).sort((a, b) => b[1] - a[1])[0];
+    const habDominadas = habilidades.filter(h => h.status === "dominada").length;
+    const habEmerg     = habilidades.filter(h => h.status === "emergente" || h.status === "em_aquisicao").length;
+    return { activeProgs, avgSuccess, avg, weakest, strongest, habDominadas, habEmerg };
+  }, [data, latest, habilidades]);
+
+  const insights = useMemo(() => {
+    if (!data || !latest || !summary) return [];
+    const out: string[] = [];
+    if ((latest?.communication ?? 0) < 60 && (latest?.social ?? 0) >= 60) out.push("Boa base social disponível para ampliar comunicação funcional com alta chance de ganho clínico.");
+    if ((latest?.attention ?? 0) >= 50) out.push("Atenção sustentada já sustenta programas mais estruturados e instruções de 1–2 passos.");
+    if (summary.weakest[0] === "Flexibilidade") out.push("Flexibilidade é o domínio mais sensível — deve entrar como alvo transversal na rotina clínica.");
+    if (data.programs.some(p => p.status === "stalled")) out.push("Existe programa em estagnação — revisar critério, nível de dica ou reforçadores.");
+    if (habilidades.filter(h => h.status === "em_aquisicao").length > 0) out.push(`${habilidades.filter(h=>h.status==="em_aquisicao").length} habilidade(s) em aquisição — sessões frequentes aumentam velocidade de consolidação.`);
+    return out.slice(0, 4);
+  }, [data, latest, summary, habilidades]);
+
+  const forecastResults = useMemo<ForecastResult[]>(() => {
+    if (!data) return [];
+    return FORECAST_GOALS.map(goal => generateForecastFromProfile(goal, {
+      radar: data.radar, skills: [], programs: data.programs, alerts: data.alerts, adherence: 68,
+    }));
+  }, [data]);
+
+  // CSS
+  const card: React.CSSProperties = { background: "rgba(13,32,53,.75)", border: "1px solid rgba(70,120,180,.5)", borderRadius: 14, backdropFilter: "blur(8px)" };
+  const lbl:  React.CSSProperties = { fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".09em", color: "rgba(170,210,245,.88)", marginBottom: 8 };
+  const inp:  React.CSSProperties = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid rgba(26,58,92,.5)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: 13, fontFamily: "var(--font-sans)", outline: "none", boxSizing: "border-box" as const };
+
+  if (loading) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
+      <div style={{ fontSize: ".85rem", color: "rgba(160,200,235,.84)" }}>Carregando perfil...</div>
+    </div>
+  );
+  if (!data) return null;
+
+  const TABS: { id: Tab; label: string }[] = [
+    { id: "visao-geral", label: "Visão geral"   },
+    { id: "programas",   label: "Programas"     },
+    { id: "skill-graph", label: "Skill Graph"   },
+    { id: "forecast",    label: "Forecast"      },
+    { id: "avaliacoes",  label: "Avaliações"    },
+    { id: "historico",   label: "Histórico"     },
+    { id: "contrato",    label: "Contrato"      },
+  ];
+
+  // Habilidades agrupadas por domínio
+  const habsPorDominio = DOMINIOS.reduce((acc, dom) => {
+    const habs = habilidades.filter(h => h.dominio === dom);
+    if (habs.length > 0) acc[dom] = habs;
+    return acc;
+  }, {} as Record<string, Habilidade[]>);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg,#1D9E75,#378ADD)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".88rem", fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+            {data.name.split(" ").map(n => n[0]).slice(0,2).join("").toUpperCase()}
+          </div>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+              <h1 style={{ fontSize: "1.3rem", fontWeight: 800, color: "#e8f0f8", letterSpacing: "-.01em", margin: 0 }}>{data.name}</h1>
+              {responsaveis.length > 0 && <span style={{ fontSize: ".68rem", background: "rgba(55,138,221,.12)", border: "1px solid rgba(55,138,221,.25)", color: "#378ADD", borderRadius: 20, padding: "2px 9px", fontWeight: 600 }}>FractaCare ativo</span>}
+            </div>
+            <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.90)" }}>{data.age} anos · {data.diagnosis}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => setModalVinculo(true)}
-            style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid rgba(55,138,221,0.4)", background: "rgba(55,138,221,0.08)", color: "#378ADD", fontWeight: 600, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}
-          >
-            Vincular por código
-          </button>
-          <button
-            onClick={() => setModalFFS(true)}
-            style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}
-          >
-            + Novo paciente
-          </button>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Link href="/clinic/dashboard" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontSize: ".78rem", fontWeight: 500, textDecoration: "none" }}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 3L5 8l5 5"/></svg>
+            Dashboard
+          </Link>
+          <Link href={`/clinic/sessao?pacienteId=${data.id}`} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".82rem", fontWeight: 800, textDecoration: "none" }}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg>
+            Iniciar sessão
+          </Link>
         </div>
       </div>
 
-      {/* ── STATS ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+      {/* KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10, marginBottom: 20 }}>
         {[
-          { label: "Total",    val: stats.total,    cor: "#378ADD", filtroId: "todos"   },
-          { label: "Alertas",  val: stats.alertas,  cor: "#E05A4B", filtroId: "alerta"  },
-          { label: "Hoje",     val: stats.hoje,     cor: "#1D9E75", filtroId: "hoje"    },
-          { label: "Pausados", val: stats.pausados, cor: "#EF9F27", filtroId: "pausado" },
-        ].map(s => (
-          <button
-            key={s.filtroId}
-            onClick={() => setFiltro(s.filtroId as FiltroAtivo)}
-            style={{ ...card, padding: "14px 16px", cursor: "pointer", border: filtro === s.filtroId ? `1px solid ${s.cor}55` : "1px solid rgba(70,120,180,.5)", background: filtro === s.filtroId ? `${s.cor}11` : "rgba(13,32,53,.75)", textAlign: "left" }}
-          >
-            <div style={{ fontSize: "1.4rem", fontWeight: 800, color: s.cor }}>{s.val}</div>
-            <div style={{ fontSize: ".7rem", color: "rgba(138,168,200,.5)", marginTop: 2 }}>{s.label}</div>
-          </button>
+          { l: "Média radar",       v: summary ? `${summary.avg}%` : "—",  c: summary && summary.avg >= 70 ? "#1D9E75" : summary && summary.avg >= 50 ? "#EF9F27" : "#E05A4B" },
+          { l: "Habs. dominadas",   v: summary?.habDominadas ?? 0,         c: "#1D9E75" },
+          { l: "Em aquisição",      v: summary?.habEmerg ?? 0,             c: "#EF9F27" },
+          { l: "Programas ativos",  v: summary?.activeProgs ?? 0,          c: "#378ADD" },
+        ].map(k => (
+          <div key={k.l} style={{ ...card, padding: "14px 16px" }}>
+            <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>{k.l}</div>
+            <div style={{ fontSize: "1.6rem", fontWeight: 800, color: k.c, letterSpacing: "-.02em", lineHeight: 1 }}>{k.v}</div>
+          </div>
         ))}
       </div>
 
-      {/* ── BUSCA ── */}
-      <div style={{ position: "relative" }}>
-        <input
-          value={busca}
-          onChange={e => setBusca(e.target.value)}
-          placeholder="Buscar por nome, diagnóstico ou domínio..."
-          style={{ width: "100%", padding: "11px 16px 11px 38px", borderRadius: 10, border: "1px solid rgba(70,120,180,.3)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".82rem", fontFamily: "var(--font-sans)", boxSizing: "border-box", outline: "none" }}
-        />
-        <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: .4 }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e8f0f8" strokeWidth="2" strokeLinecap="round">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(26,58,92,.4)", marginBottom: 20, overflowX: "auto" }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            padding: "10px 18px", background: "none", border: "none", whiteSpace: "nowrap",
+            borderBottom: `2px solid ${tab === t.id ? "#1D9E75" : "transparent"}`,
+            color: tab === t.id ? "#1D9E75" : "rgba(160,200,235,.84)",
+            fontFamily: "var(--font-sans)", fontWeight: tab === t.id ? 600 : 400,
+            fontSize: ".82rem", cursor: "pointer", transition: "color .15s", marginBottom: -1,
+          }}>{t.label}</button>
+        ))}
       </div>
 
-      {/* ── LISTA ── */}
-      {pacientesFiltrados.length === 0 ? (
-        <div style={{ ...card, padding: "48px 24px", textAlign: "center" }}>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,.3)" }}>
-            {pacientes.length === 0
-              ? "Nenhum paciente cadastrado ainda. Cadastre um novo paciente para começar."
-              : "Nenhum paciente encontrado para esse filtro."}
+      {/* ── VISÃO GERAL ── */}
+      {tab === "visao-geral" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Radar + Evolução */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+
+            {/* Radar */}
+            <div style={{ ...card, padding: 20 }}>
+              <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>Mapa de desenvolvimento</div>
+              <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)", marginBottom: 16 }}>Leitura atual dos domínios do repertório</div>
+              <div style={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={radarData}>
+                    <PolarGrid stroke="rgba(26,58,92,.6)" />
+                    <PolarAngleAxis dataKey="domain" tick={{ fill: "rgba(160,200,235,.92)", fontSize: 11 }} />
+                    <Radar name="Desenvolvimento" dataKey="value" stroke="#1D9E75" fill="#1D9E75" fillOpacity={0.15} strokeWidth={1.5} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Evolução longitudinal */}
+            <div style={{ ...card, padding: 20 }}>
+              <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>Evolução longitudinal</div>
+              <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)", marginBottom: 16 }}>Mudança observada nas últimas medições</div>
+              <div style={{ height: 200, marginBottom: 10 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={evolutionData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,58,92,.5)" />
+                    <XAxis dataKey="date" stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} />
+                    <YAxis domain={[0,100]} stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} />
+                    <Tooltip contentStyle={{ background: "#0d2035", border: "1px solid rgba(26,58,92,.7)", borderRadius: 10, color: "#e8f0f8", fontSize: 12 }} />
+                    <Line type="monotone" dataKey="Comunicação" stroke="#1D9E75" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Atenção"     stroke="#378ADD" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Regulação"   stroke="#EF9F27" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Social"      stroke="#8B7FE8" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                {[["#1D9E75","Comunicação"],["#378ADD","Atenção"],["#EF9F27","Regulação"],["#8B7FE8","Social"]].map(([c,l]) => (
+                  <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 10, height: 3, background: c, borderRadius: 2 }} />
+                    <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>{l}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Repertório de habilidades */}
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8" }}>Repertório de habilidades</div>
+                <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)", marginTop: 2 }}>Estado atual por domínio — atualizado pelas sessões</div>
+              </div>
+              <button onClick={() => setModalHab(true)} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".75rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                + Habilidade
+              </button>
+            </div>
+
+            {habilidades.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "24px 0", color: "rgba(160,200,235,.3)", fontSize: ".82rem" }}>
+                Nenhuma habilidade registrada ainda — adicione ou finalize uma sessão para popular o repertório
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {Object.entries(habsPorDominio).map(([dom, habs]) => (
+                  <div key={dom}>
+                    <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
+                      {DOMINIO_PT[dom] ?? dom}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {habs.map(h => {
+                        const st = STATUS_HAB[h.status];
+                        return (
+                          <div key={h.id} style={{ padding: "8px 12px", background: st.bg, border: `1px solid ${st.cor}33`, borderRadius: 9, minWidth: 140 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                              <span style={{ fontSize: ".78rem", fontWeight: 600, color: "#e8f0f8" }}>{h.habilidade}</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: ".62rem", color: st.cor, fontWeight: 600 }}>{st.label}</span>
+                              {h.operante && <span style={{ fontSize: ".58rem", color: "rgba(160,200,235,.35)" }}>{h.operante}</span>}
+                            </div>
+                            {h.score > 0 && (
+                              <div style={{ marginTop: 6, height: 3, background: "rgba(26,58,92,.5)", borderRadius: 2, overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${h.score}%`, background: st.cor }} />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Comportamentos interferentes */}
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8" }}>Comportamentos interferentes</div>
+                <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)", marginTop: 2 }}>Protocolos de redução e comportamentos monitorados</div>
+              </div>
+              <button onClick={() => setModalComp(true)} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(224,90,75,.3)", background: "rgba(224,90,75,.06)", color: "#E05A4B", fontSize: ".75rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                + Comportamento
+              </button>
+            </div>
+
+            {comportamentos.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "16px 0", color: "rgba(160,200,235,.3)", fontSize: ".82rem" }}>
+                Nenhum comportamento registrado
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {comportamentos.map(c => {
+                  const st = STATUS_COMP[c.status];
+                  return (
+                    <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", background: "rgba(26,58,92,.2)", borderRadius: 10, border: `1px solid ${st.cor}22` }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: st.cor, flexShrink: 0, marginTop: 4 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: ".82rem", fontWeight: 600, color: "#e8f0f8" }}>{c.nome}</span>
+                          <span style={{ fontSize: ".62rem", color: st.cor, background: st.cor + "15", borderRadius: 20, padding: "1px 7px", fontWeight: 600 }}>{st.label}</span>
+                          {c.intensidade && <span style={{ fontSize: ".62rem", color: "rgba(160,200,235,.4)" }}>{c.intensidade}</span>}
+                        </div>
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                          {c.topografia && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Topografia: {c.topografia}</span>}
+                          {c.funcao     && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Função: {c.funcao}</span>}
+                          {c.contexto   && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Contexto: {c.contexto}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Variáveis clínicas + Alertas + Insights */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+
+            {/* Variáveis clínicas */}
+            <div style={{ ...card, padding: 16 }}>
+              <div style={{ ...lbl }}>Variáveis clínicas</div>
+              {variaveis ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {[
+                    { l: "Assentimento",          v: variaveis.assentimento_pct,        suf: "%",  cor: variaveis.assentimento_pct >= 70 ? "#1D9E75" : "#EF9F27" },
+                    { l: "Tolerância à exigência", v: variaveis.tolerancia_exigencia,    suf: "/100", cor: "#378ADD" },
+                    { l: "Responsividade ao reforço",v: variaveis.responsividade_reforco, suf: "/100", cor: "#8B7FE8" },
+                    { l: "Revogações/sessão",      v: variaveis.revogacoes_por_sessao,   suf: "x",  cor: variaveis.revogacoes_por_sessao > 2 ? "#E05A4B" : "#1D9E75" },
+                  ].map(r => (
+                    <div key={r.l} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "rgba(26,58,92,.2)", borderRadius: 8 }}>
+                      <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.7)" }}>{r.l}</span>
+                      <span style={{ fontSize: ".88rem", fontWeight: 700, color: r.cor }}>{r.v}{r.suf}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.3)", textAlign: "center", padding: "12px 0" }}>
+                  Dados disponíveis após sessões concluídas
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {/* Alertas */}
+              {data.alerts.length > 0 && (
+                <div style={{ ...card, padding: 16 }}>
+                  <div style={{ ...lbl }}>Alertas clínicos</div>
+                  {data.alerts.map(a => (
+                    <div key={a.id} style={{ background: ALERT_BG[a.level], border: `1px solid ${ALERT_BORDA[a.level]}`, borderRadius: 10, padding: "10px 12px", marginBottom: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: ALERT_COR[a.level], flexShrink: 0 }} />
+                        <span style={{ fontSize: ".75rem", fontWeight: 600, color: "#e8f0f8" }}>{a.title}</span>
+                      </div>
+                      <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.9)", lineHeight: 1.5 }}>{a.description}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Insights */}
+              {(nivel === "coordenador" || nivel === "supervisor") && insights.length > 0 && (
+                <div style={{ ...card, padding: 16 }}>
+                  <div style={{ ...lbl }}>Insights do Engine</div>
+                  {insights.map((ins, i) => (
+                    <div key={i} style={{ padding: "9px 12px", background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.15)", borderRadius: 9, marginBottom: 6, fontSize: ".75rem", color: "rgba(160,200,235,.92)", lineHeight: 1.55 }}>
+                      {ins}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* ── PROGRAMAS ── */}
+      {tab === "programas" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {pacientesFiltrados.map(p => (
-            <Link key={p.id} href={`/clinic/paciente/${p.id}`} style={{ textDecoration: "none" }}>
-              <div
-                style={{ ...card, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s" }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(55,138,221,.5)")}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(70,120,180,.5)")}
-              >
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-                  {/* Avatar */}
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: p.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-                    {p.iniciais}
+          {data.programs.length === 0 ? (
+            <div style={{ ...card, padding: 32, textAlign: "center", color: "rgba(160,200,235,.3)", fontSize: ".82rem" }}>
+              Nenhum plano ativo para este paciente
+            </div>
+          ) : data.programs.map(p => {
+            const st = STATUS_PROG[p.status];
+            return (
+              <div key={p.id} style={{ ...card, padding: 20 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: ".92rem", fontWeight: 700, color: "#e8f0f8" }}>{p.name}</span>
+                      <span style={{ fontSize: ".65rem", background: st.bg, border: `1px solid ${st.borda}`, color: st.cor, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>{st.label}</span>
+                    </div>
+                    <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{p.domain}</div>
                   </div>
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
-                      <span style={{ fontSize: ".9rem", fontWeight: 700, color: "#e8f0f8" }}>{p.nome}</span>
-                      <span style={{ fontSize: ".7rem", color: "rgba(138,168,200,.5)" }}>
-                        {p.idade > 0 ? `${p.idade} anos · ` : ''}{p.diagnostico}
-                      </span>
-                      <span style={{
-                        fontSize: ".65rem", fontWeight: 700, padding: "2px 8px", borderRadius: 6,
-                        background: p.status === "alerta" ? "rgba(224,90,75,.15)" : p.status === "pausado" ? "rgba(239,159,39,.12)" : "rgba(29,158,117,.12)",
-                        color:      p.status === "alerta" ? "#E05A4B"              : p.status === "pausado" ? "#EF9F27"              : "#1D9E75",
-                        border:     `1px solid ${p.status === "alerta" ? "#E05A4B33" : p.status === "pausado" ? "#EF9F2733" : "#1D9E7533"}`,
-                      }}>
-                        {p.status === "alerta" ? "Atenção" : p.status === "pausado" ? "Pausado" : "Ativo"}
-                      </span>
-                      {!p.avaliado && (
-                        <span style={{ fontSize: ".65rem", fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: "rgba(139,127,232,.12)", color: "#8B7FE8", border: "1px solid rgba(139,127,232,.25)" }}>
-                          Aguardando avaliação
-                        </span>
-                      )}
+                  {nivel !== "terapeuta" && (
+                    <Link href={`/clinic/sessao?pacienteId=${data.id}&programaId=${p.id}`} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".72rem", fontWeight: 600, textDecoration: "none" }}>
+                      Executar →
+                    </Link>
+                  )}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                  {[{ l: "Taxa de sucesso", v: p.success }, { l: "Independência", v: p.independence }].map(m => (
+                    <div key={m.l}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                        <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{m.l}</span>
+                        <span style={{ fontSize: ".72rem", color: m.v >= 80 ? "#1D9E75" : m.v >= 50 ? "#EF9F27" : "#E05A4B", fontWeight: 600 }}>{m.v}%</span>
+                      </div>
+                      <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${m.v}%`, background: m.v >= 80 ? "#1D9E75" : m.v >= 50 ? "#EF9F27" : "#E05A4B" }} />
+                      </div>
                     </div>
+                  ))}
+                </div>
+                {p.status === "stalled"   && <div style={{ background: "rgba(224,90,75,.07)", border: "1px solid rgba(224,90,75,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#E05A4B" }}>Programa travado — revisar critério, nível de dica ou reforçadores</div>}
+                {p.status === "completed" && <div style={{ background: "rgba(55,138,221,.07)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#378ADD" }}>Programa concluído — considerar generalização</div>}
+                {p.success >= 80 && p.status === "active" && <div style={{ background: "rgba(29,158,117,.07)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#1D9E75" }}>Próximo de critério — considerar avançar nível de dica</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-                    {p.dominios.length > 0 && (
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-                        {p.dominios.map(d => (
-                          <span key={d} style={{ fontSize: ".65rem", padding: "2px 8px", borderRadius: 5, background: "rgba(55,138,221,.1)", color: "rgba(138,168,200,.8)", border: "1px solid rgba(55,138,221,.2)" }}>{d}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    {p.alertas.slice(0, 2).map((a, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                        <div style={{ width: 5, height: 5, borderRadius: "50%", background: a.nivel === "high" ? "#E05A4B" : a.nivel === "medium" ? "#EF9F27" : "#1D9E75", flexShrink: 0 }} />
-                        <span style={{ fontSize: ".72rem", color: "rgba(200,220,240,.6)" }}>{a.texto}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Métricas direita */}
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
-                    {p.avaliado ? (
-                      <div style={{ fontSize: "1.3rem", fontWeight: 800, color: p.taxaGeral >= 70 ? "#1D9E75" : p.taxaGeral >= 50 ? "#EF9F27" : "#E05A4B" }}>
-                        {p.taxaGeral}%
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: ".7rem", fontWeight: 600, color: "rgba(139,127,232,.7)", textAlign: "right", lineHeight: 1.4 }}>
-                        Não<br/>avaliado
-                      </div>
-                    )}
-                    <div style={{ fontSize: ".65rem", color: "rgba(138,168,200,.4)", textAlign: "right" }}>
-                      {p.programasAtivos} programas · {p.sessoesMes} sessões/mês
+      {/* ── SKILL GRAPH ── */}
+      {tab === "skill-graph" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {habilidades.length === 0 ? (
+            <div style={{ ...card, padding: 32, textAlign: "center", color: "rgba(160,200,235,.3)", fontSize: ".82rem" }}>
+              Nenhuma habilidade no repertório ainda — adicione pela aba Visão Geral
+            </div>
+          ) : (
+            <>
+              {/* Resumo por status */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+                {(["dominada","em_aquisicao","emergente","ausente"] as const).map(st => {
+                  const cfg = STATUS_HAB[st];
+                  const count = habilidades.filter(h => h.status === st).length;
+                  return (
+                    <div key={st} style={{ ...card, padding: "12px 14px" }}>
+                      <div style={{ fontSize: ".6rem", color: cfg.cor, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 4 }}>{cfg.label}</div>
+                      <div style={{ fontSize: "1.6rem", fontWeight: 800, color: cfg.cor }}>{count}</div>
                     </div>
-                    <div style={{ fontSize: ".65rem", color: "rgba(138,168,200,.4)" }}>
-                      Última: {p.ultimaSessao}
-                    </div>
-                    {p.avaliado && (
-                      <div style={{ display: "flex", gap: 6 }}>
-                        {p.radarMini.map(r => (
-                          <div key={r.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                            <div style={{ width: 4, height: 28, background: "rgba(255,255,255,.08)", borderRadius: 2, position: "relative", overflow: "hidden" }}>
-                              <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${r.val}%`, background: r.val >= 70 ? "#1D9E75" : r.val >= 50 ? "#EF9F27" : "#E05A4B", borderRadius: 2 }} />
-                            </div>
-                            <span style={{ fontSize: ".55rem", color: "rgba(138,168,200,.4)" }}>{r.label}</span>
+                  );
+                })}
+              </div>
+
+              {/* Por domínio */}
+              {Object.entries(habsPorDominio).map(([dom, habs]) => (
+                <div key={dom} style={{ ...card, padding: 18 }}>
+                  <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 12 }}>{DOMINIO_PT[dom] ?? dom}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {habs.map(h => {
+                      const st = STATUS_HAB[h.status];
+                      return (
+                        <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ width: 120, flexShrink: 0 }}>
+                            <div style={{ fontSize: ".75rem", color: "#e8f0f8" }}>{h.habilidade}</div>
+                            {h.operante && <div style={{ fontSize: ".62rem", color: "rgba(160,200,235,.35)" }}>{h.operante}</div>}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          <div style={{ flex: 1, height: 6, background: "rgba(26,58,92,.5)", borderRadius: 3, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${h.score}%`, background: st.cor }} />
+                          </div>
+                          <div style={{ width: 80, display: "flex", gap: 6, alignItems: "center" }}>
+                            <span style={{ fontSize: ".65rem", color: st.cor, fontWeight: 600, background: st.cor + "15", borderRadius: 20, padding: "1px 7px" }}>{st.label}</span>
+                          </div>
+                          <div style={{ width: 40, textAlign: "right", fontSize: ".72rem", color: st.cor, fontWeight: 700 }}>{h.score}%</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              ))}
+            </>
+          )}
         </div>
       )}
 
-      {/* ── Modal vinculação por código ── */}
-      {modalVinculo && (
-        <div
-          onClick={() => { setModalVinculo(false); setMsgVinculo(''); setCodigoConvite(''); }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
-        >
-          <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(13,32,53,0.97)', border: '1px solid rgba(55,138,221,0.3)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: '#e8eef4', marginBottom: 4 }}>Vincular paciente FractaCare</div>
-              <div style={{ fontSize: 12, color: 'rgba(232,238,244,.4)', lineHeight: 1.6 }}>
-                Peça ao responsável para gerar um código de convite no FractaCare e insira abaixo para vincular o paciente à sua conta.
-              </div>
+      {/* ── FORECAST ── */}
+      {tab === "forecast" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ ...card, padding: 16, border: "1px solid rgba(139,127,232,.2)" }}>
+            <div style={{ fontSize: ".7rem", color: "#8B7FE8", marginBottom: 2, fontWeight: 600 }}>FractaEngine — Forecast preditivo</div>
+            <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)", lineHeight: 1.6 }}>
+              Baseado nos dados de sessão, radar e repertório atual. Atualizado a cada sessão encerrada.
             </div>
-            <div>
-              <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>Código de convite</label>
-              <input
-                value={codigoConvite}
-                onChange={e => setCodigoConvite(e.target.value.toUpperCase())}
-                placeholder="Ex: ABC123"
-                maxLength={10}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(55,138,221,0.3)', background: 'rgba(55,138,221,0.05)', color: '#e8eef4', fontSize: 16, fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box', letterSpacing: '0.15em', textAlign: 'center' }}
-              />
-            </div>
-            {msgVinculo && (
-              <div style={{ fontSize: 12, padding: '9px 12px', borderRadius: 8, background: msgVinculo.includes('Erro') || msgVinculo.includes('inválido') || msgVinculo.includes('expirado') ? 'rgba(224,90,75,.08)' : 'rgba(29,158,117,.08)', color: msgVinculo.includes('Erro') || msgVinculo.includes('inválido') || msgVinculo.includes('expirado') ? '#E05A4B' : '#1D9E75', border: `1px solid ${msgVinculo.includes('Erro') || msgVinculo.includes('inválido') || msgVinculo.includes('expirado') ? 'rgba(224,90,75,.2)' : 'rgba(29,158,117,.2)'}` }}>
-                {msgVinculo}
+          </div>
+          {forecastResults.map(f => {
+            const corSaude = f.goalHealth === "stalled" ? "#E05A4B" : f.goalHealth === "watch" ? "#EF9F27" : "#1D9E75"
+            const labelSaude = f.goalHealth === "on_track" ? "Em curso" : f.goalHealth === "watch" ? "Monitorar" : f.goalHealth === "stalled" ? "Travada" : f.goalHealth === "accelerating" ? "Acelerando" : "Consolidando"
+            return (
+            <div key={f.goalId} style={{ ...card, padding: 20, border: `1px solid ${f.goalHealth === "stalled" ? "rgba(224,90,75,.2)" : f.goalHealth === "watch" ? "rgba(239,159,39,.15)" : "rgba(29,158,117,.15)"}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>{f.goalName}</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: ".65rem", color: corSaude, fontWeight: 600 }}>{labelSaude}</span>
+                    <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.4)" }}>Confiança: {f.confidence}</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.88)", marginBottom: 2 }}>Estimativa</div>
+                  <div style={{ fontSize: "1rem", fontWeight: 800, color: "#EF9F27" }}>{f.min}–{f.max} sessões</div>
+                </div>
               </div>
-            )}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => { setModalVinculo(false); setMsgVinculo(''); setCodigoConvite(''); }}
-                style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(26,58,92,0.5)', background: 'transparent', color: 'rgba(232,238,244,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                Cancelar
-              </button>
-              <button
-                disabled={vinculando || codigoConvite.trim().length < 4}
-                onClick={async () => {
-                  if (!terapeuta || !codigoConvite.trim()) return
-                  setVinculando(true)
-                  setMsgVinculo('')
-                  try {
-                    const { data: convite } = await supabase
-                      .from('convites')
-                      .select('id, crianca_id, usado, expira_em')
-                      .eq('codigo', codigoConvite.trim())
-                      .single()
-                    if (!convite) { setMsgVinculo('Código inválido. Verifique e tente novamente.'); setVinculando(false); return }
-                    if (convite.usado) { setMsgVinculo('Este código já foi utilizado.'); setVinculando(false); return }
-                    if (new Date(convite.expira_em) < new Date()) { setMsgVinculo('Este código está expirado. Peça um novo ao responsável.'); setVinculando(false); return }
-                    const { data: crianca } = await supabase.from('criancas').select('nome').eq('id', convite.crianca_id).single()
-                    await supabase.from('planos').insert({ crianca_id: convite.crianca_id, terapeuta_id: terapeuta.id, status: 'ativo', tipo_plano: 'care' })
-                    await supabase.from('convites').update({ usado: true }).eq('id', convite.id)
-                    setMsgVinculo(`Paciente ${crianca?.nome ?? ''} vinculado com sucesso!`)
-                    setCodigoConvite('')
-                    setTimeout(() => { setModalVinculo(false); setMsgVinculo('') }, 1800)
-                  } catch { setMsgVinculo('Erro inesperado. Tente novamente.') }
-                  setVinculando(false)
-                }}
-                style={{ flex: 2, padding: '10px', borderRadius: 9, border: 'none', background: codigoConvite.trim().length >= 4 ? '#378ADD' : 'rgba(26,58,92,0.4)', color: codigoConvite.trim().length >= 4 ? '#fff' : 'rgba(232,238,244,.4)', fontSize: 13, fontWeight: 700, cursor: vinculando || codigoConvite.trim().length < 4 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: vinculando ? 0.7 : 1 }}
-              >
-                {vinculando ? 'Verificando...' : 'Vincular paciente'}
-              </button>
+              <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden", marginBottom: 10 }}>
+                <div style={{ height: "100%", width: `${Math.min(100, Math.round(f.min / Math.max(f.max,1) * 100))}%`, background: corSaude }} />
+              </div>
+              <div style={{ display: "flex", gap: 14, marginBottom: f.rationale.length > 0 ? 10 : 0 }}>
+                <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>Barreiras: <strong style={{ color: f.inferredBarriers > 1 ? "#E05A4B" : "#e8f0f8" }}>{f.inferredBarriers}</strong></div>
+                <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>Ação: <strong style={{ color: "#e8f0f8" }}>{f.recommendedAction.replace(/_/g," ")}</strong></div>
+              </div>
+              {f.rationale.length > 0 && (
+                <div style={{ background: "rgba(26,58,92,.2)", border: "1px solid rgba(26,58,92,.4)", borderRadius: 9, padding: "10px 12px" }}>
+                  {f.rationale.map((b: string, i: number) => (
+                    <div key={i} style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)", marginBottom: 3 }}>• {b}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── AVALIAÇÕES ── */}
+      {tab === "avaliacoes" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 20 }}>
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 14 }}>Protocolos aplicados</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[{ sigla: "VB-MAPP", cor: "#1D9E75", data: "15 Jan 2025", pontos: 68, max: 170, nivel: "Nível 1–2", revisao: "Jul 2025" }].map(av => {
+                const pct = Math.round((av.pontos / av.max) * 100);
+                return (
+                  <div key={av.sigla} style={{ padding: "14px 16px", background: "rgba(26,58,92,.25)", borderRadius: 11, border: `1px solid ${av.cor}33` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                          <span style={{ fontSize: ".9rem", fontWeight: 800, color: av.cor }}>{av.sigla}</span>
+                          <span style={{ fontSize: ".65rem", color: "#1D9E75", background: "rgba(29,158,117,.1)", borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>Concluída</span>
+                        </div>
+                        <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)" }}>Aplicada em {av.data} · Nível: {av.nivel}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 800, color: av.cor }}>{pct}%</div>
+                        <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.88)" }}>{av.pontos}/{av.max} pts</div>
+                      </div>
+                    </div>
+                    <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: av.cor }} />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: ".65rem", color: "rgba(165,208,242,.85)" }}>Próxima revisão: {av.revisao}</span>
+                      <a href="/clinic/avaliacoes" style={{ fontSize: ".65rem", color: av.cor, textDecoration: "none", fontWeight: 600 }}>Ver detalhes →</a>
+                    </div>
+                  </div>
+                );
+              })}
+              <a href="/clinic/avaliacoes" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px", borderRadius: 10, border: "1px dashed rgba(26,58,92,.5)", background: "transparent", color: "rgba(160,200,235,.84)", textDecoration: "none", fontSize: ".75rem", cursor: "pointer" }}>
+                + Nova avaliação
+              </a>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Modal cadastro FFS ── */}
-      {modalFFS && (
-        <div onClick={fecharFFS} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(13,32,53,0.97)', border: '1px solid rgba(26,58,92,0.5)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: '#e8eef4', marginBottom: 4 }}>Cadastrar paciente</div>
-              <div style={{ fontSize: 12, color: 'rgba(232,238,244,.4)' }}>
-                O paciente será cadastrado sem avaliação inicial. O repertório e o radar serão construídos a partir das sessões e avaliações clínicas.
-              </div>
-            </div>
+      {/* ── HISTÓRICO ── */}
+      {tab === "historico" && <HistoricoSessoes criancaId={params.id as string} />}
 
-            {/* Nome */}
-            <div>
-              <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Nome da criança *</label>
-              <input
-                value={novoNome}
-                onChange={e => setNovoNome(e.target.value)}
-                placeholder="Ex: João Silva"
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
+      {/* ── CONTRATO ── */}
+      {tab === "contrato" && <ContratoTab criancaId={params.id as string} terapeutaId={terapeuta?.id ?? ""} />}
 
-            {/* Data de nascimento + Gênero lado a lado */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      {/* Modal adicionar habilidade */}
+      {modalHab && (
+        <div onClick={() => setModalHab(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ ...card, padding: 28, width: "100%", maxWidth: 440, border: "1px solid rgba(29,158,117,.2)" }}>
+            <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 20 }}>Nova habilidade</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Data de nascimento</label>
-                <input
-                  type="date"
-                  value={novoNasc}
-                  onChange={e => setNovoNasc(e.target.value)}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: novoNasc ? '#e8eef4' : 'rgba(232,238,244,.3)', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Gênero</label>
-                <select
-                  value={novoGenero}
-                  onChange={e => setNovoGenero(e.target.value)}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(13,32,53,0.97)', color: novoGenero ? '#e8eef4' : 'rgba(232,238,244,.3)', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-                >
-                  <option value="">Selecionar</option>
-                  <option value="masculino">Masculino</option>
-                  <option value="feminino">Feminino</option>
+                <label style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Domínio</label>
+                <select value={novaHab.dominio} onChange={e => setNovaHab(p => ({ ...p, dominio: e.target.value }))} style={inp}>
+                  {DOMINIOS.map(d => <option key={d} value={d}>{DOMINIO_PT[d] ?? d}</option>)}
                 </select>
               </div>
-            </div>
-
-            {/* Diagnóstico */}
-            <div>
-              <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Diagnóstico</label>
-              <input
-                value={novoDiag}
-                onChange={e => setNovoDiag(e.target.value)}
-                placeholder="Ex: TEA nível 1"
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            {/* Responsável */}
-            <div>
-              <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Nome do responsável</label>
-              <input
-                value={novoResp}
-                onChange={e => setNovoResp(e.target.value)}
-                placeholder="Ex: Maria Silva"
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            {/* Email responsável */}
-            <div>
-              <label style={{ fontSize: 11, color: 'rgba(232,238,244,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 5 }}>Email do responsável</label>
-              <input
-                value={novoEmail}
-                onChange={e => setNovoEmail(e.target.value)}
-                placeholder="maria@email.com"
-                type="email"
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(26,58,92,0.5)', background: 'rgba(255,255,255,0.03)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            {msgFFS && (
-              <div style={{ fontSize: 12, padding: '9px 12px', borderRadius: 8, background: msgFFS.includes('Erro') ? 'rgba(224,90,75,.08)' : 'rgba(29,158,117,.08)', color: msgFFS.includes('Erro') ? '#E05A4B' : '#1D9E75', border: `1px solid ${msgFFS.includes('Erro') ? 'rgba(224,90,75,.2)' : 'rgba(29,158,117,.2)'}` }}>
-                {msgFFS}
+              <div>
+                <label style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Habilidade</label>
+                <input value={novaHab.habilidade} onChange={e => setNovaHab(p => ({ ...p, habilidade: e.target.value }))} placeholder="Ex: Mando simples com PECS" style={inp} />
               </div>
-            )}
+              <div>
+                <label style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Operante (opcional)</label>
+                <input value={novaHab.operante} onChange={e => setNovaHab(p => ({ ...p, operante: e.target.value }))} placeholder="Ex: mando, tato, intraverbal" style={inp} />
+              </div>
+              <div>
+                <label style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Status inicial</label>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {(["ausente","emergente","em_aquisicao","dominada"] as const).map(s => {
+                    const cfg = STATUS_HAB[s];
+                    return (
+                      <button key={s} onClick={() => setNovaHab(p => ({ ...p, status: s }))}
+                        style={{ flex: 1, padding: "7px 4px", borderRadius: 7, border: `1px solid ${novaHab.status === s ? cfg.cor + "55" : "rgba(26,58,92,.4)"}`, background: novaHab.status === s ? cfg.bg : "transparent", color: novaHab.status === s ? cfg.cor : "rgba(160,200,235,.4)", fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                        {cfg.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setModalHab(false)} style={{ flex: 1, padding: 11, borderRadius: 9, border: "1px solid rgba(26,58,92,.5)", background: "transparent", color: "rgba(160,200,235,.5)", fontSize: 13, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancelar</button>
+                <button onClick={adicionarHabilidade} disabled={salvandoHab || !novaHab.habilidade.trim()} style={{ flex: 2, padding: 11, borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", opacity: salvandoHab ? 0.6 : 1 }}>
+                  {salvandoHab ? "Salvando..." : "Adicionar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <button
-                onClick={fecharFFS}
-                style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(26,58,92,0.5)', background: 'transparent', color: 'rgba(232,238,244,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                Cancelar
-              </button>
-              <button
-                disabled={salvando || !novoNome.trim()}
-                onClick={async () => {
-                  if (!terapeuta || !novoNome.trim()) return
-                  setSalvando(true)
-                  setMsgFFS('')
-                  try {
-                    const criancaId = crypto.randomUUID()
-
-                    // 1. Cadastra a criança com dados completos
-                    const { error: errCrianca } = await supabase
-                      .from('criancas')
-                      .insert({
-                        id: criancaId,
-                        nome: novoNome.trim(),
-                        data_nascimento: novoNasc || null,
-                        genero: novoGenero || null,
-                        diagnostico: novoDiag.trim() || null,
-                        ativo: true,
-                      })
-                    if (errCrianca) { setMsgFFS('Erro ao cadastrar criança: ' + errCrianca.message); setSalvando(false); return }
-
-                    // 2. Cria plano terapêutico
-                    const { error: errPlano } = await supabase
-                      .from('planos')
-                      .insert({ crianca_id: criancaId, terapeuta_id: terapeuta.id, status: 'ativo', tipo_plano: 'ffs' })
-                    if (errPlano) { setMsgFFS('Erro ao criar plano: ' + errPlano.message); setSalvando(false); return }
-
-                    // 3. Inicializa variáveis clínicas com estado nao_avaliado
-                    // Não cria radar_snapshots — o radar só nasce após avaliação real
-                    await supabase
-                      .from('variaveis_clinicas')
-                      .insert({
-                        crianca_id: criancaId,
-                        status_repertorio: 'nao_avaliado',
-                        assentimento_pct: null,
-                        tolerancia_exigencia: null,
-                        responsividade_reforco: null,
-                        revogacoes_por_sessao: null,
-                      })
-
-                    setMsgFFS('Paciente cadastrado com sucesso!')
-                    fecharFFS()
-                    // Recarrega a lista
-                    setTimeout(() => window.location.reload(), 1200)
-                  } catch { setMsgFFS('Erro inesperado. Tente novamente.') }
-                  setSalvando(false)
-                }}
-                style={{ flex: 2, padding: '10px', borderRadius: 9, border: 'none', background: novoNome.trim() ? 'linear-gradient(135deg,#1D9E75,#0f8f7a)' : 'rgba(26,58,92,0.4)', color: novoNome.trim() ? '#07111f' : 'rgba(232,238,244,.4)', fontSize: 13, fontWeight: 700, cursor: salvando || !novoNome.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: salvando ? 0.7 : 1 }}
-              >
-                {salvando ? 'Cadastrando...' : 'Cadastrar paciente'}
-              </button>
+      {/* Modal adicionar comportamento */}
+      {modalComp && (
+        <div onClick={() => setModalComp(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ ...card, padding: 28, width: "100%", maxWidth: 440, border: "1px solid rgba(224,90,75,.2)" }}>
+            <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 20 }}>Novo comportamento interferente</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Nome</label>
+                <input value={novoComp.nome} onChange={e => setNovoComp(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Agressão física, Estereotipia vocal" style={inp} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Função</label>
+                  <select value={novoComp.funcao} onChange={e => setNovoComp(p => ({ ...p, funcao: e.target.value }))} style={inp}>
+                    <option value="fuga">Fuga/Esquiva</option>
+                    <option value="atencao">Atenção</option>
+                    <option value="tangivel">Tangível</option>
+                    <option value="automatico">Automático</option>
+                    <option value="multipla">Múltipla</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Intensidade</label>
+                  <select value={novoComp.intensidade} onChange={e => setNovoComp(p => ({ ...p, intensidade: e.target.value }))} style={inp}>
+                    <option value="leve">Leve</option>
+                    <option value="moderada">Moderada</option>
+                    <option value="severa">Severa</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Topografia (opcional)</label>
+                <input value={novoComp.topografia} onChange={e => setNovoComp(p => ({ ...p, topografia: e.target.value }))} placeholder="Como o comportamento se manifesta fisicamente" style={inp} />
+              </div>
+              <div>
+                <label style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Contexto (opcional)</label>
+                <input value={novoComp.contexto} onChange={e => setNovoComp(p => ({ ...p, contexto: e.target.value }))} placeholder="Quando/onde ocorre com maior frequência" style={inp} />
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setModalComp(false)} style={{ flex: 1, padding: 11, borderRadius: 9, border: "1px solid rgba(26,58,92,.5)", background: "transparent", color: "rgba(160,200,235,.5)", fontSize: 13, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancelar</button>
+                <button onClick={adicionarComportamento} disabled={salvandoComp || !novoComp.nome.trim()} style={{ flex: 2, padding: 11, borderRadius: 9, border: "none", background: "linear-gradient(135deg,#E05A4B,#c04030)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", opacity: salvandoComp ? 0.6 : 1 }}>
+                  {salvandoComp ? "Salvando..." : "Registrar comportamento"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
