@@ -312,15 +312,87 @@ export default function AvaliacoesPage() {
 
   // ── Concluir sessão ──────────────────────────────────────────────────────
   const concluirSessao = useCallback(async () => {
-    if (!sessaoAtiva) return;
+    if (!sessaoAtiva || !protocoloSel) return;
+
+    // 1. Marca sessão como concluída
     await supabase
       .from("avaliacoes_sessoes")
       .update({ status: "concluida", concluida_em: new Date().toISOString() })
       .eq("id", sessaoAtiva.id);
+
+    // 2. Atualiza repertorio_habilidades por item respondido
+    for (const dominio of protocoloSel.dominios) {
+      for (const item of dominio.itens) {
+        const pontuacao = respostas[item.id];
+        if (pontuacao === undefined) continue;
+        const scorePercent = Math.round((pontuacao / item.pontuacao_max) * 100);
+        const status =
+          scorePercent === 0 ? "ausente" :
+          scorePercent <= 40 ? "emergente" :
+          scorePercent <= 79 ? "em_aquisicao" : "dominada";
+
+        // Verifica se já existe registro
+        const { data: existente } = await supabase
+          .from("repertorio_habilidades")
+          .select("id")
+          .eq("crianca_id", sessaoAtiva.crianca_id)
+          .eq("habilidade", item.descricao)
+          .single();
+
+        if (existente) {
+          await supabase
+            .from("repertorio_habilidades")
+            .update({ score: scorePercent, status, ultima_atualizacao: new Date().toISOString() })
+            .eq("id", existente.id);
+        } else {
+          await supabase
+            .from("repertorio_habilidades")
+            .insert({
+              crianca_id: sessaoAtiva.crianca_id,
+              dominio: dominio.dominio_radar ?? dominio.nome.toLowerCase(),
+              habilidade: item.descricao,
+              operante: null,
+              status,
+              score: scorePercent,
+              independencia: 0,
+              generalizacao: 0,
+              manutencao: 0,
+            });
+        }
+      }
+    }
+
+    // 3. Calcula score por domínio radar e gera radar_snapshot
+    const dominioRadarScores: Record<string, number[]> = {};
+    for (const dominio of protocoloSel.dominios) {
+      const chave = dominio.dominio_radar;
+      if (!chave) continue;
+      for (const item of dominio.itens) {
+        const pontuacao = respostas[item.id];
+        if (pontuacao === undefined) continue;
+        if (!dominioRadarScores[chave]) dominioRadarScores[chave] = [];
+        dominioRadarScores[chave].push(Math.round((pontuacao / item.pontuacao_max) * 100));
+      }
+    }
+
+    const media = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+    await supabase.from("radar_snapshots").insert({
+      crianca_id:           sessaoAtiva.crianca_id,
+      score_comunicacao:    media(dominioRadarScores["comunicacao"] ?? []),
+      score_social:         media(dominioRadarScores["social"] ?? []),
+      score_atencao:        media(dominioRadarScores["atencao"] ?? []),
+      score_regulacao:      media(dominioRadarScores["regulacao"] ?? []),
+      score_brincadeira:    media(dominioRadarScores["brincadeira"] ?? []),
+      score_flexibilidade:  media(dominioRadarScores["flexibilidade"] ?? []),
+      score_autonomia:      media(dominioRadarScores["autonomia"] ?? []),
+      score_motivacao:      media(dominioRadarScores["motivacao"] ?? []),
+    });
+
     setSessaoAtiva(null);
     setRespostas({});
     setProtocoloSel(null);
-  }, [sessaoAtiva]);
+  }, [sessaoAtiva, protocoloSel, respostas]);
 
   const funcaoIdent = useMemo(() => funcaoIdentificada(CONDICOES_EXPERIMENTAIS), []);
   const fc = FUNCAO_CONFIG[funcaoIdent];
