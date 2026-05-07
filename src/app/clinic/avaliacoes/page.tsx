@@ -144,7 +144,7 @@ async function atualizarRepertorio(
         .select("id")
         .eq("crianca_id", sessaoAtiva.crianca_id)
         .eq("habilidade", item.descricao)
-        .single();
+        .maybeSingle();
 
       if (existente) {
         await supabase
