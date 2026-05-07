@@ -188,7 +188,7 @@ async function gerarRadarSnapshot(
     }
   }
   const media = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
-  await supabase.from("radar_snapshots").insert({
+  const { error: radarError } = await supabase.from("radar_snapshots").insert({
     crianca_id:          sessaoAtiva.crianca_id,
     score_comunicacao:   media(dominioRadarScores["comunicacao"]   ?? []),
     score_social:        media(dominioRadarScores["social"]        ?? []),
@@ -199,6 +199,7 @@ async function gerarRadarSnapshot(
     score_autonomia:     media(dominioRadarScores["autonomia"]     ?? []),
     score_motivacao:     media(dominioRadarScores["motivacao"]     ?? []),
   });
+  if (radarError) console.error("Erro ao gerar radar:", radarError);
 }
 
 // ─── PAGE ────────────────────────────────────────────────────────────────────
