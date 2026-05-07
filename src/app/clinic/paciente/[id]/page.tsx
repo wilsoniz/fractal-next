@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useClinicContext } from "../layout";
+import { useClinicContext } from "../../layout";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type StatusPaciente = "ativo" | "alerta" | "pausado";
