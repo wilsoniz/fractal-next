@@ -187,6 +187,8 @@ async function gerarRadarSnapshot(
       dominioRadarScores[chave].push(Math.round((pontuacao / item.pontuacao_max) * 100));
     }
   }
+  console.log("dominioRadarScores:", dominioRadarScores);
+  console.log("respostas count:", Object.keys(respostas).length);
   const media = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
   const { error: radarError } = await supabase.from("radar_snapshots").insert({
     crianca_id:          sessaoAtiva.crianca_id,
