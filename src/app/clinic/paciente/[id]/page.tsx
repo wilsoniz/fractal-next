@@ -117,6 +117,7 @@ export default function PerfilPacientePage() {
 
   // Modal de adicionar comportamento
   const [modalComp,    setModalComp]    = useState(false);
+  const [dominiosExpandidos, setDominiosExpandidos] = useState<string[]>([]);
   const [novoComp,     setNovoComp]     = useState({ nome: "", topografia: "", funcao: "fuga", intensidade: "leve", contexto: "" });
   const [salvandoComp, setSalvandoComp] = useState(false);
 
@@ -507,35 +508,66 @@ export default function PerfilPacientePage() {
                 Nenhuma habilidade registrada ainda — adicione ou finalize uma sessão para popular o repertório
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {Object.entries(habsPorDominio).map(([dom, habs]) => (
-                  <div key={dom}>
-                    <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
-                      {DOMINIO_PT[dom] ?? dom}
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {habs.map(h => {
-                        const st = STATUS_HAB[h.status];
-                        return (
-                          <div key={h.id} style={{ padding: "8px 12px", background: st.bg, border: `1px solid ${st.cor}33`, borderRadius: 9, minWidth: 140 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                              <span style={{ fontSize: ".78rem", fontWeight: 600, color: "#e8f0f8" }}>{h.habilidade}</span>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <span style={{ fontSize: ".62rem", color: st.cor, fontWeight: 600 }}>{st.label}</span>
-                              {h.operante && <span style={{ fontSize: ".58rem", color: "rgba(160,200,235,.35)" }}>{h.operante}</span>}
-                            </div>
-                            {h.score > 0 && (
-                              <div style={{ marginTop: 6, height: 3, background: "rgba(26,58,92,.5)", borderRadius: 2, overflow: "hidden" }}>
-                                <div style={{ height: "100%", width: `${h.score}%`, background: st.cor }} />
-                              </div>
-                            )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {Object.entries(habsPorDominio).map(([dom, habs]) => {
+                  const dominadas = habs.filter(h => h.status === "dominada").length;
+                  const emAquisicao = habs.filter(h => h.status === "em_aquisicao").length;
+                  const scoreMedia = habs.length > 0 ? Math.round(habs.reduce((acc, h) => acc + h.score, 0) / habs.length) : 0;
+                  const expandido = dominiosExpandidos.includes(dom);
+                  return (
+                    <div key={dom} style={{ background: "rgba(26,58,92,.15)", borderRadius: 10, border: "1px solid rgba(26,58,92,.4)", overflow: "hidden" }}>
+                      {/* Header do domínio — clicável */}
+                      <button
+                        onClick={() => setDominiosExpandidos(prev => prev.includes(dom) ? prev.filter(d => d !== dom) : [...prev, dom])}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontSize: ".78rem", fontWeight: 700, color: "#e8f0f8", textTransform: "uppercase", letterSpacing: ".06em" }}>{DOMINIO_PT[dom] ?? dom}</span>
+                            <span style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)" }}>{habs.length} habilidades</span>
                           </div>
-                        );
-                      })}
+                          <div style={{ display: "flex", gap: 8 }}>
+                            {dominadas > 0 && <span style={{ fontSize: ".6rem", color: "#1D9E75", background: "rgba(29,158,117,.1)", borderRadius: 20, padding: "1px 7px" }}>{dominadas} dominadas</span>}
+                            {emAquisicao > 0 && <span style={{ fontSize: ".6rem", color: "#378ADD", background: "rgba(55,138,221,.1)", borderRadius: 20, padding: "1px 7px" }}>{emAquisicao} em aquisição</span>}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: ".82rem", fontWeight: 700, color: scoreMedia >= 70 ? "#1D9E75" : scoreMedia >= 40 ? "#EF9F27" : "#E05A4B" }}>{scoreMedia}%</div>
+                            <div style={{ width: 60, height: 3, background: "rgba(26,58,92,.5)", borderRadius: 2, overflow: "hidden", marginTop: 3 }}>
+                              <div style={{ height: "100%", width: `${scoreMedia}%`, background: scoreMedia >= 70 ? "#1D9E75" : scoreMedia >= 40 ? "#EF9F27" : "#E05A4B" }} />
+                            </div>
+                          </div>
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(160,200,235,.5)" strokeWidth="1.5" style={{ transform: expandido ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s" }}>
+                            <path d="M3 6l5 5 5-5"/>
+                          </svg>
+                        </div>
+                      </button>
+                      {/* Itens expandidos */}
+                      {expandido && (
+                        <div style={{ padding: "0 14px 14px", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {habs.map(h => {
+                            const st = STATUS_HAB[h.status];
+                            return (
+                              <div key={h.id} style={{ padding: "8px 12px", background: st.bg, border: `1px solid ${st.cor}33`, borderRadius: 9, minWidth: 140 }}>
+                                <div style={{ fontSize: ".75rem", fontWeight: 600, color: "#e8f0f8", marginBottom: 4 }}>{h.habilidade}</div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span style={{ fontSize: ".62rem", color: st.cor, fontWeight: 600 }}>{st.label}</span>
+                                  {h.operante && <span style={{ fontSize: ".58rem", color: "rgba(160,200,235,.35)" }}>{h.operante}</span>}
+                                </div>
+                                {h.score > 0 && (
+                                  <div style={{ marginTop: 6, height: 3, background: "rgba(26,58,92,.5)", borderRadius: 2, overflow: "hidden" }}>
+                                    <div style={{ height: "100%", width: `${h.score}%`, background: st.cor }} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
