@@ -101,8 +101,6 @@ export type ForecastResult = {
   riskScore: number;
 };
 
-// ─── Base sessions per goal type ────────────────────────────────────────────
-
 const BASE_SESSIONS: Record<GoalType, number> = {
   acquisition: 6,
   replacement: 8,
@@ -110,8 +108,6 @@ const BASE_SESSIONS: Record<GoalType, number> = {
   generalization: 6,
   maintenance: 4,
 };
-
-// ─── Adjustment functions ────────────────────────────────────────────────────
 
 function readinessAdj(level: ReadinessLevel) {
   if (level === "high") return -2;
@@ -143,21 +139,19 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-// ─── Radar helpers ───────────────────────────────────────────────────────────
-
-function latestRadar(radar: RadarSnapshot[]) {
-  return radar[radar.length - 1];
+function latestRadar(radar: RadarSnapshot[]): RadarSnapshot | null {
+  if (!radar || radar.length === 0) return null;
+  return radar[radar.length - 1] ?? null;
 }
 
-function previousRadar(radar: RadarSnapshot[]) {
-  return radar.length >= 2 ? radar[radar.length - 2] : null;
+function previousRadar(radar: RadarSnapshot[]): RadarSnapshot | null {
+  if (!radar || radar.length < 2) return null;
+  return radar[radar.length - 2] ?? null;
 }
 
 function domainScore(snapshot: RadarSnapshot, domain: ForecastGoal["targetDomain"]) {
-  return snapshot[domain];
+  return snapshot[domain] ?? 0;
 }
-
-// ─── Program matching ────────────────────────────────────────────────────────
 
 function relatedPrograms(goal: ForecastGoal, programs: LearnerProgram[]) {
   if (goal.relatedPrograms && goal.relatedPrograms.length > 0) {
@@ -168,8 +162,6 @@ function relatedPrograms(goal: ForecastGoal, programs: LearnerProgram[]) {
     p.domain.toLowerCase().includes(goal.targetDomain)
   );
 }
-
-// ─── Inference functions ─────────────────────────────────────────────────────
 
 function inferReadiness(
   goal: ForecastGoal,
@@ -426,7 +418,31 @@ export function generateForecastFromProfile(
   goal: ForecastGoal,
   input: ForecastInput
 ): ForecastResult {
+  // Sem radar não há como gerar forecast
   const latest = latestRadar(input.radar);
+  if (!latest) {
+    return {
+      goalId: goal.id,
+      goalName: goal.name,
+      goalType: goal.type,
+      min: 0,
+      max: 0,
+      confidence: "low",
+      effort: "low",
+      inferredReadiness: "low",
+      inferredSupport: "low",
+      inferredGeneralization: "low",
+      inferredBarriers: 0,
+      inferredSeverity: 0,
+      rationale: ["Sem dados de avaliação disponíveis para gerar previsão."],
+      goalHealth: "watch",
+      reviewAfterSessions: 0,
+      recommendedAction: "continue",
+      progressDelta: 0,
+      riskScore: 0,
+    };
+  }
+
   const previous = previousRadar(input.radar);
   const programs = relatedPrograms(goal, input.programs);
 
