@@ -231,6 +231,7 @@ export default function AvaliacoesPage() {
   const [modalConclusao,   setModalConclusao]   = useState(false);
   const [motivoConclusao,  setMotivoConclusao]  = useState("");
   const [outroMotivo,      setOutroMotivo]      = useState("");
+  const [tipoAvaliacao,    setTipoAvaliacao]    = useState<"pre_avaliacao" | "avaliacao_completa">("pre_avaliacao");
 
   // ── Carregar protocolos ──────────────────────────────────────────────────
   useEffect(() => {
@@ -708,23 +709,52 @@ export default function AvaliacoesPage() {
               ))}
             </div>
           </div>
+          {/* Seletor de tipo — só aparece para PEAK */}
+          {p.sigla === "PEAK" && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ ...lbl }}>Tipo de avaliação</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {([
+                  { id: "pre_avaliacao" as const,      label: "Pré-Avaliação",      sub: "Triagem rápida — 64 itens por módulo" },
+                  { id: "avaliacao_completa" as const, label: "Avaliação Completa", sub: "Mapeamento detalhado — 184 programas" },
+                ]).map(t => (
+                  <button key={t.id} onClick={() => setTipoAvaliacao(t.id)}
+                    style={{ flex: 1, padding: "12px 14px", borderRadius: 10, textAlign: "left", cursor: "pointer", fontFamily: "var(--font-sans)",
+                      border: `1px solid ${tipoAvaliacao === t.id ? p.cor + "55" : "rgba(26,58,92,.4)"}`,
+                      background: tipoAvaliacao === t.id ? p.cor + "12" : "rgba(26,58,92,.2)",
+                    }}
+                  >
+                    <div style={{ fontSize: ".8rem", fontWeight: 700, color: tipoAvaliacao === t.id ? p.cor : "#e8f0f8", marginBottom: 3 }}>{t.label}</div>
+                    <div style={{ fontSize: ".65rem", color: "rgba(160,200,235,.6)" }}>{t.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ ...lbl }}>Domínios da avaliação</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 10, marginBottom: 20 }}>
-            {p.dominios.map(d => (
-              <div key={d.id} style={{ padding: "12px 14px", background: "rgba(26,58,92,.25)", borderRadius: 10, border: `1px solid ${p.cor}22` }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: ".78rem", fontWeight: 600, color: "#e8f0f8" }}>{d.nome}</span>
-                  <span style={{ fontSize: ".65rem", color: "rgba(170,210,245,.88)" }}>{d.itens.length} itens</span>
+            {p.dominios
+              .filter((d: any) => {
+                if (p.sigla !== "PEAK") return true;
+                if (tipoAvaliacao === "avaliacao_completa") return d.nome.includes("Avaliação Completa");
+                return !d.nome.includes("Avaliação Completa");
+              })
+              .map((d: any) => (
+                <div key={d.id} style={{ padding: "12px 14px", background: "rgba(26,58,92,.25)", borderRadius: 10, border: `1px solid ${p.cor}22` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: ".78rem", fontWeight: 600, color: "#e8f0f8" }}>{d.nome}</span>
+                    <span style={{ fontSize: ".65rem", color: "rgba(170,210,245,.88)" }}>{d.itens.length} itens</span>
+                  </div>
+                  <div style={{ height: 4, background: "rgba(26,58,92,.5)", borderRadius: 2 }} />
+                  <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 4 }}>Não iniciado</div>
                 </div>
-                <div style={{ height: 4, background: "rgba(26,58,92,.5)", borderRadius: 2 }} />
-                <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 4 }}>Não iniciado</div>
-              </div>
-            ))}
+              ))}
           </div>
           <button onClick={iniciarSessao} disabled={!pacienteSel}
             style={{ width: "100%", padding: 14, borderRadius: 10, border: "none", background: pacienteSel ? `linear-gradient(135deg,${p.cor},${p.cor}99)` : "rgba(26,58,92,.4)", color: pacienteSel ? "#07111f" : "rgba(160,200,235,.3)", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".9rem", cursor: pacienteSel ? "pointer" : "not-allowed" }}
           >
-            Iniciar avaliação {p.sigla} →
+            Iniciar {tipoAvaliacao === "avaliacao_completa" ? "Avaliação Completa" : "Pré-Avaliação"} {p.sigla} →
           </button>
         </div>
       </div>
