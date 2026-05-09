@@ -29,6 +29,7 @@ interface DominioProtocolo {
   descricao: string;
   dominio_radar: string | null;
   itens: ItemAvaliacao[];
+  subdomínios?: DominioProtocolo[];
 }
 
 interface ItemAvaliacao {
@@ -39,6 +40,7 @@ interface ItemAvaliacao {
   pontuacao_max: number;
   pontuacao_valores: number[];
   ordem: number;
+  subdominio?: string;
 }
 
 interface SessaoAtiva {
@@ -233,35 +235,76 @@ export default function AvaliacoesPage() {
   // ── Carregar protocolos ──────────────────────────────────────────────────
   useEffect(() => {
     async function carregarProtocolos() {
+      // 1. Busca protocolos
       const { data: prots } = await supabase
         .from("avaliacao_protocolos")
-        .select(`
-          id, nome, sigla, descricao, faixa_etaria, duracao_estimada, cor, icone, ativo,
-          avaliacao_dominios (
-            id, nome, descricao, dominio_radar, ordem,
-            avaliacao_itens ( id, codigo, descricao, criterio, pontuacao_max, pontuacao_valores, ordem )
-          )
-        `)
+        .select("id, nome, sigla, descricao, faixa_etaria, duracao_estimada, cor, icone, ativo")
         .eq("ativo", true)
         .order("criado_em");
 
-      if (prots) {
-        const formatados: Protocolo[] = prots.map((p: any) => ({
+      if (!prots) return;
+
+      // 2. Busca todos os domínios (pai e filhos) com itens
+      const { data: dominios } = await supabase
+        .from("avaliacao_dominios")
+        .select(`
+          id, nome, descricao, dominio_radar, ordem, parent_id, protocolo_id,
+          avaliacao_itens ( id, codigo, descricao, criterio, pontuacao_max, pontuacao_valores, ordem )
+        `)
+        .in("protocolo_id", prots.map((p: any) => p.id))
+        .order("ordem");
+
+      if (!dominios) return;
+
+      const formatados: Protocolo[] = prots.map((p: any) => {
+        // Domínios pai deste protocolo
+        const dominiosPai = dominios
+          .filter((d: any) => d.protocolo_id === p.id && !d.parent_id)
+          .sort((a: any, b: any) => a.ordem - b.ordem);
+
+        const mapDominio = (d: any): DominioProtocolo => {
+          // Subdomínios filhos deste domínio
+          const filhos = dominios
+            .filter((f: any) => f.parent_id === d.id)
+            .sort((a: any, b: any) => a.ordem - b.ordem);
+
+          // Itens diretos + itens dos filhos
+          const itensDiretos = (d.avaliacao_itens ?? [])
+            .sort((a: any, b: any) => a.ordem - b.ordem)
+            .map((i: any) => ({
+              id: i.id, codigo: i.codigo, descricao: i.descricao, criterio: i.criterio,
+              pontuacao_max: i.pontuacao_max, pontuacao_valores: i.pontuacao_valores ?? [0, 1], ordem: i.ordem,
+            }));
+
+          const itensFilhos = filhos.flatMap((f: any) =>
+            (f.avaliacao_itens ?? [])
+              .sort((a: any, b: any) => a.ordem - b.ordem)
+              .map((i: any) => ({
+                id: i.id, codigo: i.codigo, descricao: i.descricao, criterio: i.criterio,
+                pontuacao_max: i.pontuacao_max, pontuacao_valores: i.pontuacao_valores ?? [0, 1], ordem: i.ordem,
+                subdominio: f.nome, // indica de qual subdomínio veio
+              }))
+          );
+
+          return {
+            id: d.id,
+            nome: d.nome,
+            descricao: d.descricao,
+            dominio_radar: d.dominio_radar,
+            itens: filhos.length > 0 ? itensFilhos : itensDiretos,
+            subdomínios: filhos.map(mapDominio),
+          };
+        };
+
+        return {
           id: p.id, nome: p.nome, sigla: p.sigla, descricao: p.descricao,
           faixaEtaria: p.faixa_etaria, tempoMedio: p.duracao_estimada,
           cor: p.cor ?? "#1D9E75", icone: ICONES[p.icone ?? ""] ?? "📋", disponivel: true,
-          dominios: (p.avaliacao_dominios ?? [])
-            .sort((a: any, b: any) => a.ordem - b.ordem)
-            .map((d: any) => ({
-              id: d.id, nome: d.nome, descricao: d.descricao, dominio_radar: d.dominio_radar,
-              itens: (d.avaliacao_itens ?? []).sort((a: any, b: any) => a.ordem - b.ordem).map((i: any) => ({
-                id: i.id, codigo: i.codigo, descricao: i.descricao, criterio: i.criterio,
-                pontuacao_max: i.pontuacao_max, pontuacao_valores: i.pontuacao_valores ?? [0, 1], ordem: i.ordem,
-              })),
-            })),
-        }));
-        setProtocolos(formatados);
-      }
+          dominios: dominiosPai.map(mapDominio),
+        };
+      });
+
+      setProtocolos(formatados);
     }
     carregarProtocolos();
   }, []);
