@@ -347,6 +347,13 @@ export default function AvaliacoesPage() {
   }, [terapeuta]);
 
   // ── Iniciar ou retomar sessão ────────────────────────────────────────────
+   const dominiosFiltrados = useMemo(() => {
+    if (!protocoloSel) return [];
+    if (protocoloSel.sigla !== "PEAK") return protocoloSel.dominios;
+    if (tipoAvaliacao === "avaliacao_completa") return protocoloSel.dominios.filter(d => d.nome.includes("Avaliação Completa"));
+    return protocoloSel.dominios.filter(d => !d.nome.includes("Avaliação Completa"));
+  }, [protocoloSel, tipoAvaliacao]);
+
   const iniciarSessao = useCallback(async () => {
     if (!terapeuta || !protocoloSel || !pacienteSel) return;
 
@@ -384,7 +391,7 @@ export default function AvaliacoesPage() {
       setRespostas(map);
     }
 
-    if (protocoloSel.dominios.length > 0) setDominioAtivo(protocoloSel.dominios[0].id);
+    if (dominiosFiltrados.length > 0) setDominioAtivo(dominiosFiltrados[0].id);
   }, [terapeuta, protocoloSel, pacienteSel]);
 
   // ── Registrar resposta ───────────────────────────────────────────────────
@@ -423,7 +430,7 @@ export default function AvaliacoesPage() {
   }, [sessaoAtiva, protocoloSel, respostas]);
 
   // ── Verificar se pode concluir direto ───────────────────────────────────
-  const totalItens = protocoloSel?.dominios.reduce((acc, d) => acc + d.itens.length, 0) ?? 0;
+  const totalItens = dominiosFiltrados.reduce((acc, d) => acc + d.itens.length, 0);
   const totalRespondidos = Object.keys(respostas).length;
   const percentCompleto = totalItens > 0 ? Math.round((totalRespondidos / totalItens) * 100) : 0;
 
@@ -462,7 +469,9 @@ export default function AvaliacoesPage() {
   const funcaoIdent = useMemo(() => funcaoIdentificada(CONDICOES_EXPERIMENTAIS), []);
   const fc = FUNCAO_CONFIG[funcaoIdent];
 
-  const dominioAtivoObj = protocoloSel?.dominios.find(d => d.id === dominioAtivo);
+  
+
+  const dominioAtivoObj = dominiosFiltrados.find(d => d.id === dominioAtivo);
   const itensFiltrados = useMemo(() => {
     if (!dominioAtivoObj) return [];
     if (!busca.trim()) return dominioAtivoObj.itens;
@@ -475,7 +484,7 @@ export default function AvaliacoesPage() {
   const progressoPorDominio = useMemo(() => {
     if (!protocoloSel) return {};
     const map: Record<string, { respondidos: number; total: number }> = {};
-    for (const d of protocoloSel.dominios) {
+    for (const d of dominiosFiltrados) {
       map[d.id] = {
         respondidos: d.itens.filter(i => respostas[i.id] !== undefined).length,
         total: d.itens.length,
@@ -557,6 +566,11 @@ export default function AvaliacoesPage() {
         {/* Header */}
         <div style={{ ...card, padding: "14px 20px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, borderLeft: `3px solid ${protocoloSel.cor}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={() => { setSessaoAtiva(null); setRespostas({}); }} style={{ background: "none", border: "none", color: "rgba(160,200,235,.7)", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-sans)", fontSize: ".75rem" }}>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5"/></svg>
+              Voltar
+            </button>
+            <div style={{ width: 1, height: 20, background: "rgba(26,58,92,.5)" }} />
             <div>
               <span style={{ fontSize: ".9rem", fontWeight: 800, color: protocoloSel.cor }}>{protocoloSel.sigla}</span>
               <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.7)", marginLeft: 8 }}>— {paciente?.nome}</span>
@@ -590,7 +604,7 @@ export default function AvaliacoesPage() {
 
           {/* Sidebar domínios */}
           <div style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, overflowY: "auto" }}>
-            {protocoloSel.dominios.map(d => {
+            {dominiosFiltrados.map(d => {
               const prog = progressoPorDominio[d.id];
               const ativo = dominioAtivo === d.id;
               return (
