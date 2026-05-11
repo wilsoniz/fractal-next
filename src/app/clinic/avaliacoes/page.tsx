@@ -143,11 +143,11 @@ async function atualizarRepertorio(
         // Barreiras: pontuação invertida — 0=ausente (bom), max=presente (ruim)
         const intensidade =
           pontuacao === 0                          ? "ausente"  :
-          pontuacao <= item.pontuacao_max * 0.4    ? "leve"     :
+          pontuacao <= item.pontuacao_max * 0.4    ? "leve"     : 
           pontuacao <= item.pontuacao_max * 0.7    ? "moderada" : "grave";
 
         if (pontuacao > 0) {
-          const { data: existente } = await 
+          const { data: existente } = await supabase
           
             .from("planos_comportamento_interferente")
             .select("id")
