@@ -157,7 +157,7 @@ async function atualizarRepertorio(
             .maybeSingle();
 
           if (!existente) {
-            await supabase
+            const { error: insErr } = await supabase
               .from("planos_comportamento_interferente")
               .insert({
                 crianca_id:    sessaoAtiva.crianca_id,
@@ -166,11 +166,15 @@ async function atualizarRepertorio(
                 status:        "monitorado",
                 fonte:         "vbmapp_barreiras",
               });
+            if (insErr) console.error("Erro INSERT barreira:", insErr, item.descricao);
+            else console.log("Barreira inserida:", item.descricao, intensidade);
           } else {
-            await supabase
+            const { error: updErr } = await supabase
               .from("planos_comportamento_interferente")
               .update({ intensidade })
               .eq("id", existente.id);
+            if (updErr) console.error("Erro UPDATE barreira:", updErr);
+            else console.log("Barreira atualizada:", item.descricao, intensidade);
           }
         }
         continue;
