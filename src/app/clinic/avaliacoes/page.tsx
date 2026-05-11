@@ -134,6 +134,7 @@ async function atualizarRepertorio(
 ) {
   for (const dominio of protocoloSel.dominios) {
     const ehBarreira = dominio.tipo_dominio === "barreira";
+    console.log("Dominio:", dominio.nome, "tipo:", dominio.tipo_dominio, "ehBarreira:", ehBarreira);
 
     for (const item of dominio.itens) {
       const pontuacao = respostas[item.id];
