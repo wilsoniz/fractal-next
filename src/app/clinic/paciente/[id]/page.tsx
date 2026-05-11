@@ -180,10 +180,10 @@ export default function PerfilPacientePage() {
 
         // 6. Comportamentos interferentes
         const { data: comps } = await supabase
-          .from("repertorio_comportamentos")
+          .from("planos_comportamento_interferente")
           .select("*")
           .eq("crianca_id", criancaId)
-          .order("status");
+          .order("intensidade");
         setComportamentos(comps ?? []);
 
         // 7. Variáveis clínicas
@@ -278,7 +278,7 @@ export default function PerfilPacientePage() {
   async function adicionarComportamento() {
     if (!novoComp.nome.trim()) return;
     setSalvandoComp(true);
-    await supabase.from("repertorio_comportamentos").insert({
+    await supabase.from("planos_comportamento_interferente").insert({
       crianca_id:  params.id,
       nome:        novoComp.nome,
       topografia:  novoComp.topografia || null,
@@ -287,7 +287,7 @@ export default function PerfilPacientePage() {
       contexto:    novoComp.contexto || null,
       status:      "ativo",
     });
-    const { data: comps } = await supabase.from("repertorio_comportamentos").select("*").eq("crianca_id", params.id).order("status");
+    const { data: comps } = await supabase.from("planos_comportamento_interferente").select("*").eq("crianca_id", params.id).order("intensidade");
     setComportamentos(comps ?? []);
     setModalComp(false);
     setNovoComp({ nome: "", topografia: "", funcao: "fuga", intensidade: "leve", contexto: "" });
