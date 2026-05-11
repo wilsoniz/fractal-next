@@ -187,12 +187,13 @@ async function atualizarRepertorio(
         scorePercent <= 40   ? "emergente"    :
         scorePercent <= 79   ? "em_aquisicao" : "dominada";
 
-      const { data: existente } = await supabase
+      const { data: existenteArr } = await supabase
         .from("repertorio_habilidades")
         .select("id")
         .eq("crianca_id", sessaoAtiva.crianca_id)
         .eq("habilidade", item.descricao)
-        .maybeSingle();
+        .limit(1);
+      const existente = existenteArr?.[0] ?? null;
 
       if (existente) {
         await supabase
