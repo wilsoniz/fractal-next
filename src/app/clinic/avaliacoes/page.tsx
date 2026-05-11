@@ -147,7 +147,8 @@ async function atualizarRepertorio(
           pontuacao <= item.pontuacao_max * 0.7    ? "moderada" : "grave";
 
         if (pontuacao > 0) {
-          const { data: existente } = await supabase
+          const { data: existente } = await 
+          
             .from("planos_comportamento_interferente")
             .select("id")
             .eq("crianca_id", sessaoAtiva.crianca_id)
@@ -289,7 +290,7 @@ export default function AvaliacoesPage() {
       const { data: dominios } = await supabase
         .from("avaliacao_dominios")
         .select(`
-          id, nome, descricao, dominio_radar, ordem, parent_id, protocolo_id,
+          id, nome, descricao, dominio_radar, tipo_dominio, ordem, parent_id, protocolo_id,
           avaliacao_itens ( id, codigo, descricao, criterio, pontuacao_max, pontuacao_valores, ordem )
         `)
         .in("protocolo_id", prots.map((p: any) => p.id))
