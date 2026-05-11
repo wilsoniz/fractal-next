@@ -28,6 +28,7 @@ interface DominioProtocolo {
   nome: string;
   descricao: string;
   dominio_radar: string | null;
+  tipo_dominio: "habilidade" | "barreira";
   itens: ItemAvaliacao[];
   subdomínios?: DominioProtocolo[];
 }
@@ -132,9 +133,48 @@ async function atualizarRepertorio(
   respostas: RespostaLocal
 ) {
   for (const dominio of protocoloSel.dominios) {
+    const ehBarreira = dominio.tipo_dominio === "barreira";
+
     for (const item of dominio.itens) {
       const pontuacao = respostas[item.id];
       if (pontuacao === undefined) continue;
+
+      if (ehBarreira) {
+        // Barreiras: pontuação invertida — 0=ausente (bom), max=presente (ruim)
+        const intensidade =
+          pontuacao === 0                          ? "ausente"  :
+          pontuacao <= item.pontuacao_max * 0.4    ? "leve"     :
+          pontuacao <= item.pontuacao_max * 0.7    ? "moderada" : "grave";
+
+        if (pontuacao > 0) {
+          const { data: existente } = await supabase
+            .from("planos_comportamento_interferente")
+            .select("id")
+            .eq("crianca_id", sessaoAtiva.crianca_id)
+            .eq("comportamento", item.descricao)
+            .maybeSingle();
+
+          if (!existente) {
+            await supabase
+              .from("planos_comportamento_interferente")
+              .insert({
+                crianca_id:    sessaoAtiva.crianca_id,
+                comportamento: item.descricao,
+                intensidade,
+                status:        "monitorado",
+                fonte:         "vbmapp_barreiras",
+              });
+          } else {
+            await supabase
+              .from("planos_comportamento_interferente")
+              .update({ intensidade })
+              .eq("id", existente.id);
+          }
+        }
+        continue;
+      }
+
+      // Habilidades — fluxo normal
       const scorePercent = Math.round((pontuacao / item.pontuacao_max) * 100);
       const status =
         scorePercent === 0   ? "ausente"      :
@@ -157,15 +197,15 @@ async function atualizarRepertorio(
         await supabase
           .from("repertorio_habilidades")
           .insert({
-            crianca_id:  sessaoAtiva.crianca_id,
-            dominio:     dominio.dominio_radar ?? dominio.nome.toLowerCase(),
-            habilidade:  item.descricao,
-            operante:    null,
+            crianca_id:    sessaoAtiva.crianca_id,
+            dominio:       dominio.dominio_radar ?? dominio.nome.toLowerCase(),
+            habilidade:    item.descricao,
+            operante:      null,
             status,
-            score:       scorePercent,
+            score:         scorePercent,
             independencia: 0,
             generalizacao: 0,
-            manutencao:  0,
+            manutencao:    0,
           });
       }
     }
@@ -292,6 +332,7 @@ export default function AvaliacoesPage() {
             nome: d.nome,
             descricao: d.descricao,
             dominio_radar: d.dominio_radar,
+            tipo_dominio: d.tipo_dominio ?? "habilidade",
             itens: filhos.length > 0 ? itensFilhos : itensDiretos,
             subdomínios: filhos.map(mapDominio),
           };
