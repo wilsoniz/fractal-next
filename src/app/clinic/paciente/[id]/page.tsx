@@ -41,9 +41,10 @@ type Habilidade = {
 };
 
 type Comportamento = {
-  id: string; nome: string; topografia: string | null; funcao: string | null;
+  id: string; nome: string; comportamento: string | null; topografia: string | null; funcao: string | null;
   frequencia: string | null; intensidade: string | null; contexto: string | null;
-  status: "ativo" | "reduzindo" | "controlado";
+  status: "ativo" | "reduzindo" | "controlado" | "monitorado" | "em_intervencao" | "resolvido";
+  fonte: string | null;
 };
 
 type VariaveisClinicas = {
@@ -89,9 +90,12 @@ const STATUS_HAB: Record<string, { label: string; cor: string; bg: string }> = {
 };
 
 const STATUS_COMP: Record<string, { label: string; cor: string }> = {
-  ativo:      { label: "Ativo",      cor: "#E05A4B" },
-  reduzindo:  { label: "Reduzindo",  cor: "#EF9F27" },
-  controlado: { label: "Controlado", cor: "#1D9E75" },
+  monitorado:      { label: "Monitorado",      cor: "#EF9F27" },
+  em_intervencao:  { label: "Em intervenção",  cor: "#E05A4B" },
+  resolvido:       { label: "Resolvido",       cor: "#1D9E75" },
+  ativo:           { label: "Ativo",           cor: "#E05A4B" },
+  reduzindo:       { label: "Reduzindo",       cor: "#EF9F27" },
+  controlado:      { label: "Controlado",      cor: "#1D9E75" },
 };
 
 const DOMINIOS = ["comunicacao","social","atencao","regulacao","brincadeira","cognicao","autonomia","flexibilidade","motricidade"];
@@ -597,7 +601,7 @@ export default function PerfilPacientePage() {
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: st.cor, flexShrink: 0, marginTop: 4 }} />
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: ".82rem", fontWeight: 600, color: "#e8f0f8" }}>{c.nome}</span>
+                          <span style={{ fontSize: ".82rem", fontWeight: 600, color: "#e8f0f8" }}>{c.comportamento ?? c.nome}</span>
                           <span style={{ fontSize: ".62rem", color: st.cor, background: st.cor + "15", borderRadius: 20, padding: "1px 7px", fontWeight: 600 }}>{st.label}</span>
                           {c.intensidade && <span style={{ fontSize: ".62rem", color: "rgba(160,200,235,.4)" }}>{c.intensidade}</span>}
                         </div>
