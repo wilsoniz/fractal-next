@@ -312,7 +312,7 @@ function SessaoInner() {
   // ── Carregar dados ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!pacienteId) { setLoading(false); return }
-    async function carregar() {
+ async function carregar() {
   setLoading(true)
 
   // 1. Dados do paciente
@@ -330,73 +330,76 @@ function SessaoInner() {
     diagnostico: c.diagnostico ?? "Não informado"
   })
 
-  // 2. Programas do plano ativo via plano_programas
-  const { data: planoPrograms } = await supabase
-    .from("plano_programas")
-    .select(`
-      id,
-      status,
-      ordem,
-      percentual_atual,
-      sessoes_no_criterio,
-      plano_id,
-      alvo_id,
-      programa_id,
-      programas (
-        id, nome, dominio, operante,
-        total_tentativas, criterio_maestria,
-        hierarquia_dicas, estrategia_dica,
-        sd, comportamento_alvo, materiais,
-        estimulos, relacoes, nivel_dicas
-      ),
-      alvos_comportamentais (
-        id, codigo, descricao, area, status
-      )
-    `)
+  // 2. Busca planos ativos do paciente PRIMEIRO
+  const { data: planosAtivos } = await supabase
+    .from("planos")
+    .select("id")
+    .eq("crianca_id", pacienteId)
     .eq("status", "ativo")
-    .in("plano_id", 
-      // subconsulta: planos ativos do paciente
-      (await supabase
-        .from("planos")
-        .select("id")
-        .eq("crianca_id", pacienteId)
-        .eq("status", "ativo")
-      ).data?.map((p: any) => p.id) ?? []
-    )
-    .order("ordem")
 
-  const planejados: LibItem[] = (planoPrograms ?? []).map((pp: any) => {
-    const prog = pp.programas
-    const alvo = pp.alvos_comportamentais
-    if (!prog) return null
+  const planoIds = (planosAtivos ?? []).map((p: any) => p.id)
 
-    // Hierarquia de dicas: usa campo novo ou fallback para nivel_dicas antigo
-    const hierarquia = prog.hierarquia_dicas?.length > 0
-      ? prog.hierarquia_dicas
-      : prog.nivel_dicas
-        ? Object.keys(prog.nivel_dicas)
-        : ["independente", "gestual", "modelo", "física parcial", "física total"]
+  // 3. Busca programas do plano (só se houver planos)
+  const planejados: LibItem[] = []
 
-    return {
-      id: prog.id,
-      nome: prog.nome,
-      dominio: alvo?.descricao ?? prog.dominio ?? "—",
-      tipo: "programa" as const,
-      planejado: true,
-      planoId: pp.plano_id,
-      planoProgramaId: pp.id,        // ← novo: id do vínculo
-      alvoId: pp.alvo_id,
-      taxaHistorica: pp.percentual_atual ?? undefined,
-      operante: prog.operante,
-      totalTentativas: prog.total_tentativas ?? 10,
-      hierarquiaDicas: hierarquia,   // ← novo: array ordenado
-      estrategiaDica: prog.estrategia_dica ?? "least_to_most",
-      sd: prog.sd,
-      estimulos: prog.estimulos ?? [],
+  if (planoIds.length > 0) {
+    const { data: planoPrograms } = await supabase
+      .from("plano_programas")
+      .select(`
+        id,
+        status,
+        ordem,
+        percentual_atual,
+        plano_id,
+        alvo_id,
+        programa_id,
+        programas (
+          id, nome, dominio, operante,
+          total_tentativas, criterio_maestria,
+          hierarquia_dicas, estrategia_dica,
+          sd, comportamento_alvo, materiais,
+          estimulos, relacoes, nivel_dicas
+        ),
+        alvos_comportamentais (
+          id, codigo, descricao, area, status
+        )
+      `)
+      .eq("status", "ativo")
+      .in("plano_id", planoIds)
+      .order("ordem")
+
+    for (const pp of (planoPrograms ?? [])) {
+      const prog = (pp as any).programas
+      const alvo = (pp as any).alvos_comportamentais
+      if (!prog) continue
+
+      const hierarquia = prog.hierarquia_dicas?.length > 0
+        ? prog.hierarquia_dicas
+        : prog.nivel_dicas
+          ? Object.keys(prog.nivel_dicas)
+          : ["independente", "gestual", "modelo", "física parcial", "física total"]
+
+      planejados.push({
+        id: prog.id,
+        nome: prog.nome,
+        dominio: alvo?.descricao ?? prog.dominio ?? "—",
+        tipo: "programa" as const,
+        planejado: true,
+        planoId: pp.plano_id,
+        planoProgramaId: pp.id,
+        alvoId: pp.alvo_id,
+        taxaHistorica: pp.percentual_atual ?? undefined,
+        operante: prog.operante,
+        totalTentativas: prog.total_tentativas ?? 10,
+        hierarquiaDicas: hierarquia,
+        estrategiaDica: prog.estrategia_dica ?? "least_to_most",
+        sd: prog.sd,
+        estimulos: prog.estimulos ?? [],
+      })
     }
-  }).filter(Boolean) as LibItem[]
+  }
 
-  // 3. Biblioteca geral (programas não planejados)
+  // 4. Biblioteca geral
   const planejadosIds = planejados.map(p => p.id)
   const { data: todos } = await supabase
     .from("programas")
@@ -421,7 +424,7 @@ function SessaoInner() {
       sd: p.sd,
     }))
 
-  // 4. Avaliações
+  // 5. Avaliações
   const libAvals: LibItem[] = AVALIACOES_CAT.map(a => ({
     ...a,
     tipo: "avaliacao" as const,
