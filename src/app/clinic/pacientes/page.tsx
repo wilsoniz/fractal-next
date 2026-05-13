@@ -93,17 +93,16 @@ export default function PacientesPage() {
       setLoading(true);
       try {
         const { data: planos } = await supabase
-          .from("planos")
-          .select(`
-            id, status, score_atual, criado_em,
-            criancas ( id, nome, data_nascimento, diagnostico ),
-            programas ( id, nome, dominio )
-          `)
-          .eq("terapeuta_id", terapeuta!.id)
-          .order("criado_em", { ascending: false });
+  .from("planos")
+  .select(`
+    id, status, score_atual, criado_em,
+    criancas ( id, nome, data_nascimento, diagnostico )
+  `)
+  .eq("terapeuta_id", terapeuta!.id)
+  .order("criado_em", { ascending: false });
 
         if (!planos || planos.length === 0) {
-          setPacientes([]);
+          setPacientes([]); 
           setLoading(false);
           return;
         }
