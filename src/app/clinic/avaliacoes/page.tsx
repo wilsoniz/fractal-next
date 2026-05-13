@@ -363,23 +363,23 @@ export default function AvaliacoesPage() {
     if (!terapeuta) return;
     async function carregar() {
       setLoading(true);
-      const { data: planos } = await supabase
-        .from("planos")
-        .select("criancas ( id, nome )")
-        .eq("terapeuta_id", terapeuta!.id)
-        .eq("status", "ativo");
+// DEPOIS
+const { data: planos } = await supabase
+  .from("planos_com_crianca")
+  .select("crianca_id, crianca_nome")
+  .eq("terapeuta_id", terapeuta!.id)
+  .eq("status", "ativo");
 
-      if (planos) {
-        const map = new Map<string, string>();
-        for (const pl of planos) {
-          const c = (pl as any).criancas as any;
-          if (c && !map.has(c.id)) map.set(c.id, c.nome);
-        }
-        const lista = Array.from(map.entries()).map(([id, nome]) => ({ id, nome }));
-        setPacientesAval(lista);
-        if (lista.length > 0) setPacienteSel(lista[0].id);
-      }
-
+if (planos) {
+  const map = new Map<string, string>();
+  for (const pl of planos) {
+    if (pl.crianca_id && !map.has(pl.crianca_id))
+      map.set(pl.crianca_id, pl.crianca_nome);
+  }
+  const lista = Array.from(map.entries()).map(([id, nome]) => ({ id, nome }));
+  setPacientesAval(lista);
+  if (lista.length > 0) setPacienteSel(lista[0].id);
+}
       const { data: hist } = await supabase
         .from("avaliacoes_sessoes")
         .select(`id, status, iniciada_em, concluida_em, observacoes,
