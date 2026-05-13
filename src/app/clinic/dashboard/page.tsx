@@ -107,7 +107,20 @@ export default function ClinicDashboard() {
       setLoading(true)
       try {
         const terapeutaId = terapeuta!.id
+// TESTE TEMPORÁRIO — remover depois
+const { data: teste1 } = await supabase
+  .from('planos')
+  .select('id, crianca_id, status')
+  .eq('terapeuta_id', terapeutaId)
 
+console.log('TESTE 1 — planos simples:', teste1)
+
+const { data: teste2 } = await supabase
+  .from('planos')
+  .select('id, criancas(id, nome)')
+  .eq('terapeuta_id', terapeutaId)
+
+console.log('TESTE 2 — planos com join criancas:', teste2)
         // ── 1. Planos ativos do terapeuta com criança e programa ──────────
         const { data: planosData } = await supabase
           .from('planos')
