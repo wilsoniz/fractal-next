@@ -90,6 +90,7 @@ export default function PacientesPage() {
   useEffect(() => {
     if (!terapeuta) return;
     async function carregar() {
+      
       setLoading(true);
       try {
         const { data: planos } = await supabase
@@ -100,7 +101,8 @@ export default function PacientesPage() {
   `)
   .eq("terapeuta_id", terapeuta!.id)
   .order("criado_em", { ascending: false });
-
+      console.log('terapeuta id:', terapeuta?.id)
+      console.log('planos:', JSON.stringify(planos))
         if (!planos || planos.length === 0) {
           setPacientes([]); 
           setLoading(false);
