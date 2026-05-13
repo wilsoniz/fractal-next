@@ -1,90 +1,51 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useClinicContext } from '../layout'
 
-// ── TIPOS ─────────────────────────────────────────────────────────────────
 type SenioridadeNivel = 'terapeuta' | 'coordenador' | 'supervisor' | 'abat' | 'qasp_s' | 'qba'
 interface SessaoHoje {
-  id: string
-  paciente: string
-  iniciais: string
-  cor: string
-  tipo: string
-  programas: number
-  horario: string
+  id: string; paciente: string; iniciais: string; cor: string
+  tipo: string; programas: number; horario: string
   status: 'agora' | 'proxima' | 'concluida'
 }
 interface PacienteEvolucao {
-  id: string
-  nome: string
-  iniciais: string
-  cor: string
-  dominios: string
-  pct: number
-  corBarra: string
+  id: string; nome: string; iniciais: string; cor: string
+  dominios: string; pct: number; corBarra: string
 }
 interface Programa {
-  id: string
-  nome: string
-  paciente: string
-  operantes: number
-  dominio_pct: number
-  status: 'ativo' | 'revisar' | 'pausado'
-  cor: string
+  id: string; nome: string; paciente: string; operantes: number
+  dominio_pct: number; status: 'ativo' | 'revisar' | 'pausado'; cor: string
 }
 interface AlertaEngine {
-  id: string
-  tipo: 'critico' | 'aviso' | 'ok' | 'info' | 'neutro'
-  texto: string
-  tempo: string
+  id: string; tipo: 'critico' | 'aviso' | 'ok' | 'info' | 'neutro'
+  texto: string; tempo: string
 }
 
-// ── HELPERS ────────────────────────────────────────────────────────────────
 const CORES_DOMINIO: Record<string, string> = {
-  comunicacao:   '#1D9E75',
-  social:        '#378ADD',
-  atencao:       '#8B7FE8',
-  regulacao:     '#E05A4B',
-  brincadeira:   '#EF9F27',
-  flexibilidade: '#23c48f',
-  autonomia:     '#4d9de0',
-  motivacao:     '#e8a838',
+  comunicacao: '#1D9E75', social: '#378ADD', atencao: '#8B7FE8',
+  regulacao: '#E05A4B', brincadeira: '#EF9F27', flexibilidade: '#23c48f',
+  autonomia: '#4d9de0', motivacao: '#e8a838',
 }
 const CORES_CARD = [
-  'rgba(29,158,117,.2)',
-  'rgba(55,138,221,.15)',
-  'rgba(139,127,232,.15)',
-  'rgba(224,90,75,.15)',
-  'rgba(239,159,39,.15)',
+  'rgba(29,158,117,.2)', 'rgba(55,138,221,.15)', 'rgba(139,127,232,.15)',
+  'rgba(224,90,75,.15)', 'rgba(239,159,39,.15)',
 ]
 function iniciais(nome: string) {
   const p = nome.trim().split(' ')
-  return p.length >= 2
-    ? `${p[0][0]}${p[p.length - 1][0]}`.toUpperCase()
-    : nome.slice(0, 2).toUpperCase()
-}
-function tempoRelativo(data: string) {
-  const diff = Date.now() - new Date(data).getTime()
-  const h = Math.floor(diff / 3600000)
-  if (h < 1) return 'agora'
-  if (h < 24) return `há ${h}h`
-  const d = Math.floor(h / 24)
-  if (d === 1) return 'ontem'
-  return `há ${d} dias`
+  return p.length >= 2 ? `${p[0][0]}${p[p.length-1][0]}`.toUpperCase() : nome.slice(0,2).toUpperCase()
 }
 
 const NIVEL_BANNER: Record<SenioridadeNivel, { label: string; cor: string; bg: string; desc: string }> = {
-  abat:         { label: 'ABAT',            cor: '#1D9E75', bg: 'rgba(29,158,117,.12)',  desc: 'Modo guiado — aplica programas com suporte do supervisor' },
-  qasp_s:       { label: 'QASP-S',          cor: '#EF9F27', bg: 'rgba(239,159,39,.12)',  desc: 'Modo semi-guiado — atendimento e supervisão de casos' },
-  qba:          { label: 'QBA',             cor: '#8B7FE8', bg: 'rgba(139,127,232,.12)', desc: 'Modo livre — acesso completo e análise avançada' },
-  terapeuta:    { label: 'Terapeuta',       cor: '#1D9E75', bg: 'rgba(29,158,117,.12)',  desc: 'Modo guiado — programas e orientações detalhadas' },
-  coordenador:  { label: 'Coord. de Caso',  cor: '#EF9F27', bg: 'rgba(239,159,39,.12)',  desc: 'Modo semi-guiado — autonomia com suporte clínico' },
-  supervisor:   { label: 'Supervisor',      cor: '#8B7FE8', bg: 'rgba(139,127,232,.12)', desc: 'Modo livre — acesso completo ao sistema' },
+  abat:        { label: 'ABAT',           cor: '#1D9E75', bg: 'rgba(29,158,117,.12)',  desc: 'Modo guiado — aplica programas com suporte do supervisor' },
+  qasp_s:      { label: 'QASP-S',         cor: '#EF9F27', bg: 'rgba(239,159,39,.12)',  desc: 'Modo semi-guiado — atendimento e supervisão de casos' },
+  qba:         { label: 'QBA',            cor: '#8B7FE8', bg: 'rgba(139,127,232,.12)', desc: 'Modo livre — acesso completo e análise avançada' },
+  terapeuta:   { label: 'Terapeuta',      cor: '#1D9E75', bg: 'rgba(29,158,117,.12)',  desc: 'Modo guiado — programas e orientações detalhadas' },
+  coordenador: { label: 'Coord. de Caso', cor: '#EF9F27', bg: 'rgba(239,159,39,.12)',  desc: 'Modo semi-guiado — autonomia com suporte clínico' },
+  supervisor:  { label: 'Supervisor',     cor: '#8B7FE8', bg: 'rgba(139,127,232,.12)', desc: 'Modo livre — acesso completo ao sistema' },
 }
 
-// ── COMPONENT ──────────────────────────────────────────────────────────────
 export default function ClinicDashboard() {
   const { terapeuta } = useClinicContext()
   const [sessoes,   setSessoes]   = useState<SessaoHoje[]>([])
@@ -107,30 +68,11 @@ export default function ClinicDashboard() {
       setLoading(true)
       try {
         const terapeutaId = terapeuta!.id
-// TESTE TEMPORÁRIO — remover depois
-const { data: teste1 } = await supabase
-  .from('planos')
-  .select('id, crianca_id, status')
-  .eq('terapeuta_id', terapeutaId)
 
-console.log('TESTE 1 — planos simples:', teste1)
-
-const { data: teste2 } = await supabase
-  .from('planos')
-  .select('id, criancas(id, nome)')
-  .eq('terapeuta_id', terapeutaId)
-
-console.log('TESTE 2 — planos com join criancas:', teste2)
-        // ── 1. Planos ativos do terapeuta com criança e programa ──────────
+        // 1. Planos via view (sem join problemático)
         const { data: planosData } = await supabase
-          .from('planos')
-          .select(`
-            id,
-            status,
-            score_atual,
-            criancas ( id, nome ),
-            programas ( id, nome, dominio, tipo )
-          `)
+          .from('planos_com_crianca')
+          .select('*')
           .eq('terapeuta_id', terapeutaId)
           .in('status', ['ativo', 'pausado'])
           .order('criado_em', { ascending: false })
@@ -138,47 +80,56 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
 
         if (planosData && planosData.length > 0) {
 
-          // ── Programas ──────────────────────────────────────────────────
+          // 2. Busca programas via plano_programas
+          const planoIds = planosData.map((pl: any) => pl.id)
+          const { data: planoProgs } = await supabase
+            .from('plano_programas')
+            .select('plano_id, programas(id, nome, dominio)')
+            .in('plano_id', planoIds)
+            .eq('status', 'ativo')
+
+          const planoProg = new Map<string, any>()
+          for (const pp of (planoProgs ?? [])) {
+            const pid = (pp as any).plano_id
+            if (!planoProg.has(pid)) planoProg.set(pid, (pp as any).programas)
+          }
+
+          // 3. Programas ativos
           const progs: Programa[] = planosData
-            .filter(pl => pl.programas && pl.criancas)
+            .filter((pl: any) => planoProg.get(pl.id) && pl.crianca_nome)
             .slice(0, 5)
-            .map((pl, i) => {
-              const prog = pl.programas as any
-              const cri  = pl.criancas  as any
+            .map((pl: any) => {
+              const prog = planoProg.get(pl.id)
               const domPct = pl.score_atual ?? 0
-              const st = pl.status === 'pausado' ? 'pausado'
-                : domPct < 55 ? 'revisar' : 'ativo'
+              const st = pl.status === 'pausado' ? 'pausado' : domPct < 55 ? 'revisar' : 'ativo'
               return {
                 id: pl.id,
-                nome: prog.nome,
-                paciente: cri.nome.split(' ')[0],
-                operantes: Math.floor(Math.random() * 3) + 2, // será substituído quando tabela operantes existir
+                nome: prog?.nome ?? '—',
+                paciente: pl.crianca_nome?.split(' ')[0] ?? '—',
+                operantes: 0,
                 dominio_pct: domPct,
                 status: st as 'ativo' | 'revisar' | 'pausado',
-                cor: CORES_DOMINIO[prog.dominio] ?? '#1D9E75',
+                cor: CORES_DOMINIO[prog?.dominio] ?? '#1D9E75',
               }
             })
           setProgramas(progs)
 
-          // ── Pacientes únicos com radar ─────────────────────────────────
+          // 4. Mapa de crianças
           const criancasMap = new Map<string, any>()
           for (const pl of planosData) {
-            if (pl.criancas) {
-              const c = pl.criancas as any
-              if (!criancasMap.has(c.id)) criancasMap.set(c.id, { ...c, planos: [] })
-              criancasMap.get(c.id).planos.push(pl)
-            }
+            const c = { id: pl.crianca_id, nome: pl.crianca_nome }
+            if (!criancasMap.has(c.id)) criancasMap.set(c.id, { ...c, planos: [] })
+            criancasMap.get(c.id)!.planos.push(pl)
           }
           const criancasIds = Array.from(criancasMap.keys())
 
-          // Buscar radar de cada criança
+          // 5. Radar
           const { data: radares } = await supabase
             .from('radar_snapshots')
             .select('crianca_id, score_comunicacao, score_social, score_atencao, score_regulacao, score_brincadeira, score_flexibilidade, score_autonomia, score_motivacao, criado_em')
             .in('crianca_id', criancasIds)
             .order('criado_em', { ascending: false })
 
-          // Pegar radar mais recente por criança
           const radarPorCrianca = new Map<string, any>()
           for (const r of (radares ?? [])) {
             if (!radarPorCrianca.has(r.crianca_id)) radarPorCrianca.set(r.crianca_id, r)
@@ -196,8 +147,6 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
               const pct = scores.length > 0
                 ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length)
                 : 0
-
-              // Domínios mais baixos como foco
               const dominioNomes: Record<string, string> = {
                 score_comunicacao: 'Comunicação', score_social: 'Social',
                 score_atencao: 'Atenção', score_regulacao: 'Regulação',
@@ -207,28 +156,22 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
                 ? Object.entries(dominioNomes)
                     .map(([k, v]) => ({ nome: v, val: radar[k] ?? 100 }))
                     .sort((a, b) => a.val - b.val)
-                    .slice(0, 3)
-                    .map(d => d.nome)
-                    .join(' · ')
+                    .slice(0, 3).map(d => d.nome).join(' · ')
                 : 'Aguardando avaliação'
-
               const cores = ['#1D9E75','#378ADD','#8B7FE8','#EF9F27','#E05A4B']
               return {
-                id: c.id,
-                nome: c.nome,
-                iniciais: iniciais(c.nome),
+                id: c.id, nome: c.nome, iniciais: iniciais(c.nome),
                 cor: CORES_CARD[i % CORES_CARD.length],
-                dominios: dominiosFoco,
-                pct,
+                dominios: dominiosFoco, pct,
                 corBarra: cores[i % cores.length],
               }
             })
           setPacientes(pacs)
 
-          // ── Sessões clínicas recentes → mapear para "hoje" ─────────────
+          // 6. Sessões recentes
           const { data: sessoesData } = await supabase
             .from('sessoes_clinicas')
-            .select('id, crianca_id, concluida, criado_em, plano_id')
+            .select('id, crianca_id, concluida, criado_em')
             .in('crianca_id', criancasIds)
             .order('criado_em', { ascending: false })
             .limit(10)
@@ -237,20 +180,15 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
             const sess: SessaoHoje[] = sessoesData.slice(0, 4).map((s, i) => {
               const cri = criancasMap.get(s.crianca_id)
               const nome = cri?.nome ?? 'Paciente'
-              const planosSessao = cri?.planos ?? []
-              const prog = planosSessao[0]?.programas as any
-              const tipo = prog ? `${prog.tipo?.toUpperCase() ?? 'DTT'} · ${prog.nome}` : 'Sessão clínica'
               const status: 'agora' | 'proxima' | 'concluida' = s.concluida ? 'concluida' : i === 0 ? 'agora' : 'proxima'
               const horaCriado = new Date(s.criado_em)
               const hFim = new Date(horaCriado.getTime() + 60 * 60000)
               const fmt = (d: Date) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
               return {
-                id: s.id,
-                paciente: nome,
-                iniciais: iniciais(nome),
+                id: s.id, paciente: nome, iniciais: iniciais(nome),
                 cor: CORES_CARD[i % CORES_CARD.length],
-                tipo,
-                programas: planosSessao.length,
+                tipo: 'Sessão clínica',
+                programas: cri?.planos?.length ?? 0,
                 horario: `${fmt(horaCriado)}–${fmt(hFim)}`,
                 status,
               }
@@ -260,60 +198,31 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
             setSessoes([])
           }
 
-          // ── Alertas gerados a partir dos dados ────────────────────────
+          // 7. Alertas
           const als: AlertaEngine[] = []
           for (const pl of planosData.slice(0, 5)) {
-            const prog = pl.programas as any
-            const cri  = pl.criancas  as any
-            if (!prog || !cri) continue
+            const prog = planoProg.get(pl.id)
+            const nome = pl.crianca_nome?.split(' ')[0] ?? '—'
             const score = pl.score_atual ?? 0
-            const nome  = cri.nome.split(' ')[0]
-            if (score < 50) {
-              als.push({
-                id: pl.id + '_critico',
-                tipo: 'critico',
-                texto: `<strong>${nome}</strong> com score baixo em ${prog.nome}. Revisar critério.`,
-                tempo: 'hoje',
-              })
+            if (!prog) continue
+            if (score > 0 && score < 50) {
+              als.push({ id: pl.id + '_critico', tipo: 'critico', texto: `<strong>${nome}</strong> com score baixo em ${prog.nome}. Revisar critério.`, tempo: 'hoje' })
             } else if (score >= 80) {
-              als.push({
-                id: pl.id + '_aviso',
-                tipo: 'aviso',
-                texto: `<strong>${nome}</strong> atingiu ${score}% em ${prog.nome}. Pronto para progressão.`,
-                tempo: 'hoje',
-              })
+              als.push({ id: pl.id + '_aviso', tipo: 'aviso', texto: `<strong>${nome}</strong> atingiu ${score}% em ${prog.nome}. Pronto para progressão.`, tempo: 'hoje' })
             }
           }
           if (als.length === 0) {
-            als.push({
-              id: 'ok_geral',
-              tipo: 'ok',
-              texto: 'Todos os casos dentro do esperado. Bom trabalho!',
-              tempo: 'agora',
-            })
+            als.push({ id: 'ok_geral', tipo: 'ok', texto: 'Todos os casos dentro do esperado. Bom trabalho!', tempo: 'agora' })
           }
           setAlertas(als)
 
         } else {
-          // Sem planos ainda — limpa tudo
-          setSessoes([])
-          setPacientes([])
-          setProgramas([])
-          setAlertas([{
-            id: 'sem_dados',
-            tipo: 'info',
-            texto: 'Nenhum paciente vinculado ainda. Acesse <strong>Pacientes</strong> para adicionar.',
-            tempo: 'agora',
-          }])
+          setSessoes([]); setPacientes([]); setProgramas([])
+          setAlertas([{ id: 'sem_dados', tipo: 'info', texto: 'Nenhum paciente vinculado ainda. Acesse <strong>Pacientes</strong> para adicionar.', tempo: 'agora' }])
         }
       } catch (err) {
         console.error('Erro ao carregar dashboard:', err)
-        setAlertas([{
-          id: 'erro',
-          tipo: 'critico',
-          texto: 'Erro ao carregar dados. Verifique sua conexão.',
-          tempo: 'agora',
-        }])
+        setAlertas([{ id: 'erro', tipo: 'critico', texto: 'Erro ao carregar dados. Verifique sua conexão.', tempo: 'agora' }])
       }
       setLoading(false)
     }
@@ -323,31 +232,16 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
   const nivel  = terapeuta?.nivel ?? 'coordenador'
   const banner = NIVEL_BANNER[nivel]
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 13, color: 'rgba(160,200,235,.90)', marginTop: 16 }}>Carregando painel clínico...</div>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
+      <div style={{ fontSize: 13, color: 'rgba(160,200,235,.90)', marginTop: 16 }}>Carregando painel clínico...</div>
+    </div>
+  )
 
-  // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: isMobile ? '20px 16px 80px' : '28px 32px', maxWidth: 1200 }}>
 
-      {/* Banner de nível */}
-      <div style={{
-        background: banner.bg,
-        border: `1px solid ${banner.cor}33`,
-        borderRadius: 12,
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        marginBottom: 28,
-      }}>
+      <div style={{ background: banner.bg, border: `1px solid ${banner.cor}33`, borderRadius: 12, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: banner.cor, flexShrink: 0 }} />
         <div style={{ flex: 1 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: banner.cor }}>{banner.label}</span>
@@ -355,37 +249,27 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
         </div>
       </div>
 
-      {/* Grid principal */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 20 }}>
 
-        {/* Sessões de hoje */}
         <div style={{ background: 'rgba(13,32,53,.75)', border: '1px solid rgba(26,58,92,.5)', borderRadius: 14, padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.85)' }}>Sessões recentes</span>
             <Link href="/clinic/agenda" style={{ fontSize: 11, color: '#378ADD', textDecoration: 'none' }}>Ver agenda →</Link>
           </div>
           {sessoes.length === 0 ? (
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', textAlign: 'center', padding: '24px 0' }}>
-              Nenhuma sessão registrada ainda
-            </div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', textAlign: 'center', padding: '24px 0' }}>Nenhuma sessão registrada ainda</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {sessoes.map(s => (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: s.cor, borderRadius: 10 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                    {s.iniciais}
-                  </div>
+                  <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{s.iniciais}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.9)', marginBottom: 2 }}>{s.paciente}</div>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.tipo}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', marginBottom: 3 }}>{s.horario}</div>
-                    <span style={{
-                      fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5,
-                      background: s.status === 'agora' ? 'rgba(29,158,117,.3)' : s.status === 'concluida' ? 'rgba(255,255,255,.08)' : 'rgba(55,138,221,.2)',
-                      color: s.status === 'agora' ? '#1D9E75' : s.status === 'concluida' ? 'rgba(255,255,255,.3)' : '#378ADD',
-                    }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: s.status === 'agora' ? 'rgba(29,158,117,.3)' : s.status === 'concluida' ? 'rgba(255,255,255,.08)' : 'rgba(55,138,221,.2)', color: s.status === 'agora' ? '#1D9E75' : s.status === 'concluida' ? 'rgba(255,255,255,.3)' : '#378ADD' }}>
                       {s.status === 'agora' ? 'Agora' : s.status === 'concluida' ? 'Concluída' : 'Próxima'}
                     </span>
                   </div>
@@ -395,11 +279,8 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
           )}
         </div>
 
-        {/* Alertas do Engine */}
         <div style={{ background: 'rgba(13,32,53,.75)', border: '1px solid rgba(26,58,92,.5)', borderRadius: 14, padding: '20px' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.85)', marginBottom: 16 }}>
-            FractaEngine · Alertas
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.85)', marginBottom: 16 }}>FractaEngine · Alertas</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {alertas.map(a => {
               const corMap = { critico: '#E05A4B', aviso: '#EF9F27', ok: '#1D9E75', info: '#378ADD', neutro: 'rgba(255,255,255,.3)' }
@@ -418,25 +299,20 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
         </div>
       </div>
 
-      {/* Pacientes em evolução */}
       <div style={{ background: 'rgba(13,32,53,.75)', border: '1px solid rgba(26,58,92,.5)', borderRadius: 14, padding: '20px', marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.85)' }}>Pacientes · Evolução geral</span>
           <Link href="/clinic/pacientes" style={{ fontSize: 11, color: '#378ADD', textDecoration: 'none' }}>Ver todos →</Link>
         </div>
         {pacientes.length === 0 ? (
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', textAlign: 'center', padding: '24px 0' }}>
-            Nenhum paciente vinculado ainda
-          </div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', textAlign: 'center', padding: '24px 0' }}>Nenhum paciente vinculado ainda</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
             {pacientes.map(p => (
               <Link key={p.id} href={`/clinic/paciente/${p.id}`} style={{ textDecoration: 'none' }}>
                 <div style={{ background: p.cor, borderRadius: 12, padding: '14px 16px', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>
-                      {p.iniciais}
-                    </div>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{p.iniciais}</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.9)' }}>{p.nome.split(' ')[0]}</div>
                   </div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginBottom: 10, lineHeight: 1.4 }}>{p.dominios}</div>
@@ -453,16 +329,13 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
         )}
       </div>
 
-      {/* Programas ativos */}
       <div style={{ background: 'rgba(13,32,53,.75)', border: '1px solid rgba(26,58,92,.5)', borderRadius: 14, padding: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.85)' }}>Programas ativos</span>
           <Link href="/clinic/programas" style={{ fontSize: 11, color: '#378ADD', textDecoration: 'none' }}>Ver todos →</Link>
         </div>
         {programas.length === 0 ? (
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', textAlign: 'center', padding: '24px 0' }}>
-            Nenhum programa ativo ainda
-          </div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', textAlign: 'center', padding: '24px 0' }}>Nenhum programa ativo ainda</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {programas.map(p => (
@@ -474,11 +347,7 @@ console.log('TESTE 2 — planos com join criancas:', teste2)
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: p.cor, marginBottom: 3 }}>{p.dominio_pct}%</div>
-                  <span style={{
-                    fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5,
-                    background: p.status === 'ativo' ? 'rgba(29,158,117,.15)' : p.status === 'revisar' ? 'rgba(239,159,39,.15)' : 'rgba(255,255,255,.06)',
-                    color: p.status === 'ativo' ? '#1D9E75' : p.status === 'revisar' ? '#EF9F27' : 'rgba(255,255,255,.3)',
-                  }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: p.status === 'ativo' ? 'rgba(29,158,117,.15)' : p.status === 'revisar' ? 'rgba(239,159,39,.15)' : 'rgba(255,255,255,.06)', color: p.status === 'ativo' ? '#1D9E75' : p.status === 'revisar' ? '#EF9F27' : 'rgba(255,255,255,.3)' }}>
                     {p.status === 'ativo' ? 'Ativo' : p.status === 'revisar' ? 'Revisar' : 'Pausado'}
                   </span>
                 </div>
