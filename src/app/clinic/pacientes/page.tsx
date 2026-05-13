@@ -90,39 +90,47 @@ export default function PacientesPage() {
   useEffect(() => {
     if (!terapeuta) return;
     async function carregar() {
-      
-      setLoading(true);
-      try {
-        const { data: planos } = await supabase
-  .from("planos")
-  .select(`
-    id, status, score_atual, criado_em,
-    criancas ( id, nome, data_nascimento, diagnostico )
-  `)
-  .eq("terapeuta_id", terapeuta!.id)
-  .order("criado_em", { ascending: false });
-      console.log('terapeuta id:', terapeuta?.id)
-      console.log('planos:', JSON.stringify(planos))
-        if (!planos || planos.length === 0) {
-          setPacientes([]); 
-          setLoading(false);
-          return;
-        }
+  setLoading(true);
+  try {
+    // 1. Busca planos simples — sem join
+    const { data: planos, error: erroPlanos } = await supabase
+      .from("planos")
+      .select("id, status, score_atual, criado_em, crianca_id")
+      .eq("terapeuta_id", terapeuta!.id)
+      .eq("status", "ativo")
 
-        const criancaMap = new Map<string, { crianca: any; planos: any[] }>();
-        for (const pl of planos) {
-          const c = pl.criancas as any;
-          if (!c) continue;
-          if (!criancaMap.has(c.id)) criancaMap.set(c.id, { crianca: c, planos: [] });
-          criancaMap.get(c.id)!.planos.push(pl);
-        }
+    console.log('planos:', planos, 'erro:', erroPlanos)
 
-        const criancaIds = Array.from(criancaMap.keys());
+    if (!planos || planos.length === 0) {
+      setPacientes([]);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Busca criancas separadamente
+    // linha 111 — mude o nome
+const criancaIdsFromPlanos = [...new Set(planos.map((pl: any) => pl.crianca_id))]
+const { data: criancas } = await supabase
+  .from("criancas")
+  .select("id, nome, data_nascimento, diagnostico")
+  .in("id", criancaIdsFromPlanos)
+
+    const criancaById = new Map((criancas ?? []).map((c: any) => [c.id, c]))
+
+    // 3. Monta mapa crianca → planos
+    const criancaMap = new Map<string, { crianca: any; planos: any[] }>();
+    for (const pl of planos) {
+      const c = criancaById.get(pl.crianca_id)
+      if (!c) continue;
+      if (!criancaMap.has(c.id)) criancaMap.set(c.id, { crianca: c, planos: [] });
+      criancaMap.get(c.id)!.planos.push(pl);
+    }
+    // O resto continua igual...
 
         const { data: radares } = await supabase
           .from("radar_snapshots")
           .select("crianca_id, score_comunicacao, score_social, score_atencao, score_regulacao, score_brincadeira, score_flexibilidade, score_autonomia, score_motivacao, criado_em")
-          .in("crianca_id", criancaIds)
+          .in("crianca_id", criancaIdsFromPlanos)
           .order("criado_em", { ascending: false });
 
         const radarMap = new Map<string, any>();
@@ -133,7 +141,7 @@ export default function PacientesPage() {
         const { data: sessoes } = await supabase
           .from("sessoes_clinicas")
           .select("crianca_id, criado_em, concluida")
-          .in("crianca_id", criancaIds)
+          .in("crianca_id", criancaIdsFromPlanos)
           .order("criado_em", { ascending: false });
 
         const ultimaSessaoMap = new Map<string, string>();
