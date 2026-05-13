@@ -28,14 +28,27 @@ interface Acao {
   taxaHistorica?: number
   operanteVerbal?: string
   hierarquiaTipo?: "motora" | "verbal" | "generica"
+  hierarquiaDicas?: string[]    // ← novo
   planoId?: string
+  planoProgramaId?: string      // ← novo
 }
 
 interface LibItem {
-  id: string; nome: string; dominio: string
-  tipo: "programa" | "avaliacao"; planejado: boolean
-  planoId?: string; taxaHistorica?: number
-  operante?: string; totalTentativas?: number
+  id: string
+  nome: string
+  dominio: string
+  tipo: "programa" | "avaliacao"
+  planejado: boolean
+  planoId?: string
+  planoProgramaId?: string      // ← novo
+  alvoId?: string               // ← novo
+  taxaHistorica?: number
+  operante?: string
+  totalTentativas?: number
+  hierarquiaDicas?: string[]    // ← novo: array ordenado de níveis
+  estrategiaDica?: string       // ← novo
+  sd?: string                   // ← novo
+  estimulos?: any[]             // ← novo
 }
 
 interface Encaminhamento {
@@ -300,50 +313,124 @@ function SessaoInner() {
   useEffect(() => {
     if (!pacienteId) { setLoading(false); return }
     async function carregar() {
-      setLoading(true)
-      const { data: c } = await supabase.from("criancas").select("id,nome,diagnostico").eq("id", pacienteId).single()
-      if (c) setPaciente({ id: c.id, nome: c.nome, iniciais: iniciais(c.nome), gradient: "linear-gradient(135deg,#1D9E75,#378ADD)", diagnostico: c.diagnostico ?? "Não informado" })
+  setLoading(true)
 
-      // Programas planejados do plano ativo
-      const { data: planos } = await supabase
+  // 1. Dados do paciente
+  const { data: c } = await supabase
+    .from("criancas")
+    .select("id,nome,diagnostico")
+    .eq("id", pacienteId)
+    .single()
+
+  if (c) setPaciente({
+    id: c.id,
+    nome: c.nome,
+    iniciais: iniciais(c.nome),
+    gradient: "linear-gradient(135deg,#1D9E75,#378ADD)",
+    diagnostico: c.diagnostico ?? "Não informado"
+  })
+
+  // 2. Programas do plano ativo via plano_programas
+  const { data: planoPrograms } = await supabase
+    .from("plano_programas")
+    .select(`
+      id,
+      status,
+      ordem,
+      percentual_atual,
+      sessoes_no_criterio,
+      plano_id,
+      alvo_id,
+      programa_id,
+      programas (
+        id, nome, dominio, operante,
+        total_tentativas, criterio_maestria,
+        hierarquia_dicas, estrategia_dica,
+        sd, comportamento_alvo, materiais,
+        estimulos, relacoes, nivel_dicas
+      ),
+      alvos_comportamentais (
+        id, codigo, descricao, area, status
+      )
+    `)
+    .eq("status", "ativo")
+    .in("plano_id", 
+      // subconsulta: planos ativos do paciente
+      (await supabase
         .from("planos")
-        .select("id, programas(id, nome, dominio, operante, total_tentativas)")
+        .select("id")
         .eq("crianca_id", pacienteId)
         .eq("status", "ativo")
+      ).data?.map((p: any) => p.id) ?? []
+    )
+    .order("ordem")
 
-      const planejados: LibItem[] = []
-      if (planos) {
-        for (const pl of planos) {
-          const prog = (pl as any).programas
-          if (!prog) continue
-          // Taxa histórica real do programa para este paciente
-          const { data: opsHist } = await supabase
-            .from("operants")
-            .select("correto")
-            .eq("action_id", prog.id) // aproximação — melhorar com join futuro
-            .limit(100)
-          const taxa = opsHist && opsHist.length > 0
-            ? Math.round(opsHist.filter((o:any) => o.correto).length / opsHist.length * 100)
-            : undefined
-          planejados.push({
-            id: prog.id, nome: prog.nome, dominio: prog.dominio ?? "—",
-            tipo: "programa", planejado: true, planoId: pl.id,
-            taxaHistorica: taxa, operante: prog.operante,
-            totalTentativas: prog.total_tentativas ?? 10,
-          })
-        }
-      }
+  const planejados: LibItem[] = (planoPrograms ?? []).map((pp: any) => {
+    const prog = pp.programas
+    const alvo = pp.alvos_comportamentais
+    if (!prog) return null
 
-      // Biblioteca geral de programas
-      const { data: todos } = await supabase.from("programas").select("id,nome,dominio,operante,total_tentativas").limit(50)
-      const libGeral: LibItem[] = (todos ?? [])
-        .filter(p => !planejados.find(pl => pl.id === p.id))
-        .map(p => ({ id: p.id, nome: p.nome, dominio: p.dominio ?? "—", tipo: "programa" as const, planejado: false, operante: (p as any).operante, totalTentativas: (p as any).total_tentativas ?? 10 }))
+    // Hierarquia de dicas: usa campo novo ou fallback para nivel_dicas antigo
+    const hierarquia = prog.hierarquia_dicas?.length > 0
+      ? prog.hierarquia_dicas
+      : prog.nivel_dicas
+        ? Object.keys(prog.nivel_dicas)
+        : ["independente", "gestual", "modelo", "física parcial", "física total"]
 
-      const libAvals: LibItem[] = AVALIACOES_CAT.map(a => ({ ...a, tipo: "avaliacao" as const, planejado: false }))
-      setBiblioteca([...planejados, ...libGeral, ...libAvals])
-      setLoading(false)
+    return {
+      id: prog.id,
+      nome: prog.nome,
+      dominio: alvo?.descricao ?? prog.dominio ?? "—",
+      tipo: "programa" as const,
+      planejado: true,
+      planoId: pp.plano_id,
+      planoProgramaId: pp.id,        // ← novo: id do vínculo
+      alvoId: pp.alvo_id,
+      taxaHistorica: pp.percentual_atual ?? undefined,
+      operante: prog.operante,
+      totalTentativas: prog.total_tentativas ?? 10,
+      hierarquiaDicas: hierarquia,   // ← novo: array ordenado
+      estrategiaDica: prog.estrategia_dica ?? "least_to_most",
+      sd: prog.sd,
+      estimulos: prog.estimulos ?? [],
     }
+  }).filter(Boolean) as LibItem[]
+
+  // 3. Biblioteca geral (programas não planejados)
+  const planejadosIds = planejados.map(p => p.id)
+  const { data: todos } = await supabase
+    .from("programas")
+    .select("id,nome,dominio,operante,total_tentativas,hierarquia_dicas,nivel_dicas,sd")
+    .eq("ativo", true)
+    .limit(50)
+
+  const libGeral: LibItem[] = (todos ?? [])
+    .filter((p: any) => !planejadosIds.includes(p.id))
+    .map((p: any) => ({
+      id: p.id,
+      nome: p.nome,
+      dominio: p.dominio ?? "—",
+      tipo: "programa" as const,
+      planejado: false,
+      operante: p.operante,
+      totalTentativas: p.total_tentativas ?? 10,
+      hierarquiaDicas: p.hierarquia_dicas?.length > 0
+        ? p.hierarquia_dicas
+        : ["independente", "gestual", "modelo", "física parcial", "física total"],
+      estrategiaDica: "least_to_most",
+      sd: p.sd,
+    }))
+
+  // 4. Avaliações
+  const libAvals: LibItem[] = AVALIACOES_CAT.map(a => ({
+    ...a,
+    tipo: "avaliacao" as const,
+    planejado: false,
+  }))
+
+  setBiblioteca([...planejados, ...libGeral, ...libAvals])
+  setLoading(false)
+}
     carregar()
   }, [pacienteId])
 
@@ -434,54 +521,100 @@ function SessaoInner() {
   }
 
   // ── Adicionar ação ──────────────────────────────────────────────────────────
-  async function adicionarAcao(item: LibItem) {
-    const area: AreaAtiva   = item.tipo === "avaliacao" ? "avaliacao" : areaAtiva
-    const hierTipo          = deriveHierarquia(item.operante)
-    const novaAcao: Acao    = {
-      id: uid(), tipo: item.tipo === "avaliacao" ? "assessment" : "intervention",
-      area, itemId: item.id, itemNome: item.nome, itemDominio: item.dominio,
-      operantes: [], taxaHistorica: item.taxaHistorica,
-      totalTentativas: item.totalTentativas ?? 10,
-      operanteVerbal: item.operante, hierarquiaTipo: hierTipo,
-    }
-    if (sessaoDbId) {
-      const stAtual = stages.find(s => s.status === "active")
-      const { data: acDb } = await supabase.from("session_actions").insert({
-        sessao_id:    sessaoDbId,
-        stage_id:     stAtual?.dbId ?? null,
-        tipo:         novaAcao.tipo,
-        programa_id:  item.tipo === "programa" ? item.id : null,
-        plano_id:     item.planoId ?? null,
-        status:       "active",
-        iniciado_em:  new Date().toISOString(),
-      }).select("id").single()
-      if (acDb) novaAcao.dbId = acDb.id
-    }
-    setAcoes(prev => [...prev, novaAcao])
-    setAcaoAtiva(novaAcao)
-    setLibAberta(false)
+ async function adicionarAcao(item: LibItem) {
+  const area: AreaAtiva = item.tipo === "avaliacao" ? "avaliacao" : areaAtiva
+  const hierTipo = deriveHierarquia(item.operante)
+
+  const novaAcao: Acao = {
+    id: uid(),
+    tipo: item.tipo === "avaliacao" ? "assessment" : "intervention",
+    area,
+    itemId: item.id,
+    itemNome: item.nome,
+    itemDominio: item.dominio,
+    operantes: [],
+    taxaHistorica: item.taxaHistorica,
+    totalTentativas: item.totalTentativas ?? 10,
+    operanteVerbal: item.operante,
+    hierarquiaTipo: hierTipo,
+    hierarquiaDicas: item.hierarquiaDicas,      // ← novo
+    planoId: item.planoId,
+    planoProgramaId: item.planoProgramaId,      // ← novo
   }
 
-  // ── Registrar operante ──────────────────────────────────────────────────────
-  async function registrarOperante(correto: boolean, nivelKey?: string) {
-    if (!acaoAtiva) return
-    const promptLevel = (nivelKey ?? "independente") as PromptLevel
-    const op: Operante = { id: uid(), sd: opForm.sd, correto, promptLevel, ts: Date.now() }
-    if (sessaoDbId && acaoAtiva.dbId) {
-      await supabase.from("operants").insert({
-        sessao_id:    sessaoDbId,
-        action_id:    acaoAtiva.dbId,
-        sd:           op.sd || null,
-        correto:      op.correto,
-        prompt_level: promptLevel,
-        tipo:         "tentativa",
-      })
-    }
-    const atualizada = { ...acaoAtiva, operantes: [...acaoAtiva.operantes, op] }
-    setAcaoAtiva(atualizada)
-    setAcoes(prev => prev.map(a => a.id === acaoAtiva.id ? atualizada : a))
-    setOpForm({ sd: "" })
+  if (sessaoDbId) {
+    const stAtual = stages.find(s => s.status === "active")
+    const { data: acDb } = await supabase.from("session_actions").insert({
+      sessao_id:        sessaoDbId,
+      stage_id:         stAtual?.dbId ?? null,
+      tipo:             novaAcao.tipo,
+      programa_id:      item.tipo === "programa" ? item.id : null,
+      plano_id:         item.planoId ?? null,
+      plano_programa_id: item.planoProgramaId ?? null,  // ← novo
+      status:           "active",
+      iniciado_em:      new Date().toISOString(),
+    }).select("id").single()
+    if (acDb) novaAcao.dbId = acDb.id
   }
+
+  setAcoes(prev => [...prev, novaAcao])
+  setAcaoAtiva(novaAcao)
+  setLibAberta(false)
+}
+
+  // ── Registrar operante ──────────────────────────────────────────────────────
+ async function registrarOperante(correto: boolean, nivelKey?: string) {
+  if (!acaoAtiva) return
+
+  const promptLevel = (nivelKey ?? "independente") as PromptLevel
+  const op: Operante = {
+    id: uid(),
+    sd: opForm.sd,
+    correto,
+    promptLevel,
+    ts: Date.now()
+  }
+
+  // Salva em sessao_tentativas (novo) + operants (legado, mantém por ora)
+  if (sessaoDbId && acaoAtiva.dbId) {
+    const hierarquia = acaoAtiva.hierarquiaDicas ?? []
+    const nivelIdx = hierarquia.indexOf(nivelKey ?? "independente")
+
+    await supabase.from("sessao_tentativas").insert({
+      sessao_id:          sessaoDbId,
+      action_id:          acaoAtiva.dbId,
+      plano_programa_id:  acaoAtiva.planoProgramaId ?? null,
+      sd:                 opForm.sd || null,
+      resultado:          correto ? "acerto" : "erro",
+      nivel_dica:         nivelKey ?? "independente",
+      nivel_dica_idx:     nivelIdx >= 0 ? nivelIdx : 0,
+      registrado_em:      new Date().toISOString(),
+    })
+
+    // Atualiza percentual em tempo real no plano_programas
+    if (acaoAtiva.planoProgramaId) {
+      const todasOps = [...acaoAtiva.operantes, op]
+      const totalAte = todasOps.length
+      const acertosAte = todasOps.filter(o => o.correto).length
+      const pct = totalAte > 0
+        ? Math.round(acertosAte / totalAte * 100 * 100) / 100
+        : 0
+
+      await supabase
+        .from("plano_programas")
+        .update({
+          percentual_atual: pct,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", acaoAtiva.planoProgramaId)
+    }
+  }
+
+  const atualizada = { ...acaoAtiva, operantes: [...acaoAtiva.operantes, op] }
+  setAcaoAtiva(atualizada)
+  setAcoes(prev => prev.map(a => a.id === acaoAtiva.id ? atualizada : a))
+  setOpForm({ sd: "" })
+}
 
   // ── Registrar evento ────────────────────────────────────────────────────────
   async function registrarEvento(tipo: EventType) { await registrarEventoInterno(tipo, sessaoDbId) }
@@ -1101,28 +1234,174 @@ function SessaoInner() {
                       />
 
                       {acao.tipo === "assessment" ? (
-                        <RegistroAvaliacao acao={acao} pacienteId={paciente?.id ?? ""} sessaoId={sessaoDbId ?? ""} terapeutaId={terapeuta?.id ?? ""} />
-                      ) : (() => {
-                        const hier = getHierarquia(acao.hierarquiaTipo ?? "generica")
-                        return (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            <div style={{ fontSize: ".62rem", color: "rgba(160,200,235,.35)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 2 }}>
-                              Hierarquia {acao.hierarquiaTipo === "verbal" ? "verbal" : acao.hierarquiaTipo === "motora" ? "motora" : "genérica"}
-                              {acao.operanteVerbal && <span style={{ marginLeft: 6, color: "rgba(160,200,235,.25)" }}>({acao.operanteVerbal})</span>}
-                            </div>
-                            {hier.map((h, hi) => {
-                              const isErro = !h.correto
-                              return (
-                                <button key={h.key} onClick={() => registrarOperante(h.correto, h.key)}
-                                  style={{ padding: isErro ? "10px 14px" : "13px 14px", borderRadius: 10, border: `1px solid ${h.cor}${isErro ? "" : "44"}`, background: `${h.cor}12`, color: isErro ? "#E05A4B" : h.cor, fontWeight: 700, fontSize: isErro ? ".78rem" : ".85rem", cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: isErro ? 4 : 0 }}>
-                                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>{isErro ? "✗" : "✓"}<span>{h.label}</span></span>
-                                  <span style={{ fontSize: ".62rem", opacity: .45 }}>{isErro ? "sem resposta" : hi === 0 ? "sem dica" : `nível ${hi}`}</span>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )
-                      })()}
+  <RegistroAvaliacao
+    acao={acao}
+    pacienteId={paciente?.id ?? ""}
+    sessaoId={sessaoDbId ?? ""}
+    terapeutaId={terapeuta?.id ?? ""}
+  />
+) : (() => {
+  // Usa hierarquia personalizada do programa se existir,
+  // senão cai na hierarquia derivada do operante (legado)
+  const usaHierarquiaCustom =
+    acao.hierarquiaDicas && acao.hierarquiaDicas.length > 0
+
+  if (usaHierarquiaCustom) {
+    const niveis = acao.hierarquiaDicas!
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{
+          fontSize: ".62rem",
+          color: "rgba(160,200,235,.35)",
+          textTransform: "uppercase",
+          letterSpacing: ".06em",
+          marginBottom: 2
+        }}>
+          Hierarquia personalizada
+          {acao.operanteVerbal && (
+            <span style={{ marginLeft: 6, color: "rgba(160,200,235,.25)" }}>
+              ({acao.operanteVerbal})
+            </span>
+          )}
+        </div>
+
+        {/* Independente sempre primeiro e destacado */}
+        <button
+          onClick={() => registrarOperante(true, niveis[0])}
+          style={{
+            padding: "13px 14px",
+            borderRadius: 10,
+            border: "1px solid rgba(29,158,117,.44)",
+            background: "rgba(29,158,117,.12)",
+            color: "#1D9E75",
+            fontWeight: 700,
+            fontSize: ".85rem",
+            cursor: "pointer",
+            fontFamily: "var(--font-sans)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>✓ {niveis[0]}</span>
+          <span style={{ fontSize: ".62rem", opacity: .45 }}>sem dica</span>
+        </button>
+
+        {/* Níveis intermediários */}
+        {niveis.slice(1).map((nivel, idx) => {
+          const isUltimo = idx === niveis.length - 2
+          // Último nível da hierarquia = mais apoio = cor laranja/vermelho
+          const cor = isUltimo ? "#EF9F27" : "#378ADD"
+          return (
+            <button
+              key={nivel}
+              onClick={() => registrarOperante(true, nivel)}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: `1px solid ${cor}44`,
+                background: `${cor}12`,
+                color: cor,
+                fontWeight: 600,
+                fontSize: ".8rem",
+                cursor: "pointer",
+                fontFamily: "var(--font-sans)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>✓ {nivel}</span>
+              <span style={{ fontSize: ".62rem", opacity: .45 }}>
+                nível {idx + 1}
+              </span>
+            </button>
+          )
+        })}
+
+        {/* Erro — sempre separado e vermelho */}
+        <button
+          onClick={() => registrarOperante(false, "erro")}
+          style={{
+            marginTop: 4,
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "1px solid rgba(224,90,75,.44)",
+            background: "rgba(224,90,75,.12)",
+            color: "#E05A4B",
+            fontWeight: 700,
+            fontSize: ".78rem",
+            cursor: "pointer",
+            fontFamily: "var(--font-sans)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>✗ Erro / sem resposta</span>
+          <span style={{ fontSize: ".62rem", opacity: .45 }}>sem dica</span>
+        </button>
+      </div>
+    )
+  }
+
+  // Fallback legado — hierarquia derivada do operante
+  const hier = getHierarquia(acao.hierarquiaTipo ?? "generica")
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{
+        fontSize: ".62rem",
+        color: "rgba(160,200,235,.35)",
+        textTransform: "uppercase",
+        letterSpacing: ".06em",
+        marginBottom: 2
+      }}>
+        Hierarquia {acao.hierarquiaTipo === "verbal"
+          ? "verbal"
+          : acao.hierarquiaTipo === "motora"
+          ? "motora"
+          : "genérica"}
+        {acao.operanteVerbal && (
+          <span style={{ marginLeft: 6, color: "rgba(160,200,235,.25)" }}>
+            ({acao.operanteVerbal})
+          </span>
+        )}
+      </div>
+      {hier.map((h, hi) => {
+        const isErro = !h.correto
+        return (
+          <button
+            key={h.key}
+            onClick={() => registrarOperante(h.correto, h.key)}
+            style={{
+              padding: isErro ? "10px 14px" : "13px 14px",
+              borderRadius: 10,
+              border: `1px solid ${h.cor}${isErro ? "" : "44"}`,
+              background: `${h.cor}12`,
+              color: isErro ? "#E05A4B" : h.cor,
+              fontWeight: 700,
+              fontSize: isErro ? ".78rem" : ".85rem",
+              cursor: "pointer",
+              fontFamily: "var(--font-sans)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginTop: isErro ? 4 : 0,
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {isErro ? "✗" : "✓"}
+              <span>{h.label}</span>
+            </span>
+            <span style={{ fontSize: ".62rem", opacity: .45 }}>
+              {isErro ? "sem resposta" : hi === 0 ? "sem dica" : `nível ${hi}`}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+})()}
                     </div>
                   )}
                 </div>
