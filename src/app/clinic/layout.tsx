@@ -388,15 +388,15 @@ useEffect(() => {
   if (!terapeuta) return
   async function carregarPacientes() {
     const { data: planos } = await supabase
-      .from('planos')
-      .select('criancas(id, nome)')
+      .from('planos_com_crianca')
+      .select('crianca_id, crianca_nome')
       .eq('terapeuta_id', terapeuta!.id)
       .eq('status', 'ativo')
     if (!planos) return
     const map = new Map<string, string>()
     for (const pl of planos) {
-      const c = (pl as any).criancas
-      if (c && !map.has(c.id)) map.set(c.id, c.nome)
+      if (pl.crianca_id && !map.has(pl.crianca_id))
+        map.set(pl.crianca_id, pl.crianca_nome)
     }
     setPacientesNav(Array.from(map.entries()).map(([id, nome]) => ({ id, nome })))
   }
