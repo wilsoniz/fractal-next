@@ -52,7 +52,7 @@ type VariaveisClinicas = {
   revogacoes_por_sessao: number; tolerancia_exigencia: number; responsividade_reforco: number;
 };
 
-type Tab = "visao-geral" | "programas" | "skill-graph" | "forecast" | "avaliacoes" | "contrato" | "historico";
+type Tab = "visao-geral" | "programas" | "skill-graph" | "forecast" | "avaliacoes" | "contrato" | "historico" | "jornada";
 
 // ─── FORECAST GOALS ──────────────────────────────────────────────────────────
 const FORECAST_GOALS: ForecastGoal[] = [
@@ -100,12 +100,350 @@ const STATUS_COMP: Record<string, { label: string; cor: string }> = {
 
 const DOMINIOS = ["comunicacao","social","atencao","regulacao","brincadeira","cognicao","autonomia","flexibilidade","motricidade"];
 
+function JornadaClinica({ jornada, jornadaAnterior, dominios, paciente, criancaId, onJornadaCriada }: {
+  jornada: any
+  jornadaAnterior: any
+  dominios: any[]
+  paciente: any
+  criancaId: string
+  onJornadaCriada: (j: any) => void
+}) {
+  const [criando, setCriando] = useState(false)
+  const [modalNovaJornada, setModalNovaJornada] = useState(false)
+  const [motivoNovo, setMotivoNovo] = useState("")
+
+  const FASES = [
+    { id: "avaliacao",   label: "Avaliação",    icone: "📋" },
+    { id: "intervencao", label: "Intervenção",  icone: "🎯" },
+    { id: "reavaliacao", label: "Reavaliação",  icone: "🔄" },
+    { id: "alta",        label: "Alta",         icone: "🏆" },
+  ]
+
+  const FASE_TAG: Record<string, { label: string; cor: string; bg: string }> = {
+    avaliacao:    { label: "Avaliação",    cor: "#EF9F27", bg: "rgba(239,159,39,.12)"  },
+    intervencao:  { label: "Intervenção",  cor: "#378ADD", bg: "rgba(55,138,221,.12)"  },
+    generalizacao:{ label: "Generalização",cor: "#8B7FE8", bg: "rgba(139,127,232,.12)" },
+    dominado:     { label: "Dominado",     cor: "#1D9E75", bg: "rgba(29,158,117,.12)"  },
+  }
+
+  const DOMINIO_PT: Record<string, string> = {
+    comunicacao:"Comunicação", social:"Social", atencao:"Atenção",
+    regulacao:"Regulação", autonomia:"Autonomia", flexibilidade:"Flexibilidade",
+    brincadeira:"Brincadeira", cognicao:"Cognição", motivacao:"Motivação",
+  }
+
+  const card: React.CSSProperties = {
+    background: "rgba(13,32,53,.75)",
+    border: "1px solid rgba(70,120,180,.5)",
+    borderRadius: 14,
+    backdropFilter: "blur(8px)",
+  }
+
+  const inp: React.CSSProperties = {
+    width: "100%", padding: "9px 12px", borderRadius: 8,
+    border: "1px solid rgba(26,58,92,.5)",
+    background: "rgba(13,32,53,.6)", color: "#e8f0f8",
+    fontSize: 13, fontFamily: "var(--font-sans)",
+    outline: "none", boxSizing: "border-box" as const,
+  }
+
+  async function criarPrimeiraJornada() {
+    setCriando(true)
+    const { data } = await supabase
+      .from("jornada_clinica")
+      .insert({
+        paciente_id: criancaId,
+        terapeuta_id: (await supabase.auth.getUser()).data.user?.id,
+        fase_atual: "avaliacao",
+        origem: "ffs",
+        numero_ciclo: 1,
+        status: "ativo",
+      })
+      .select()
+      .single()
+    if (data) onJornadaCriada(data)
+    setCriando(false)
+  }
+
+  async function avancarFase(novaFase: string) {
+    if (!jornada) return
+    const historico = [...(jornada.historico_fases ?? []), {
+      fase: jornada.fase_atual,
+      data_inicio: jornada.data_inicio_fase,
+      data_fim: new Date().toISOString(),
+    }]
+    await supabase
+      .from("jornada_clinica")
+      .update({
+        fase_atual: novaFase,
+        data_inicio_fase: new Date().toISOString(),
+        historico_fases: historico,
+        atualizado_em: new Date().toISOString(),
+      })
+      .eq("id", jornada.id)
+    onJornadaCriada({ ...jornada, fase_atual: novaFase, historico_fases: historico })
+  }
+
+  async function iniciarNovoCirclo() {
+    if (!jornada || !motivoNovo.trim()) return
+    setCriando(true)
+
+    // Encerra jornada atual
+    await supabase
+      .from("jornada_clinica")
+      .update({ status: "concluido", atualizado_em: new Date().toISOString() })
+      .eq("id", jornada.id)
+
+    // Cria nova jornada
+    const { data } = await supabase
+      .from("jornada_clinica")
+      .insert({
+        paciente_id: criancaId,
+        terapeuta_id: (await supabase.auth.getUser()).data.user?.id,
+        fase_atual: "avaliacao",
+        origem: jornada.origem,
+        numero_ciclo: (jornada.numero_ciclo ?? 1) + 1,
+        jornada_anterior_id: jornada.id,
+        motivo_novo_ciclo: motivoNovo,
+        status: "ativo",
+      })
+      .select()
+      .single()
+
+    if (data) onJornadaCriada(data)
+    setModalNovaJornada(false)
+    setMotivoNovo("")
+    setCriando(false)
+  }
+
+  const faseAtualIdx = FASES.findIndex(f => f.id === jornada?.fase_atual)
+
+  // Sem jornada ainda
+  if (!jornada) return (
+    <div style={{ ...card, padding: 32, textAlign: "center" }}>
+      <div style={{ fontSize: 32, marginBottom: 16 }}>🗺️</div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: "#e8f0f8", marginBottom: 8 }}>
+        Jornada Clínica não iniciada
+      </div>
+      <div style={{ fontSize: 13, color: "rgba(160,200,235,.7)", marginBottom: 24, lineHeight: 1.6 }}>
+        Inicie a jornada clínica para organizar o tratamento em fases — avaliação, intervenção, reavaliação e alta.
+      </div>
+      <button
+        onClick={criarPrimeiraJornada}
+        disabled={criando}
+        style={{ padding: "10px 24px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-sans)" }}
+      >
+        {criando ? "Criando..." : "Iniciar Jornada Clínica →"}
+      </button>
+    </div>
+  )
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+      {/* Modal novo ciclo */}
+      {modalNovaJornada && (
+        <div onClick={() => setModalNovaJornada(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ ...card, padding: 28, width: "100%", maxWidth: 440 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#e8f0f8", marginBottom: 4 }}>Iniciar nova jornada</div>
+            <div style={{ fontSize: 13, color: "rgba(160,200,235,.6)", marginBottom: 20, lineHeight: 1.6 }}>
+              A jornada atual será concluída e um novo ciclo será iniciado na Fase de Avaliação.
+            </div>
+            <label style={{ fontSize: 11, color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".08em", display: "block", marginBottom: 6 }}>
+              Motivo do novo ciclo
+            </label>
+            <textarea
+              value={motivoNovo}
+              onChange={e => setMotivoNovo(e.target.value)}
+              placeholder="Ex: Reavaliação identificou novos alvos em Regulação e Social avançado..."
+              rows={3}
+              style={{ ...inp, resize: "none" as const, marginBottom: 20 }}
+            />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setModalNovaJornada(false)} style={{ flex: 1, padding: 10, borderRadius: 9, border: "1px solid rgba(26,58,92,.5)", background: "transparent", color: "rgba(160,200,235,.5)", fontSize: 13, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                Cancelar
+              </button>
+              <button
+                onClick={iniciarNovoCirclo}
+                disabled={criando || !motivoNovo.trim()}
+                style={{ flex: 2, padding: 10, borderRadius: 9, border: "none", background: motivoNovo.trim() ? "linear-gradient(135deg,#1D9E75,#0f8f7a)" : "rgba(26,58,92,.4)", color: motivoNovo.trim() ? "#07111f" : "rgba(160,200,235,.3)", fontWeight: 700, fontSize: 13, cursor: motivoNovo.trim() ? "pointer" : "not-allowed", fontFamily: "var(--font-sans)" }}
+              >
+                {criando ? "Criando..." : "Iniciar Jornada " + ((jornada.numero_ciclo ?? 1) + 1)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header — ciclo atual */}
+      <div style={{ ...card, padding: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "#e8f0f8" }}>
+                Jornada {jornada.numero_ciclo}
+              </span>
+              <span style={{ fontSize: 12, color: "rgba(160,200,235,.5)" }}>
+                — ciclo atual
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(160,200,235,.5)" }}>
+              Iniciada em {new Date(jornada.data_inicio).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+              {jornada.motivo_novo_ciclo && (
+                <span style={{ marginLeft: 8, color: "rgba(160,200,235,.4)" }}>
+                  · {jornada.motivo_novo_ciclo}
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={() => setModalNovaJornada(true)}
+            style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(139,127,232,.3)", background: "rgba(139,127,232,.08)", color: "#8B7FE8", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}
+          >
+            + Nova jornada
+          </button>
+        </div>
+
+        {/* Barra de fases */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 0, marginBottom: 16 }}>
+          {FASES.map((fase, idx) => {
+            const concluida = idx < faseAtualIdx
+            const ativa = idx === faseAtualIdx
+            const cor = ativa ? "#EF9F27" : concluida ? "#1D9E75" : "rgba(26,58,92,.5)"
+            return (
+              <div key={fase.id} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" }}>
+                {idx < FASES.length - 1 && (
+                  <div style={{ position: "absolute", top: 14, left: "60%", width: "80%", height: 2, background: concluida ? "#1D9E75" : "rgba(26,58,92,.4)", zIndex: 0 }} />
+                )}
+                <div style={{ width: 28, height: 28, borderRadius: "50%", border: `2px solid ${cor}`, background: concluida ? "#1D9E75" : ativa ? "transparent" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: concluida ? "#fff" : cor, zIndex: 1, position: "relative" }}>
+                  {concluida ? "✓" : fase.icone}
+                </div>
+                <div style={{ fontSize: 11, color: cor, textAlign: "center", fontWeight: ativa ? 600 : 400 }}>
+                  {fase.label}
+                </div>
+                {ativa && (
+                  <button
+                    onClick={() => avancarFase(FASES[idx + 1]?.id)}
+                    style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, border: "1px solid rgba(239,159,39,.3)", background: "rgba(239,159,39,.08)", color: "#EF9F27", cursor: "pointer", fontFamily: "var(--font-sans)" }}
+                  >
+                    Avançar →
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Forecast */}
+        <div style={{ padding: "10px 14px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 9, fontSize: 13, color: "#EF9F27" }}>
+          Fase atual: <strong>{FASES[faseAtualIdx]?.label ?? "—"}</strong>
+          {jornada.previsao_proxima_fase && (
+            <span style={{ color: "rgba(239,159,39,.7)", marginLeft: 8 }}>
+              · Próxima fase prevista: {new Date(jornada.previsao_proxima_fase).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Domínios desta jornada */}
+      {dominios.length > 0 && (
+        <div style={{ ...card, padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#e8f0f8", marginBottom: 14 }}>
+            Domínios — Jornada {jornada.numero_ciclo}
+          </div>
+          {dominios.map(d => {
+            const ft = FASE_TAG[d.fase] ?? FASE_TAG.avaliacao
+            const pct = d.score_atual ?? 0
+            return (
+              <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                <div style={{ width: 110, fontSize: 13, color: "#e8f0f8", flexShrink: 0 }}>
+                  {DOMINIO_PT[d.dominio] ?? d.dominio}
+                </div>
+                <div style={{ flex: 1, height: 6, background: "rgba(26,58,92,.5)", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: pct >= 80 ? "#1D9E75" : pct >= 50 ? "#EF9F27" : "#E05A4B", borderRadius: 3 }} />
+                </div>
+                <div style={{ width: 36, fontSize: 12, color: "rgba(160,200,235,.5)", textAlign: "right", flexShrink: 0 }}>
+                  {Math.round(pct)}%
+                </div>
+                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: ft.bg, color: ft.cor, flexShrink: 0, fontWeight: 500 }}>
+                  {ft.label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Jornada anterior */}
+      {jornadaAnterior && (
+        <div style={{ ...card, padding: 20, opacity: 0.85 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(26,58,92,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "rgba(160,200,235,.7)", fontWeight: 600 }}>
+              {jornadaAnterior.numero_ciclo}
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#e8f0f8" }}>
+                Jornada {jornadaAnterior.numero_ciclo} — concluída
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(160,200,235,.5)" }}>
+                {new Date(jornadaAnterior.data_inicio).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                {jornadaAnterior.atualizado_em && ` – ${new Date(jornadaAnterior.atualizado_em).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`}
+              </div>
+            </div>
+            <span style={{ marginLeft: "auto", fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "rgba(29,158,117,.12)", color: "#1D9E75", fontWeight: 500 }}>
+              Concluída
+            </span>
+          </div>
+
+          {jornadaAnterior.dominios?.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, color: "rgba(160,200,235,.5)", marginBottom: 10 }}>Domínios trabalhados</div>
+              {jornadaAnterior.dominios.map((d: any) => {
+                const ft = FASE_TAG[d.fase] ?? FASE_TAG.avaliacao
+                const pct = d.score_atual ?? 0
+                return (
+                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                    <div style={{ width: 110, fontSize: 12, color: "rgba(160,200,235,.7)", flexShrink: 0 }}>
+                      {DOMINIO_PT[d.dominio] ?? d.dominio}
+                    </div>
+                    <div style={{ flex: 1, height: 5, background: "rgba(26,58,92,.5)", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: pct >= 80 ? "#1D9E75" : pct >= 50 ? "#EF9F27" : "#E05A4B", borderRadius: 3 }} />
+                    </div>
+                    <div style={{ width: 36, fontSize: 11, color: "rgba(160,200,235,.4)", textAlign: "right", flexShrink: 0 }}>
+                      {Math.round(pct)}%
+                    </div>
+                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: ft.bg, color: ft.cor, flexShrink: 0 }}>
+                      {ft.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {jornadaAnterior.motivo_novo_ciclo && (
+            <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(26,58,92,.2)", borderRadius: 9, fontSize: 12, color: "rgba(160,200,235,.6)", lineHeight: 1.6 }}>
+              <span style={{ color: "rgba(160,200,235,.4)" }}>Motivo do novo ciclo: </span>
+              {jornadaAnterior.motivo_novo_ciclo}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── PAGE ────────────────────────────────────────────────────────────────────
 export default function PerfilPacientePage() {
   const { terapeuta } = useClinicContext();
   const params = useParams();
   const nivel = terapeuta?.nivel ?? "coordenador";
 
+  //Jornada clínica
+  const [jornada, setJornada] = useState<any>(null)
+  const [jornadaAnterior, setJornadaAnterior] = useState<any>(null)
+  const [jornadaDominios, setJornadaDominios] = useState<any[]>([])
+  
   const [data,         setData]         = useState<LearnerProfile | null>(null);
   const [habilidades,  setHabilidades]  = useState<Habilidade[]>([]);
   const [comportamentos,setComportamentos]=useState<Comportamento[]>([]);
@@ -198,6 +536,43 @@ export default function PerfilPacientePage() {
           .single();
         if (vars) setVariaveis(vars);
 
+
+        // 8. Jornada clínica
+const { data: jornadaAtiva } = await supabase
+  .from("jornada_clinica")
+  .select("*")
+  .eq("paciente_id", criancaId)
+  .eq("status", "ativo")
+  .single()
+
+if (jornadaAtiva) {
+  setJornada(jornadaAtiva)
+
+  // Busca domínios desta jornada
+  const { data: dominiosJ } = await supabase
+    .from("jornada_dominios")
+    .select("*")
+    .eq("jornada_id", jornadaAtiva.id)
+    .order("score_atual", { ascending: true })
+  setJornadaDominios(dominiosJ ?? [])
+
+  // Busca jornada anterior se existir
+  if (jornadaAtiva.jornada_anterior_id) {
+    const { data: anterior } = await supabase
+      .from("jornada_clinica")
+      .select("*")
+      .eq("id", jornadaAtiva.jornada_anterior_id)
+      .single()
+
+    if (anterior) {
+      const { data: dominiosAnt } = await supabase
+        .from("jornada_dominios")
+        .select("*")
+        .eq("jornada_id", anterior.id)
+      setJornadaAnterior({ ...anterior, dominios: dominiosAnt ?? [] })
+    }
+  }
+}
         // Mapear radar
         const radarFormatado: RadarSnapshot[] = (radares ?? []).map((r: any, i: number) => ({
           date: `Semana ${(i + 1) * 4}`,
@@ -371,14 +746,15 @@ export default function PerfilPacientePage() {
   if (!data) return null;
 
   const TABS: { id: Tab; label: string }[] = [
-    { id: "visao-geral", label: "Visão geral"   },
-    { id: "programas",   label: "Programas"     },
-    { id: "skill-graph", label: "Skill Graph"   },
-    { id: "forecast",    label: "Forecast"      },
-    { id: "avaliacoes",  label: "Avaliações"    },
-    { id: "historico",   label: "Histórico"     },
-    { id: "contrato",    label: "Contrato"      },
-  ];
+  { id: "visao-geral", label: "Visão geral"    },
+  { id: "jornada",     label: "Jornada Clínica" }, // ← nova
+  { id: "programas",   label: "Programas"      },
+  { id: "skill-graph", label: "Skill Graph"    },
+  { id: "forecast",    label: "Forecast"       },
+  { id: "avaliacoes",  label: "Avaliações"     },
+  { id: "historico",   label: "Histórico"      },
+  { id: "contrato",    label: "Contrato"       },
+];
 
   // Habilidades agrupadas por domínio
   const habsPorDominio = DOMINIOS.reduce((acc, dom) => {
@@ -869,6 +1245,19 @@ export default function PerfilPacientePage() {
 
       {/* ── HISTÓRICO ── */}
       {tab === "historico" && <HistoricoSessoes criancaId={params.id as string} />}
+
+{/* ── JORNADA CLÍNICA ── */}
+{tab === "jornada" && (
+  <JornadaClinica
+    jornada={jornada}
+    jornadaAnterior={jornadaAnterior}
+    dominios={jornadaDominios}
+    paciente={data}
+    criancaId={params.id as string}
+    onJornadaCriada={(j) => setJornada(j)}
+  />
+)}
+
 
       {/* ── CONTRATO ── */}
       {tab === "contrato" && <ContratoTab criancaId={params.id as string} terapeutaId={terapeuta?.id ?? ""} />}
