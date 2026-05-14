@@ -1503,34 +1503,31 @@ ${tipoSessao === "supervisao" && encaminhamentos.length > 0 ? `ENCAMINHAMENTOS (
 
 OBSERVAÇÕES:
 ${notaEncerr || "—"}`
-//encontrar aqui o código  
-
-
-
-{/* Modal de avaliação formal dentro da sessão */}
-{modalAvaliacao && paciente && (
-  <ModalAvaliacaoSessao
-    item={modalAvaliacao}
-    pacienteId={paciente.id}
-    sessaoId={sessaoDbId ?? ""}
-    terapeutaId={terapeuta?.id ?? ""}
-    onFechar={() => setModalAvaliacao(null)}
-    onConcluido={() => {
-      setModalAvaliacao(null)
-      // Registra na área de avaliação como concluída
-      const novaAcao: Acao = {
-        id: uid(),
-        tipo: "assessment",
-        area: "avaliacao",
-        itemId: modalAvaliacao.id,
-        itemNome: modalAvaliacao.nome,
-        itemDominio: modalAvaliacao.dominio,
-        operantes: [],
-      }
-      setAcoes(prev => [...prev, novaAcao])
-    }}
-  />
-)}
+// Modal avaliação formal
+  if (modalAvaliacao && paciente) {
+    return (
+      <ModalAvaliacaoSessao
+        item={modalAvaliacao}
+        pacienteId={paciente.id}
+        sessaoId={sessaoDbId ?? ""}
+        terapeutaId={terapeuta?.id ?? ""}
+        onFechar={() => setModalAvaliacao(null)}
+        onConcluido={() => {
+          setModalAvaliacao(null)
+          const novaAcao: Acao = {
+            id: uid(),
+            tipo: "assessment",
+            area: "avaliacao",
+            itemId: modalAvaliacao.id,
+            itemNome: modalAvaliacao.nome,
+            itemDominio: modalAvaliacao.dominio,
+            operantes: [],
+          }
+          setAcoes(prev => [...prev, novaAcao])
+        }}
+      />
+    )
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#07111f", fontFamily: "var(--font-sans)", padding: "20px" }}>
