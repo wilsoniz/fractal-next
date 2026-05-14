@@ -528,6 +528,7 @@ function SessaoInner() {
 
   // ── Adicionar ação ──────────────────────────────────────────────────────────
  async function adicionarAcao(item: LibItem) {
+  console.log('item:', item.id, item.tipo) // ← temporário
   const avaliacoesFormais = ["vbmapp", "peak", "ablls"]
   if (item.tipo === "avaliacao" && avaliacoesFormais.includes(item.id)) {
     setModalAvaliacao(item)
