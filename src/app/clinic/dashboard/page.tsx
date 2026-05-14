@@ -13,6 +13,7 @@ interface SessaoHoje {
 interface PacienteEvolucao {
   id: string; nome: string; iniciais: string; cor: string
   dominios: string; pct: number; corBarra: string
+  jornada: { fase_atual: string; numero_ciclo: number } | null // ← novo
 }
 interface Programa {
   id: string; nome: string; paciente: string; operantes: number
@@ -122,6 +123,17 @@ export default function ClinicDashboard() {
             criancasMap.get(c.id)!.planos.push(pl)
           }
           const criancasIds = Array.from(criancasMap.keys())
+// Mapa jornada clinica
+const { data: jornadas } = await supabase
+  .from("jornada_clinica")
+  .select("paciente_id, fase_atual, numero_ciclo, status")
+  .in("paciente_id", criancasIds)
+  .eq("status", "ativo")
+
+const jornadaMap = new Map<string, any>()
+for (const j of (jornadas ?? [])) {
+  jornadaMap.set(j.paciente_id, j)
+}
 
           // 5. Radar
           const { data: radares } = await supabase
@@ -160,11 +172,12 @@ export default function ClinicDashboard() {
                 : 'Aguardando avaliação'
               const cores = ['#1D9E75','#378ADD','#8B7FE8','#EF9F27','#E05A4B']
               return {
-                id: c.id, nome: c.nome, iniciais: iniciais(c.nome),
-                cor: CORES_CARD[i % CORES_CARD.length],
-                dominios: dominiosFoco, pct,
-                corBarra: cores[i % cores.length],
-              }
+                 id: c.id, nome: c.nome, iniciais: iniciais(c.nome),
+                  cor: CORES_CARD[i % CORES_CARD.length],
+                  dominios: dominiosFoco, pct,
+                  corBarra: cores[i % cores.length],
+                  jornada: jornadaMap.get(c.id) ?? null, // ← novo
+          }
             })
           setPacientes(pacs)
 
@@ -312,8 +325,21 @@ export default function ClinicDashboard() {
               <Link key={p.id} href={`/clinic/paciente/${p.id}`} style={{ textDecoration: 'none' }}>
                 <div style={{ background: p.cor, borderRadius: 12, padding: '14px 16px', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{p.iniciais}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.9)' }}>{p.nome.split(' ')[0]}</div>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                      {p.iniciais}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.9)' }}>{p.nome.split(' ')[0]}</div>
+                      {p.jornada && (
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>
+                          Jornada {p.jornada.numero_ciclo} · {
+                            p.jornada.fase_atual === 'avaliacao'   ? 'Avaliação'   :
+                            p.jornada.fase_atual === 'intervencao' ? 'Intervenção' :
+                            p.jornada.fase_atual === 'reavaliacao' ? 'Reavaliação' : 'Alta'
+                          }
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginBottom: 10, lineHeight: 1.4 }}>{p.dominios}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
