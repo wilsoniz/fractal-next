@@ -823,6 +823,33 @@ function SessaoInner() {
   // ══════════════════════════════════════════════════════════════════════════
   // PREPARAÇÃO
   // ══════════════════════════════════════════════════════════════════════════
+
+// Modal avaliação formal — tem prioridade sobre tudo
+if (modalAvaliacao && paciente) {
+  return (
+    <ModalAvaliacaoSessao
+      item={modalAvaliacao}
+      pacienteId={paciente.id}
+      sessaoId={sessaoDbId ?? ""}
+      terapeutaId={terapeuta?.id ?? ""}
+      onFechar={() => setModalAvaliacao(null)}
+      onConcluido={() => {
+        setModalAvaliacao(null)
+        const novaAcao: Acao = {
+          id: uid(),
+          tipo: "assessment",
+          area: "avaliacao",
+          itemId: modalAvaliacao.id,
+          itemNome: modalAvaliacao.nome,
+          itemDominio: modalAvaliacao.dominio,
+          operantes: [],
+        }
+        setAcoes(prev => [...prev, novaAcao])
+      }}
+    />
+  )
+}
+
   if (fase === "preparacao") {
     const TIPO_LABELS: Record<TipoSessao, string> = {
       atendimento:               "Atendimento",
@@ -1503,31 +1530,7 @@ ${tipoSessao === "supervisao" && encaminhamentos.length > 0 ? `ENCAMINHAMENTOS (
 
 OBSERVAÇÕES:
 ${notaEncerr || "—"}`
-// Modal avaliação formal
-  if (modalAvaliacao && paciente) {
-    return (
-      <ModalAvaliacaoSessao
-        item={modalAvaliacao}
-        pacienteId={paciente.id}
-        sessaoId={sessaoDbId ?? ""}
-        terapeutaId={terapeuta?.id ?? ""}
-        onFechar={() => setModalAvaliacao(null)}
-        onConcluido={() => {
-          setModalAvaliacao(null)
-          const novaAcao: Acao = {
-            id: uid(),
-            tipo: "assessment",
-            area: "avaliacao",
-            itemId: modalAvaliacao.id,
-            itemNome: modalAvaliacao.nome,
-            itemDominio: modalAvaliacao.dominio,
-            operantes: [],
-          }
-          setAcoes(prev => [...prev, novaAcao])
-        }}
-      />
-    )
-  }
+
 
   return (
     <div style={{ minHeight: "100vh", background: "#07111f", fontFamily: "var(--font-sans)", padding: "20px" }}>
