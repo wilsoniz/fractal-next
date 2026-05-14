@@ -252,6 +252,85 @@ async function gerarRadarSnapshot(
   });
   if (radarError) console.error("Erro ao gerar radar:", radarError);
 }
+// ─── FUNÇÃO: atualizar jornada ──────────────────────────────────────────────
+async function atualizarJornada(
+  protocoloSel: Protocolo,
+  sessaoAtiva: SessaoAtiva,
+  respostas: RespostaLocal
+) {
+  // 1. Busca jornada ativa do paciente
+  const { data: jornada } = await supabase
+    .from("jornada_clinica")
+    .select("id, fase_atual, numero_ciclo")
+    .eq("paciente_id", sessaoAtiva.crianca_id)
+    .eq("status", "ativo")
+    .single()
+
+  if (!jornada) return
+
+  // 2. Calcula score por domínio a partir das respostas
+  const dominioScores: Record<string, number[]> = {}
+  for (const dominio of protocoloSel.dominios) {
+    const chave = dominio.dominio_radar
+    if (!chave) continue
+    if (dominio.tipo_dominio === "barreira") continue
+    for (const item of dominio.itens) {
+      const pontuacao = respostas[item.id]
+      if (pontuacao === undefined) continue
+      if (!dominioScores[chave]) dominioScores[chave] = []
+      dominioScores[chave].push(Math.round((pontuacao / item.pontuacao_max) * 100))
+    }
+  }
+
+  const media = (arr: number[]) =>
+    arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0
+
+  // 3. Upsert em jornada_dominios para cada domínio avaliado
+  for (const [dominio, scores] of Object.entries(dominioScores)) {
+    const scoreAtual = media(scores)
+
+    // Determina fase do domínio baseada no score
+    const fase =
+      scoreAtual >= 85 ? "dominado" :
+      scoreAtual >= 60 ? "generalizacao" :
+      scoreAtual >= 30 ? "intervencao" : "avaliacao"
+
+    const { data: existente } = await supabase
+      .from("jornada_dominios")
+      .select("id, score_baseline")
+      .eq("jornada_id", jornada.id)
+      .eq("dominio", dominio)
+      .single()
+
+    if (existente) {
+      await supabase
+        .from("jornada_dominios")
+        .update({
+          score_atual: scoreAtual,
+          fase,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", existente.id)
+    } else {
+      // Primeira avaliação — define baseline
+      await supabase
+        .from("jornada_dominios")
+        .insert({
+          jornada_id: jornada.id,
+          dominio,
+          fase,
+          score_atual: scoreAtual,
+          score_baseline: scoreAtual, // baseline = primeiro registro
+        })
+    }
+  }
+
+  // 4. Vincula a sessão de avaliação à jornada
+  await supabase
+    .from("avaliacoes_sessoes")
+    .update({ jornada_id: jornada.id })
+    .eq("id", sessaoAtiva.id)
+}
 
 // ─── PAGE ────────────────────────────────────────────────────────────────────
 export default function AvaliacoesPage() {
@@ -492,27 +571,28 @@ if (planos) {
 
   // ── Executar conclusão ───────────────────────────────────────────────────
   const executarConclusao = useCallback(async (justificativa: string) => {
-    if (!sessaoAtiva || !protocoloSel) return;
-    setProcessando(true);
-    setModalConclusao(false);
+  if (!sessaoAtiva || !protocoloSel) return;
+  setProcessando(true);
+  setModalConclusao(false);
 
-    const obs = justificativa || null;
+  const obs = justificativa || null;
 
-    await supabase
-      .from("avaliacoes_sessoes")
-      .update({ status: "concluida", concluida_em: new Date().toISOString(), observacoes: obs })
-      .eq("id", sessaoAtiva.id);
+  await supabase
+    .from("avaliacoes_sessoes")
+    .update({ status: "concluida", concluida_em: new Date().toISOString(), observacoes: obs })
+    .eq("id", sessaoAtiva.id);
 
-    await atualizarRepertorio(protocoloSel, sessaoAtiva, respostas);
-    await gerarRadarSnapshot(protocoloSel, sessaoAtiva, respostas);
+  await atualizarRepertorio(protocoloSel, sessaoAtiva, respostas);
+  await gerarRadarSnapshot(protocoloSel, sessaoAtiva, respostas);
+  await atualizarJornada(protocoloSel, sessaoAtiva, respostas); // ← novo
 
-    setProcessando(false);
-    setSessaoAtiva(null);
-    setRespostas({});
-    setProtocoloSel(null);
-    setMotivoConclusao("");
-    setOutroMotivo("");
-  }, [sessaoAtiva, protocoloSel, respostas]);
+  setProcessando(false);
+  setSessaoAtiva(null);
+  setRespostas({});
+  setProtocoloSel(null);
+  setMotivoConclusao("");
+  setOutroMotivo("");
+}, [sessaoAtiva, protocoloSel, respostas]);
 
   const funcaoIdent = useMemo(() => funcaoIdentificada(CONDICOES_EXPERIMENTAIS), []);
   const fc = FUNCAO_CONFIG[funcaoIdent];
