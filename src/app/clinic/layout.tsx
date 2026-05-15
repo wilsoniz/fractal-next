@@ -329,6 +329,27 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
   const [avatarOpen,     setAvatarOpen]     = useState(false)
   const [seletorPaciente, setSeletorPaciente] = useState(false)
   const [pacientesNav,    setPacientesNav]    = useState<{id:string;nome:string}[]>([])
+  const [sessaoAtiva, setSessaoAtiva] = useState<{ pacienteNome: string; segundos: number } | null>(null)
+
+
+  // Monitora localStorage para detectar sessão ativa
+useEffect(() => {
+  function checarSessao() {
+    try {
+      const saved = localStorage.getItem("fracta_sessao_ativa")
+      if (!saved) { setSessaoAtiva(null); return }
+      const s = JSON.parse(saved)
+      if (s.fase === "sessao" && s.sessaoDbId) {
+        setSessaoAtiva({ pacienteNome: s.pacienteId ?? "Paciente", segundos: s.segundos ?? 0 })
+      } else {
+        setSessaoAtiva(null)
+      }
+    } catch { setSessaoAtiva(null) }
+  }
+  checarSessao()
+  const interval = setInterval(checarSessao, 3000)
+  return () => clearInterval(interval)
+}, [])
 
   const router = useRouter()
   async function handleLogout() {
@@ -572,6 +593,32 @@ useEffect(() => {
 
         </div>
       </div>
+
+        {/* ── PILL SESSÃO ATIVA ── */}
+{sessaoAtiva && pathname !== '/clinic/sessao' && (
+  <Link href="/clinic/sessao" style={{
+    position: 'fixed', bottom: isMobile ? 70 : 20, 
+    left: isMobile ? '50%' : 'auto',
+    right: isMobile ? 'auto' : 20,
+    transform: isMobile ? 'translateX(-50%)' : 'none',
+    zIndex: 60,
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '10px 16px',
+    background: 'rgba(7,17,31,.97)',
+    border: '1px solid rgba(29,158,117,.5)',
+    borderRadius: 40,
+    textDecoration: 'none',
+    boxShadow: '0 4px 24px rgba(0,0,0,.5)',
+    backdropFilter: 'blur(12px)',
+  }}>
+    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1D9E75', boxShadow: '0 0 6px #1D9E75' }} />
+    <span style={{ fontSize: 13, fontWeight: 600, color: '#e8f0f8' }}>Sessão em andamento</span>
+    <span style={{ fontSize: 12, color: '#1D9E75', fontFamily: 'monospace', fontWeight: 700 }}>
+      {Math.floor((sessaoAtiva.segundos) / 60).toString().padStart(2,'0')}:{((sessaoAtiva.segundos) % 60).toString().padStart(2,'0')}
+    </span>
+    <span style={{ fontSize: 11, color: 'rgba(160,200,235,.5)' }}>→ voltar</span>
+  </Link>
+)}        
 
         {/* ── TAB BAR MOBILE ── */}
         {isMobile && (
