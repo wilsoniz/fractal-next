@@ -2410,10 +2410,11 @@ function ModalAvaliacaoSessao({ item, pacienteId, sessaoId, terapeutaId, onFecha
           Carregando protocolo...
         </div>
       ) : (
-        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
 
           {/* Sidebar domínios */}
-          <div style={{ width: 200, flexShrink: 0, overflowY: "auto", padding: "12px 8px", background: "rgba(7,17,31,.5)", borderRight: "1px solid rgba(26,58,92,.3)" }}>
+          {/* Sidebar domínios */}
+<div style={{ width: 200, minWidth: 200, flexShrink: 0, overflowY: "auto", padding: "12px 8px", background: "rgba(7,17,31,.95)", borderRight: "1px solid rgba(26,58,92,.3)", display: "flex", flexDirection: "column" }}>
             {protocolo?.dominios?.map((d: any) => {
               const respondidos = d.itens.filter((i: any) => respostas[i.id] !== undefined).length
               const ativo = dominioAtivo === d.id
