@@ -528,13 +528,7 @@ function SessaoInner() {
 
   // ── Adicionar ação ──────────────────────────────────────────────────────────
  async function adicionarAcao(item: LibItem) {
-  console.log('item:', item.id, item.tipo) // ← temporário
-  const avaliacoesFormais = ["vbmapp", "peak", "ablls"]
-  if (item.tipo === "avaliacao" && avaliacoesFormais.includes(item.id)) {
-    setModalAvaliacao(item)
-    setLibAberta(false)
-    return
-  }
+  
   const area: AreaAtiva = item.tipo === "avaliacao" ? "avaliacao" : areaAtiva
   const hierTipo = deriveHierarquia(item.operante)
 
@@ -823,32 +817,6 @@ function SessaoInner() {
   // ══════════════════════════════════════════════════════════════════════════
   // PREPARAÇÃO
   // ══════════════════════════════════════════════════════════════════════════
-
-// Modal avaliação formal — tem prioridade sobre tudo
-if (modalAvaliacao && paciente) {
-  return (
-    <ModalAvaliacaoSessao
-      item={modalAvaliacao}
-      pacienteId={paciente.id}
-      sessaoId={sessaoDbId ?? ""}
-      terapeutaId={terapeuta?.id ?? ""}
-      onFechar={() => setModalAvaliacao(null)}
-      onConcluido={() => {
-        setModalAvaliacao(null)
-        const novaAcao: Acao = {
-          id: uid(),
-          tipo: "assessment",
-          area: "avaliacao",
-          itemId: modalAvaliacao.id,
-          itemNome: modalAvaliacao.nome,
-          itemDominio: modalAvaliacao.dominio,
-          operantes: [],
-        }
-        setAcoes(prev => [...prev, novaAcao])
-      }}
-    />
-  )
-}
 
   if (fase === "preparacao") {
     const TIPO_LABELS: Record<TipoSessao, string> = {
@@ -1671,8 +1639,196 @@ ${notaEncerr || "—"}`
     </div>
   )
 }
+
+
+function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId }: {
+  itemId: string; pacienteId: string; sessaoId: string; terapeutaId: string
+}) {
+  const [protocolo, setProtocolo] = useState<any>(null)
+  const [sessaoAval, setSessaoAval] = useState<any>(null)
+  const [respostas, setRespostas] = useState<Record<string, number>>({})
+  const [dominioAtivo, setDominioAtivo] = useState("")
+  const [salvando, setSalvando] = useState<string | null>(null)
+  const [concluido, setConcluido] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  const SIGLA_MAP: Record<string, string> = {
+    vbmapp: "VB-MAPP", peak: "PEAK", ablls: "ABLLS-R",
+  }
+
+  useEffect(() => {
+    async function carregar() {
+      const sigla = SIGLA_MAP[itemId]
+      if (!sigla) { setLoading(false); return }
+
+      const { data: prot } = await supabase
+        .from("avaliacao_protocolos")
+        .select("id, nome, sigla, cor")
+        .eq("sigla", sigla).single()
+      if (!prot) { setLoading(false); return }
+
+      const { data: dominios } = await supabase
+        .from("avaliacao_dominios")
+        .select(`id, nome, dominio_radar, tipo_dominio, ordem,
+          avaliacao_itens ( id, codigo, descricao, criterio, pontuacao_max, pontuacao_valores, ordem )`)
+        .eq("protocolo_id", prot.id)
+        .is("parent_id", null)
+        .order("ordem")
+
+      const dominiosFormatados = (dominios ?? []).map((d: any) => ({
+        id: d.id, nome: d.nome,
+        dominio_radar: d.dominio_radar,
+        tipo_dominio: d.tipo_dominio ?? "habilidade",
+        itens: (d.avaliacao_itens ?? [])
+          .sort((a: any, b: any) => a.ordem - b.ordem)
+          .map((i: any) => ({
+            id: i.id, codigo: i.codigo, descricao: i.descricao,
+            criterio: i.criterio, pontuacao_max: i.pontuacao_max,
+            pontuacao_valores: i.pontuacao_valores ?? [0, 1],
+          }))
+      }))
+
+      setProtocolo({ ...prot, dominios: dominiosFormatados })
+      if (dominiosFormatados.length > 0) setDominioAtivo(dominiosFormatados[0].id)
+
+      const { data: existente } = await supabase
+        .from("avaliacoes_sessoes")
+        .select("id, status")
+        .eq("crianca_id", pacienteId)
+        .eq("protocolo_id", prot.id)
+        .eq("status", "em_andamento")
+        .maybeSingle()
+
+      let sid: string
+      if (existente) {
+        sid = existente.id; setSessaoAval(existente)
+      } else {
+        const { data: nova } = await supabase
+          .from("avaliacoes_sessoes")
+          .insert({ crianca_id: pacienteId, terapeuta_id: terapeutaId, protocolo_id: prot.id, status: "em_andamento" })
+          .select().single()
+        if (nova) { sid = nova.id; setSessaoAval(nova) }
+        else { setLoading(false); return }
+      }
+
+      const { data: resps } = await supabase
+        .from("avaliacoes_respostas")
+        .select("item_id, pontuacao")
+        .eq("sessao_id", sid)
+      if (resps) {
+        const map: Record<string, number> = {}
+        for (const r of resps) map[r.item_id] = r.pontuacao
+        setRespostas(map)
+      }
+      setLoading(false)
+    }
+    carregar()
+  }, [itemId, pacienteId])
+
+  async function registrarResposta(item_id: string, pontuacao: number) {
+    if (!sessaoAval) return
+    setSalvando(item_id)
+    setRespostas(prev => ({ ...prev, [item_id]: pontuacao }))
+    const { data: ex } = await supabase.from("avaliacoes_respostas").select("id")
+      .eq("sessao_id", sessaoAval.id).eq("item_id", item_id).maybeSingle()
+    if (ex) await supabase.from("avaliacoes_respostas").update({ pontuacao }).eq("id", ex.id)
+    else await supabase.from("avaliacoes_respostas").insert({ sessao_id: sessaoAval.id, item_id, crianca_id: pacienteId, pontuacao })
+    setTimeout(() => setSalvando(null), 400)
+  }
+
+  async function concluirAvaliacao() {
+    if (!sessaoAval || !protocolo) return
+    await supabase.from("avaliacoes_sessoes")
+      .update({ status: "concluida", concluida_em: new Date().toISOString() })
+      .eq("id", sessaoAval.id)
+    await atualizarRepertorioSessao(protocolo, sessaoAval, respostas, pacienteId)
+    await atualizarJornadaSessao(protocolo, sessaoAval, respostas, pacienteId)
+    setConcluido(true)
+  }
+
+  if (loading) return (
+    <div style={{ padding: 16, fontSize: ".78rem", color: "rgba(160,200,235,.4)" }}>Carregando protocolo...</div>
+  )
+
+  if (concluido) return (
+    <div style={{ padding: 16, background: "rgba(29,158,117,.08)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 10, textAlign: "center" }}>
+      <div style={{ fontSize: ".85rem", fontWeight: 700, color: "#1D9E75", marginBottom: 4 }}>Avaliação concluída</div>
+      <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.5)" }}>Repertório e jornada atualizados</div>
+    </div>
+  )
+
+  const cor = protocolo?.cor ?? "#1D9E75"
+  const dominioAtivoObj = protocolo?.dominios?.find((d: any) => d.id === dominioAtivo)
+  const totalItens = protocolo?.dominios?.reduce((a: number, d: any) => a + d.itens.length, 0) ?? 0
+  const totalRespondidos = Object.keys(respostas).length
+  const pct = totalItens > 0 ? Math.round(totalRespondidos / totalItens * 100) : 0
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
+      {/* Progresso */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ flex: 1, height: 4, background: "rgba(26,58,92,.5)", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${pct}%`, background: cor, transition: "width .3s" }} />
+        </div>
+        <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)" }}>{totalRespondidos}/{totalItens} · {pct}%</span>
+      </div>
+
+      {/* Tabs de domínios */}
+      <div style={{ display: "flex", gap: 4, overflowX: "auto", paddingBottom: 4 }}>
+        {protocolo?.dominios?.map((d: any) => {
+          const respondidos = d.itens.filter((i: any) => respostas[i.id] !== undefined).length
+          const ativo = dominioAtivo === d.id
+          return (
+            <button key={d.id} onClick={() => setDominioAtivo(d.id)}
+              style={{ padding: "5px 10px", borderRadius: 20, border: `1px solid ${ativo ? cor + "55" : "rgba(26,58,92,.4)"}`, background: ativo ? cor + "18" : "transparent", color: ativo ? cor : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: ativo ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)", whiteSpace: "nowrap", flexShrink: 0 }}>
+              {d.nome} {respondidos > 0 && <span style={{ opacity: .6 }}>({respondidos})</span>}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Itens do domínio ativo */}
+      <div style={{ maxHeight: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+        {dominioAtivoObj?.itens?.map((item: any) => {
+          const resposta = respostas[item.id]
+          const respondido = resposta !== undefined
+          return (
+            <div key={item.id} style={{ background: respondido ? `${cor}08` : "rgba(13,32,53,.6)", border: `1px solid ${respondido ? cor + "33" : "rgba(26,58,92,.4)"}`, borderRadius: 10, padding: "10px 12px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <span style={{ fontSize: ".65rem", fontWeight: 800, color: cor, fontFamily: "monospace", flexShrink: 0, minWidth: 32 }}>{item.codigo}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: ".78rem", color: "#e8f0f8", lineHeight: 1.5, marginBottom: 6 }}>{item.descricao}</div>
+                  <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
+                    {item.pontuacao_valores.map((val: number) => {
+                      const sel = resposta === val
+                      const corVal = val === 0 ? "#E05A4B" : val === item.pontuacao_max ? "#1D9E75" : "#EF9F27"
+                      return (
+                        <button key={val} onClick={() => registrarResposta(item.id, val)}
+                          style={{ width: 40, height: 30, borderRadius: 7, border: `1px solid ${sel ? corVal : "rgba(26,58,92,.5)"}`, background: sel ? corVal + "22" : "rgba(26,58,92,.2)", color: sel ? corVal : "rgba(160,200,235,.5)", fontFamily: "monospace", fontWeight: sel ? 800 : 400, fontSize: ".8rem", cursor: "pointer" }}>
+                          {val}
+                        </button>
+                      )
+                    })}
+                    {salvando === item.id && <span style={{ fontSize: ".6rem", color: "#1D9E75" }}>✓</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Concluir */}
+      <button onClick={concluirAvaliacao} disabled={totalRespondidos === 0}
+        style={{ padding: "10px", borderRadius: 9, border: "none", background: totalRespondidos > 0 ? `linear-gradient(135deg,${cor},${cor}99)` : "rgba(26,58,92,.4)", color: totalRespondidos > 0 ? "#07111f" : "rgba(160,200,235,.3)", fontWeight: 700, fontSize: ".8rem", cursor: totalRespondidos > 0 ? "pointer" : "not-allowed", fontFamily: "var(--font-sans)" }}>
+        Concluir avaliação → atualizar repertório
+      </button>
+    </div>
+  )
+}
+
 // ─── REGISTRO DE AVALIAÇÃO ───────────────────────────────────────────────────
-// Cole este bloco ANTES de "function AvisoTempo" no sessao/page.tsx
 
 function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId }: {
   acao: Acao; pacienteId: string; sessaoId: string; terapeutaId: string
@@ -1999,23 +2155,15 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId }: {
     </div>
   )
 
-  // ── GENÉRICO (VB-MAPP, PEAK, ABLLS) ──────────────────────────────────────────
-  return (
-    <div style={{ padding: "14px", background: "rgba(26,58,92,.2)", borderRadius: 10 }}>
-      <div style={{ fontSize: ".78rem", color: "rgba(170,210,245,.7)", marginBottom: 8 }}>{acao.itemNome}</div>
-      <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.4)", lineHeight: 1.6, marginBottom: 12 }}>
-        Protocolo completo em desenvolvimento. Registre observações e conclusões abaixo.
-      </div>
-      <textarea value={obsGenerico} onChange={e => setObsGenerico(e.target.value)}
-        placeholder="Observações, scores, conclusões..." rows={4}
-        style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".75rem", fontFamily: "var(--font-sans)", resize: "none" as const, outline: "none", boxSizing: "border-box" as const }}
+    // ── VB-MAPP / PEAK / ABLLS — folha de registro inline ──────────────────────
+    return (
+      <FolhaRegistroInline
+        itemId={acao.itemId}
+        pacienteId={pacienteId}
+        sessaoId={sessaoId}
+        terapeutaId={terapeutaId}
       />
-      <button onClick={salvarGenerico} disabled={salvando}
-        style={{ marginTop: 10, width: "100%", padding: "10px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".82rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-        {salvando ? "Salvando..." : "Registrar avaliação"}
-      </button>
-    </div>
-  )
+    )
 }
 
 // ─── COMPONENTES AUXILIARES ──────────────────────────────────────────────────
