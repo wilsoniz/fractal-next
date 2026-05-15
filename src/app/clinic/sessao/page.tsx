@@ -490,6 +490,22 @@ function SessaoInner() {
       concluida:            false,
     }).select("id").single()
 
+if (!agendaId && data && paciente && terapeuta) {
+  await supabase.from("agenda_eventos").insert({
+    crianca_id:    paciente.id,
+    terapeuta_id:  terapeuta.id,
+    sessao_id:     data.id,
+    data_hora:     new Date().toISOString(),
+    duracao_minutos: duracaoMin,
+    tipo_sessao:   tipoSessao,
+    local:         localSessao,
+    status:        "em_andamento",
+    avulsa:        true,
+    titulo:        `Sessão avulsa — ${paciente.nome}`,
+    origem:        "avulsa",
+  })
+}
+
     if (data) {
       setSessaoDbId(data.id)
       // Cria estágios apenas para atendimento e AT
