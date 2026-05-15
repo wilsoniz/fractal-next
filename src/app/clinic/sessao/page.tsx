@@ -490,22 +490,6 @@ function SessaoInner() {
       concluida:            false,
     }).select("id").single()
 
-if (!agendaId && data && paciente && terapeuta) {
-  await supabase.from("agenda_eventos").insert({
-    crianca_id:    paciente.id,
-    terapeuta_id:  terapeuta.id,
-    sessao_id:     data.id,
-    data_hora:     new Date().toISOString(),
-    duracao_minutos: duracaoMin,
-    tipo_sessao:   tipoSessao,
-    local:         localSessao,
-    status:        "em_andamento",
-    avulsa:        true,
-    titulo:        `Sessão avulsa — ${paciente.nome}`,
-    origem:        "avulsa",
-  })
-}
-
     if (data) {
       setSessaoDbId(data.id)
       // Cria estágios apenas para atendimento e AT
@@ -518,6 +502,24 @@ if (!agendaId && data && paciente && terapeuta) {
         setStages(prev => prev.map((s,i) => i === 0 ? { ...s, status: "active" } : s))
       }
     }
+
+    // Salva na agenda se for sessão avulsa
+if (!agendaId && data && paciente && terapeuta) {
+  await supabase.from("agenda_eventos").insert({
+    crianca_id:      paciente.id,
+    terapeuta_id:    terapeuta.id,
+    sessao_id:       data.id,
+    data_hora:       new Date().toISOString(),
+    duracao_minutos: duracaoMin,
+    tipo_sessao:     tipoSessao,
+    local:           localSessao,
+    status:          "em_andamento",
+    avulsa:          true,
+    titulo:          `Sessão avulsa — ${paciente.nome}`,
+    origem:          "avulsa",
+  })
+}
+
     // Atualizar slot da agenda para em_andamento
     if (agendaId) {
       await supabase.from("agenda_eventos").update({ status: "em_andamento", sessao_id: data?.id ?? null }).eq("id", agendaId)
