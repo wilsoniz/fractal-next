@@ -2377,7 +2377,7 @@ function ModalAvaliacaoSessao({ item, pacienteId, sessaoId, terapeutaId, onFecha
   const cor = protocolo?.cor ?? "#1D9E75"
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.8)", backdropFilter: "blur(6px)", zIndex: 60, display: "flex", flexDirection: "column" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.8)", backdropFilter: "blur(6px)", zIndex: 200, display: "flex", flexDirection: "column" }}>
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", background: "rgba(7,17,31,.97)", borderBottom: "1px solid rgba(26,58,92,.4)" }}>
