@@ -504,20 +504,23 @@ function SessaoInner() {
     }
 
     // Salva na agenda se for sessão avulsa
-if (!agendaId && data && paciente && terapeuta) {
-  await supabase.from("agenda_eventos").insert({
+
+    if (!agendaId && data && paciente && terapeuta) {
+  const { data: agendaData, error: agendaError } = await supabase.from("agenda_eventos").insert({
     crianca_id:      paciente.id,
     terapeuta_id:    terapeuta.id,
     sessao_id:       data.id,
     data_hora:       new Date().toISOString(),
     duracao_minutos: duracaoMin,
     tipo_sessao:     tipoSessao,
+    tipo:            "sessao",        // ← campo obrigatório
+    titulo:          `Sessão avulsa — ${paciente.nome}`,
     local:           localSessao,
     status:          "em_andamento",
     avulsa:          true,
-    titulo:          `Sessão avulsa — ${paciente.nome}`,
     origem:          "avulsa",
   })
+  console.log("agenda insert:", agendaData, agendaError)
 }
 
     // Atualizar slot da agenda para em_andamento
