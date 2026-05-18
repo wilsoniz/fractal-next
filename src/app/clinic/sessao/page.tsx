@@ -707,6 +707,56 @@ function SessaoInner() {
         }
       }
 
+      // 3.5 Atualizar repertorio_habilidades com base nas ações da sessão
+for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.length > 0)) {
+  const ops = acao.operantes
+  const total = ops.length
+  const acertos = ops.filter(o => o.correto).length
+  const taxa = Math.round(acertos / total * 100)
+  const independencia = Math.round(ops.filter(o => o.promptLevel === "independente").length / total * 100)
+
+  const status =
+    taxa === 0 ? "ausente" :
+    taxa <= 40 ? "emergente" :
+    taxa <= 79 ? "em_aquisicao" : "dominada"
+
+  // Verifica se já existe no repertório
+  const { data: existente } = await supabase
+    .from("repertorio_habilidades")
+    .select("id, score, independencia")
+    .eq("crianca_id", paciente.id)
+    .eq("habilidade", acao.itemNome)
+    .maybeSingle()
+
+  if (existente) {
+    await supabase
+      .from("repertorio_habilidades")
+      .update({
+        score: taxa,
+        status,
+        independencia,
+        ultimo_registro: new Date().toISOString(),
+        plano_programa_id: acao.planoProgramaId ?? null,
+      })
+      .eq("id", existente.id)
+  } else {
+    await supabase
+      .from("repertorio_habilidades")
+      .insert({
+        crianca_id: paciente.id,
+        dominio: acao.itemDominio.toLowerCase(),
+        habilidade: acao.itemNome,
+        status,
+        score: taxa,
+        independencia,
+        generalizacao: 0,
+        manutencao: 0,
+        plano_programa_id: acao.planoProgramaId ?? null,
+        ultimo_registro: new Date().toISOString(),
+      })
+  }
+}
+
       // 4. Inserir radar_snapshot para alimentar o Forecast
       // Calcula score por domínio a partir das ações da sessão
       const dominioScores: Record<string, number[]> = {}
