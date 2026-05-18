@@ -329,7 +329,11 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
   const [avatarOpen,     setAvatarOpen]     = useState(false)
   const [seletorPaciente, setSeletorPaciente] = useState(false)
   const [pacientesNav,    setPacientesNav]    = useState<{id:string;nome:string}[]>([])
-  const [sessaoAtiva, setSessaoAtiva] = useState<{ pacienteNome: string; segundos: number } | null>(null)
+  const [sessaoAtiva, setSessaoAtiva] = useState<{ 
+  pacienteNome: string
+  pacienteId: string  // ← adicionar
+  segundos: number 
+} | null>(null)
 
 
   // Monitora localStorage para detectar sessão ativa
@@ -340,7 +344,11 @@ useEffect(() => {
       if (!saved) { setSessaoAtiva(null); return }
       const s = JSON.parse(saved)
       if (s.fase === "sessao" && s.sessaoDbId) {
-        setSessaoAtiva({ pacienteNome: s.pacienteId ?? "Paciente", segundos: s.segundos ?? 0 })
+        setSessaoAtiva({ 
+          pacienteNome: s.pacienteId ?? "Paciente", 
+          pacienteId: s.pacienteId,  // ← adicionar
+          segundos: s.segundos ?? 0 
+            })
       } else {
         setSessaoAtiva(null)
       }
@@ -596,7 +604,7 @@ useEffect(() => {
 
         {/* ── PILL SESSÃO ATIVA ── */}
 {sessaoAtiva && pathname !== '/clinic/sessao' && (
-  <Link href="/clinic/sessao" style={{
+  <Link href={`/clinic/sessao?pacienteId=${sessaoAtiva.pacienteId}`} style={{
     position: 'fixed', bottom: isMobile ? 70 : 20, 
     left: isMobile ? '50%' : 'auto',
     right: isMobile ? 'auto' : 20,

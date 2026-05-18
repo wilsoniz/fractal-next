@@ -513,7 +513,7 @@ function SessaoInner() {
     data_hora:       new Date().toISOString(),
     duracao_minutos: duracaoMin,
     tipo_sessao:     tipoSessao,
-    tipo:            "sessao",        // ← campo obrigatório
+    tipo:            "sessao_clinica",  // ← corrigido
     titulo:          `Sessão avulsa — ${paciente.nome}`,
     local:           localSessao,
     status:          "em_andamento",
