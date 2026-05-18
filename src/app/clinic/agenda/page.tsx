@@ -6,7 +6,7 @@ import { useClinicContext } from "../layout";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type Visao        = "semana" | "dia" | "mes";
-type StatusSessao = "agendado" | "em_andamento" | "realizado" | "pendente" | "aguardando_responsavel" | "confirmada" | "realizada" | "cancelada" | "faltou";
+type StatusSessao = "agendado" | "em_andamento" | "pendente" | "aguardando_responsavel" | "confirmada" | "realizada" | "cancelada" | "faltou";
 type Modalidade   = "presencial" | "domiciliar" | "teleconsulta";
 type TipoSessao   = "atendimento" | "acompanhamento_terapeutico" | "supervisao";
 
@@ -46,13 +46,12 @@ interface Paciente {
 const STATUS_CONFIG: Record<StatusSessao, { label: string; cor: string; bg: string; borda: string }> = {
   agendado:               { label: "Agendado",        cor: "#4d6d8a", bg: "rgba(77,109,138,.15)",  borda: "rgba(77,109,138,.3)"  },
   em_andamento:           { label: "Em andamento",    cor: "#1D9E75", bg: "rgba(29,158,117,.15)",  borda: "rgba(29,158,117,.3)"  },
-  realizado:              { label: "Realizado",        cor: "#378ADD", bg: "rgba(55,138,221,.15)",  borda: "rgba(55,138,221,.3)"  },
   pendente:               { label: "Pendente",        cor: "#4d6d8a", bg: "rgba(77,109,138,.15)",  borda: "rgba(77,109,138,.3)"  },
   aguardando_responsavel: { label: "Aguard. família", cor: "#EF9F27", bg: "rgba(239,159,39,.15)",  borda: "rgba(239,159,39,.3)"  },
-  confirmada:             { label: "Confirmada",       cor: "#1D9E75", bg: "rgba(29,158,117,.15)",  borda: "rgba(29,158,117,.3)"  },
-  realizada:              { label: "Realizada",        cor: "#378ADD", bg: "rgba(55,138,221,.15)",  borda: "rgba(55,138,221,.3)"  },
-  cancelada:              { label: "Cancelada",        cor: "#E05A4B", bg: "rgba(224,90,75,.12)",   borda: "rgba(224,90,75,.3)"   },
-  faltou:                 { label: "Faltou",           cor: "#8B7FE8", bg: "rgba(139,127,232,.12)", borda: "rgba(139,127,232,.3)" },
+  confirmada:             { label: "Confirmada",      cor: "#1D9E75", bg: "rgba(29,158,117,.15)",  borda: "rgba(29,158,117,.3)"  },
+  realizada:              { label: "Realizada",       cor: "#378ADD", bg: "rgba(55,138,221,.15)",  borda: "rgba(55,138,221,.3)"  },
+  cancelada:              { label: "Cancelada",       cor: "#E05A4B", bg: "rgba(224,90,75,.12)",   borda: "rgba(224,90,75,.3)"   },
+  faltou:                 { label: "Faltou",          cor: "#8B7FE8", bg: "rgba(139,127,232,.12)", borda: "rgba(139,127,232,.3)" },
 };
 
 const TIPO_SESSAO_CONFIG: Record<TipoSessao, { label: string; cor: string }> = {
@@ -278,7 +277,7 @@ for (const av of (avulsasExtras ?? [])) {
         const dataHora = new Date(ev.data_hora);
         const hoje = isoDate(new Date());
         const dataEv = isoDate(dataHora);
-        let status: StatusSessao = ev.status ?? "pendente";
+        let status: StatusSessao = (ev.status === "realizado" ? "realizada" : ev.status) ?? "pendente";
         if (!ev.status) {
           if (dataEv < hoje) status = "realizada";
           else if (dataEv === hoje) status = "confirmada";
