@@ -170,7 +170,25 @@ export default function AgendaPage() {
       }
       setPacientes(pacs);
 
-      const criancaIds = Array.from(criancaMap.keys());
+      let criancaIds = Array.from(criancaMap.keys());
+      // ← ADICIONE: busca crianças de sessões avulsas que não têm plano
+const { data: avulsasExtras } = await supabase
+  .from("agenda_eventos")
+  .select("crianca_id, criancas(id, nome)")
+  .eq("avulsa", true)
+  .eq("terapeuta_id", terapeuta.id)
+  .gte("data_hora", inicio.toISOString())
+  .lte("data_hora", fim.toISOString())
+
+for (const av of (avulsasExtras ?? [])) {
+  const c = av.criancas as any
+  if (!c) continue
+  if (!criancaMap.has(av.crianca_id)) {
+    criancaMap.set(av.crianca_id, { nome: c.nome, planos: [] })
+    setPacientes(prev => [...prev, { id: c.id, nome: c.nome, planoId: "" }])
+    criancaIds.push(av.crianca_id)
+  }
+}
 
       // 2. Sessões realizadas
       const { data: sessoes } = await supabase
@@ -183,12 +201,12 @@ export default function AgendaPage() {
 
       // 3. Eventos agendados
       const { data: eventos } = await supabase
-        .from("agenda_eventos")
-        .select("id, crianca_id, tipo, titulo, data_hora, duracao_minutos, status, tipo_sessao, local, confirmado_responsavel, confirmado_terapeuta")
-        .in("crianca_id", criancaIds)
-        .gte("data_hora", inicio.toISOString())
-        .lte("data_hora", fim.toISOString())
-        .order("data_hora", { ascending: true });
+  .from("agenda_eventos")
+  .select("id, crianca_id, tipo, titulo, data_hora, duracao_minutos, status, tipo_sessao, local, confirmado_responsavel, confirmado_terapeuta, avulsa, origem, sessao_id, terapeuta_id")
+  .in("crianca_id", criancaIds)
+  .gte("data_hora", inicio.toISOString())
+  .lte("data_hora", fim.toISOString())
+  .order("data_hora", { ascending: true });
 
       const criancaColorMap = new Map<string, number>();
       let colorIdx = 0;

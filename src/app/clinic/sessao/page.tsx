@@ -808,8 +808,15 @@ function SessaoInner() {
     setShowEncModal(false)
     // Atualizar slot da agenda para realizado
     if (agendaId) {
-      await supabase.from("agenda_eventos").update({ status: "realizado" }).eq("id", agendaId)
-    }
+  await supabase.from("agenda_eventos")
+    .update({ status: "realizado" })
+    .eq("id", agendaId)
+} else if (sessaoDbId) {
+  // Sessão avulsa — atualiza pelo sessao_id
+  await supabase.from("agenda_eventos")
+    .update({ status: "realizado" })
+    .eq("sessao_id", sessaoDbId)
+}
     localStorage.removeItem(STORAGE_KEY)
     setFase("encerramento")
   }
