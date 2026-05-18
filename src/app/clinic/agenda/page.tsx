@@ -136,41 +136,59 @@ export default function AgendaPage() {
   const diasSemana   = useMemo(() => Array.from({ length: 7 }, (_, i) => addDias(semanaInicio, i)), [semanaInicio]);
 
   const carregarSessoes = useCallback(async () => {
-    if (!terapeuta) return;
-    setLoading(true);
-    try {
-      const inicio = new Date(); inicio.setDate(inicio.getDate() - 30);
-      const fim    = new Date(); fim.setDate(fim.getDate() + 90);
+  if (!terapeuta) return;
+  setLoading(true);
+  try {
+    const inicio = new Date(); inicio.setDate(inicio.getDate() - 30);
+    const fim    = new Date(); fim.setDate(fim.getDate() + 90);
 
-      // 1. Planos ativos
-      const { data: planos } = await supabase
-        .from("planos")
-        .select("id, terapeuta_id, criancas ( id, nome ), programas ( nome, dominio )")
-        .eq("terapeuta_id", terapeuta.id)
-        .eq("status", "ativo");
+    // 1. Planos ativos
+    const { data: planos } = await supabase
+      .from("planos")
+      .select("id, terapeuta_id, criancas ( id, nome ), programas ( nome, dominio )")
+      .eq("terapeuta_id", terapeuta.id)
+      .eq("status", "ativo");
 
-      if (!planos || planos.length === 0) {
-        setTodasSessoes([]);
-        setPacientes([]);
-        setLoading(false);
-        return;
+    // Monta mapa de crianças dos planos
+    const pacs: Paciente[] = [];
+    const criancaMap = new Map<string, { nome: string; planos: any[] }>();
+    for (const pl of (planos ?? [])) {
+      const c = pl.criancas as any;
+      if (!c) continue;
+      if (!criancaMap.has(c.id)) {
+        criancaMap.set(c.id, { nome: c.nome, planos: [] });
+        pacs.push({ id: c.id, nome: c.nome, planoId: pl.id });
       }
+      criancaMap.get(c.id)!.planos.push(pl);
+    }
 
-      // Lista de pacientes para o form
-      const pacs: Paciente[] = [];
-      const criancaMap = new Map<string, { nome: string; planos: any[] }>();
-      for (const pl of planos) {
-        const c = pl.criancas as any;
-        if (!c) continue;
-        if (!criancaMap.has(c.id)) {
-          criancaMap.set(c.id, { nome: c.nome, planos: [] });
-          pacs.push({ id: c.id, nome: c.nome, planoId: pl.id });
-        }
-        criancaMap.get(c.id)!.planos.push(pl);
+    // 2. Busca crianças de sessões avulsas (mesmo sem plano)
+    const { data: avulsas } = await supabase
+      .from("agenda_eventos")
+      .select("crianca_id, criancas(id, nome)")
+      .eq("avulsa", true)
+      .eq("terapeuta_id", terapeuta.id)
+      .gte("data_hora", inicio.toISOString())
+      .lte("data_hora", fim.toISOString())
+
+    for (const av of (avulsas ?? [])) {
+      const c = av.criancas as any
+      if (!c) continue
+      if (!criancaMap.has(av.crianca_id)) {
+        criancaMap.set(av.crianca_id, { nome: c.nome, planos: [] })
+        pacs.push({ id: c.id, nome: c.nome, planoId: "" })
       }
-      setPacientes(pacs);
+    }
 
-      let criancaIds = Array.from(criancaMap.keys());
+    setPacientes(pacs);
+    let criancaIds = Array.from(criancaMap.keys())
+
+    // Se não há nenhum paciente, encerra
+    if (criancaIds.length === 0) {
+      setTodasSessoes([]);
+      setLoading(false);
+      return;
+    }
       // ← ADICIONE: busca crianças de sessões avulsas que não têm plano
 const { data: avulsasExtras } = await supabase
   .from("agenda_eventos")
