@@ -34,6 +34,7 @@ interface Sessao {
   horasPorSemana: number;
   duracaoMeses: number;
   valorSessao: number;
+  sessaoId?: string; // ← novo
 }
 
 interface Paciente {
@@ -287,6 +288,7 @@ for (const av of (avulsasExtras ?? [])) {
           id: ev.id,
           contratoId: "",
           pacienteId: ev.crianca_id,
+          sessaoId: ev.sessao_id ?? undefined, // ← novo
           pacienteNome: cri.nome,
           pacienteIniciais: iniciais(cri.nome),
           gradient: GRADIENTS[ci],
@@ -414,6 +416,15 @@ for (const av of (avulsasExtras ?? [])) {
     setSalvandoRecorr(false);
   }
 
+  async function cancelarSessao(sessaoId: string) {
+  const confirmar = window.confirm("Deseja cancelar esta sessão?")
+  if (!confirmar) return
+  await supabase
+    .from("agenda_eventos")
+    .update({ status: "cancelada" })
+    .eq("id", sessaoId)
+  await carregarSessoes()
+}
   // ── Filtros e stats ────────────────────────────────────────────────────────
   const sessoesSemana = useMemo(() => {
     const inicio = isoDate(semanaInicio);
@@ -717,10 +728,19 @@ for (const av of (avulsasExtras ?? [])) {
                       </button>
                     )}
                     {s.status !== "cancelada" && s.status !== "realizada" && s.status !== "faltou" && (
-                      <button style={{ padding: 11, borderRadius: 9, border: "1px solid rgba(224,90,75,.25)", background: "rgba(224,90,75,.07)", color: "#E05A4B", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".78rem", cursor: "pointer" }}>
-                        Cancelar
-                      </button>
-                    )}
+  <button
+    onClick={() => cancelarSessao(s.id)}
+    style={{ padding: 11, borderRadius: 9, border: "1px solid rgba(224,90,75,.25)", background: "rgba(224,90,75,.07)", color: "#E05A4B", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".78rem", cursor: "pointer" }}>
+    Cancelar
+  </button>
+)}
+{s.status === "em_andamento" && s.sessaoId && (
+  <Link
+    href={`/clinic/sessao?pacienteId=${s.pacienteId}`}
+    style={{ padding: 11, borderRadius: 9, border: "1px solid rgba(29,158,117,.25)", background: "rgba(29,158,117,.07)", color: "#1D9E75", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".78rem", cursor: "pointer", textDecoration: "none" }}>
+    Retomar →
+  </Link>
+)}
                     <button onClick={() => setSessaoAberta(null)} style={{ padding: 11, borderRadius: 9, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: ".78rem", cursor: "pointer" }}>
                       Fechar
                     </button>
