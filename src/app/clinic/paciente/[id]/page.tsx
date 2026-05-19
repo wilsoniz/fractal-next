@@ -863,11 +863,8 @@ async function rejeitarSugestao(id: string) {
   setSugestoes(prev => prev.filter(s => s.id !== id))
 }
 
-
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
