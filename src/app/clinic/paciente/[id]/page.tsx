@@ -576,13 +576,13 @@ if (jornadaAtiva) {
     }
   }
   // Busca sugestões pendentes
-const { data: sugestoesData } = await supabase
-  .from("plano_sugestoes")
-  .select("*")
-  .eq("crianca_id", criancaId)
-  .eq("status", "pendente")
-  .order("criado_em", { ascending: false })
-setSugestoes(sugestoesData ?? [])
+// const { data: sugestoesData } = await supabase
+//   .from("plano_sugestoes")
+//   .select("*")
+//   .eq("crianca_id", criancaId)
+//   .eq("status", "pendente")
+//   .order("criado_em", { ascending: false })
+// setSugestoes(sugestoesData ?? [])
 }
         // Mapear radar
         const radarFormatado: RadarSnapshot[] = (radares ?? []).map((r: any, i: number) => ({
