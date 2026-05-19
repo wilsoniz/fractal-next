@@ -332,6 +332,64 @@ async function atualizarJornada(
     .eq("id", sessaoAtiva.id)
 }
 
+async function gerarSugestoesProgramas(
+  protocoloSel: Protocolo,
+  sessaoAtiva: SessaoAtiva,
+  respostas: RespostaLocal
+) {
+  // 1. Para cada item com score abaixo do gatilho (79%)
+  for (const dominio of protocoloSel.dominios) {
+    if (dominio.tipo_dominio === "barreira") continue
+    for (const item of dominio.itens) {
+      const pontuacao = respostas[item.id]
+      if (pontuacao === undefined) continue
+
+      const scorePercent = Math.round((pontuacao / item.pontuacao_max) * 100)
+      if (scorePercent > 79) continue // já adquirido, não sugere
+
+      // 2. Busca programas sugeridos para este item
+      const { data: programasSugeridos } = await supabase
+        .from("avaliacao_item_programas")
+        .select("*")
+        .eq("avaliacao_item_id", item.id)
+        .lte("score_gatilho", scorePercent === 0 ? 0 : scorePercent)
+        .order("ordem")
+
+      if (!programasSugeridos || programasSugeridos.length === 0) continue
+
+      // 3. Para cada programa sugerido, verifica se já existe sugestão pendente
+      for (const prog of programasSugeridos) {
+        const { data: existente } = await supabase
+          .from("plano_sugestoes")
+          .select("id")
+          .eq("crianca_id", sessaoAtiva.crianca_id)
+          .eq("avaliacao_item_id", item.id)
+          .eq("item_programa_id", prog.id)
+          .in("status", ["pendente", "aprovado"])
+          .maybeSingle()
+
+        if (existente) continue // já existe, não duplica
+
+        // 4. Cria sugestão
+        await supabase.from("plano_sugestoes").insert({
+  crianca_id:          sessaoAtiva.crianca_id,
+  terapeuta_id:        (await supabase.auth.getUser()).data.user?.id ?? "",
+  avaliacao_sessao_id: sessaoAtiva.id,
+  avaliacao_item_id:   item.id,
+  item_programa_id:    prog.id,
+  nome_programa:       prog.nome_programa,
+  dominio:             prog.dominio,
+  operante:            prog.operante,
+  tipo_registro:       prog.tipo_registro,
+  score_avaliado:      scorePercent,
+  score_gatilho:       prog.score_gatilho,
+  status:              "pendente",
+})
+      }
+    }
+  }
+}
+
 // ─── PAGE ────────────────────────────────────────────────────────────────────
 export default function AvaliacoesPage() {
   const { terapeuta } = useClinicContext();
@@ -584,7 +642,8 @@ if (planos) {
 
   await atualizarRepertorio(protocoloSel, sessaoAtiva, respostas);
   await gerarRadarSnapshot(protocoloSel, sessaoAtiva, respostas);
-  await atualizarJornada(protocoloSel, sessaoAtiva, respostas); // ← novo
+  await atualizarJornada(protocoloSel, sessaoAtiva, respostas); 
+  await gerarSugestoesProgramas(protocoloSel, sessaoAtiva, respostas)
 
   setProcessando(false);
   setSessaoAtiva(null);
