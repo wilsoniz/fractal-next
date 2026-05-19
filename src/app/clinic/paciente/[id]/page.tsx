@@ -100,9 +100,6 @@ const STATUS_COMP: Record<string, { label: string; cor: string }> = {
 
 const DOMINIOS = ["comunicacao","social","atencao","regulacao","brincadeira","cognicao","autonomia","flexibilidade","motricidade"];
 
-const [sugestoes, setSugestoes] = useState<any[]>([])
-const [aprovando, setAprovando] = useState<string | null>(null)
-
 function JornadaClinica({ jornada, jornadaAnterior, dominios, paciente, criancaId, onJornadaCriada }: {
   jornada: any
   jornadaAnterior: any
@@ -446,6 +443,11 @@ export default function PerfilPacientePage() {
   const [jornada, setJornada] = useState<any>(null)
   const [jornadaAnterior, setJornadaAnterior] = useState<any>(null)
   const [jornadaDominios, setJornadaDominios] = useState<any[]>([])
+
+
+const [sugestoes, setSugestoes] = useState<any[]>([])
+const [aprovando, setAprovando] = useState<string | null>(null)
+
   
   const [data,         setData]         = useState<LearnerProfile | null>(null);
   const [habilidades,  setHabilidades]  = useState<Habilidade[]>([]);
