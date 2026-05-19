@@ -1398,14 +1398,15 @@ async function rejeitarSugestao(id: string) {
 
 {/* ── JORNADA CLÍNICA ── */}
 {tab === "jornada" && (
-  <JornadaClinica
-    jornada={jornada}
-    jornadaAnterior={jornadaAnterior}
-    dominios={jornadaDominios}
-    paciente={data}
-    criancaId={params.id as string}
-    onJornadaCriada={(j) => setJornada(j)}
-  />
+  // <JornadaClinica
+  //   jornada={jornada}
+  //   jornadaAnterior={jornadaAnterior}
+  //   dominios={jornadaDominios}
+  //   paciente={data}
+  //   criancaId={params.id as string}
+  //   onJornadaCriada={(j) => setJornada(j)}
+  // />
+  <div>Jornada temporariamente desabilitada</div>
 )}
 
 
