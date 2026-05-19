@@ -377,7 +377,7 @@ async function gerarSugestoesProgramas(
   avaliacao_sessao_id: sessaoAtiva.id,
   avaliacao_item_id:   item.id,
   item_programa_id:    prog.id,
-  nome_programa:       prog.nome_programa,
+  nome_programa:       prog.nome,
   dominio:             prog.dominio,
   operante:            prog.operante,
   tipo_registro:       prog.tipo_registro,
