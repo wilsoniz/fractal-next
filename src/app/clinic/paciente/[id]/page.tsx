@@ -100,6 +100,9 @@ const STATUS_COMP: Record<string, { label: string; cor: string }> = {
 
 const DOMINIOS = ["comunicacao","social","atencao","regulacao","brincadeira","cognicao","autonomia","flexibilidade","motricidade"];
 
+const [sugestoes, setSugestoes] = useState<any[]>([])
+const [aprovando, setAprovando] = useState<string | null>(null)
+
 function JornadaClinica({ jornada, jornadaAnterior, dominios, paciente, criancaId, onJornadaCriada }: {
   jornada: any
   jornadaAnterior: any
@@ -572,6 +575,14 @@ if (jornadaAtiva) {
       setJornadaAnterior({ ...anterior, dominios: dominiosAnt ?? [] })
     }
   }
+  // Busca sugestões pendentes
+const { data: sugestoesData } = await supabase
+  .from("plano_sugestoes")
+  .select("*")
+  .eq("crianca_id", criancaId)
+  .eq("status", "pendente")
+  .order("criado_em", { ascending: false })
+setSugestoes(sugestoesData ?? [])
 }
         // Mapear radar
         const radarFormatado: RadarSnapshot[] = (radares ?? []).map((r: any, i: number) => ({
@@ -762,6 +773,97 @@ if (jornadaAtiva) {
     if (habs.length > 0) acc[dom] = habs;
     return acc;
   }, {} as Record<string, Habilidade[]>);
+
+async function aprovarSugestao(sugestao: any) {
+  setAprovando(sugestao.id)
+
+  // 1. Busca plano ativo do paciente
+  const { data: planoAtivo } = await supabase
+    .from("planos")
+    .select("id")
+    .eq("crianca_id", params.id as string)
+    .eq("status", "ativo")
+    .maybeSingle()
+
+  let planoId = planoAtivo?.id
+
+  // 2. Se não tem plano ativo, cria um
+  if (!planoId) {
+    const { data: novoPlano } = await supabase
+      .from("planos")
+      .insert({
+        crianca_id:   params.id as string,
+        terapeuta_id: terapeuta?.id,
+        status:       "ativo",
+        nome:         "Plano de Intervenção",
+      })
+      .select("id")
+      .single()
+    planoId = novoPlano?.id
+  }
+
+  if (!planoId) { setAprovando(null); return }
+
+  // 3. Cria programa se não existir
+  let programaId: string | null = null
+  const { data: progExistente } = await supabase
+    .from("programas")
+    .select("id")
+    .eq("nome", sugestao.nome_programa)
+    .maybeSingle()
+
+  if (progExistente) {
+    programaId = progExistente.id
+  } else {
+    const { data: novoProg } = await supabase
+      .from("programas")
+      .insert({
+        nome:          sugestao.nome_programa,
+        dominio:       sugestao.dominio ?? "",
+        operante:      sugestao.operante ?? "",
+        tipo_registro: sugestao.tipo_registro ?? "dtt",
+        ativo:         true,
+      })
+      .select("id")
+      .single()
+    programaId = novoProg?.id ?? null
+  }
+
+  // 4. Adiciona ao plano
+  const { data: planoProg } = await supabase
+    .from("plano_programas")
+    .insert({
+      plano_id:    planoId,
+      programa_id: programaId,
+      status:      "ativo",
+    })
+    .select("id")
+    .single()
+
+  // 5. Atualiza sugestão como aprovada
+  await supabase
+    .from("plano_sugestoes")
+    .update({
+      status:           "aprovado",
+      aprovado_por:     terapeuta?.id,
+      aprovado_em:      new Date().toISOString(),
+      plano_programa_id: planoProg?.id ?? null,
+    })
+    .eq("id", sugestao.id)
+
+  setSugestoes(prev => prev.filter(s => s.id !== sugestao.id))
+  setAprovando(null)
+}
+
+async function rejeitarSugestao(id: string) {
+  await supabase
+    .from("plano_sugestoes")
+    .update({ status: "rejeitado", atualizado_em: new Date().toISOString() })
+    .eq("id", id)
+  setSugestoes(prev => prev.filter(s => s.id !== id))
+}
+
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -1055,52 +1157,103 @@ if (jornadaAtiva) {
       )}
 
       {/* ── PROGRAMAS ── */}
-      {tab === "programas" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {data.programs.length === 0 ? (
-            <div style={{ ...card, padding: 32, textAlign: "center", color: "rgba(160,200,235,.3)", fontSize: ".82rem" }}>
-              Nenhum plano ativo para este paciente
-            </div>
-          ) : data.programs.map(p => {
-            const st = STATUS_PROG[p.status];
-            return (
-              <div key={p.id} style={{ ...card, padding: 20 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                      <span style={{ fontSize: ".92rem", fontWeight: 700, color: "#e8f0f8" }}>{p.name}</span>
-                      <span style={{ fontSize: ".65rem", background: st.bg, border: `1px solid ${st.borda}`, color: st.cor, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>{st.label}</span>
-                    </div>
-                    <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{p.domain}</div>
-                  </div>
-                  {nivel !== "terapeuta" && (
-                    <Link href={`/clinic/sessao?pacienteId=${data.id}&programaId=${p.id}`} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".72rem", fontWeight: 600, textDecoration: "none" }}>
-                      Executar →
-                    </Link>
-                  )}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-                  {[{ l: "Taxa de sucesso", v: p.success }, { l: "Independência", v: p.independence }].map(m => (
-                    <div key={m.l}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                        <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{m.l}</span>
-                        <span style={{ fontSize: ".72rem", color: m.v >= 80 ? "#1D9E75" : m.v >= 50 ? "#EF9F27" : "#E05A4B", fontWeight: 600 }}>{m.v}%</span>
-                      </div>
-                      <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${m.v}%`, background: m.v >= 80 ? "#1D9E75" : m.v >= 50 ? "#EF9F27" : "#E05A4B" }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {p.status === "stalled"   && <div style={{ background: "rgba(224,90,75,.07)", border: "1px solid rgba(224,90,75,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#E05A4B" }}>Programa travado — revisar critério, nível de dica ou reforçadores</div>}
-                {p.status === "completed" && <div style={{ background: "rgba(55,138,221,.07)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#378ADD" }}>Programa concluído — considerar generalização</div>}
-                {p.success >= 80 && p.status === "active" && <div style={{ background: "rgba(29,158,117,.07)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#1D9E75" }}>Próximo de critério — considerar avançar nível de dica</div>}
-              </div>
-            );
-          })}
-        </div>
-      )}
+{tab === "programas" && (
+  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
+    {/* Sugestões pendentes */}
+    {sugestoes.length > 0 && (
+      <div style={{ ...card, padding: 20, border: "1px solid rgba(239,159,39,.25)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF9F27" }} />
+          <span style={{ fontSize: ".85rem", fontWeight: 700, color: "#EF9F27" }}>
+            {sugestoes.length} sugestão{sugestoes.length > 1 ? "ões" : ""} de programa{sugestoes.length > 1 ? "s" : ""}
+          </span>
+          <span style={{ fontSize: ".7rem", color: "rgba(160,200,235,.4)" }}>— geradas pela avaliação</span>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {sugestoes.map(s => (
+            <div key={s.id} style={{ padding: "14px 16px", background: "rgba(239,159,39,.05)", border: "1px solid rgba(239,159,39,.15)", borderRadius: 11 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: ".82rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>
+                    {s.nome_programa}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                    {s.dominio && <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.5)" }}>{s.dominio}</span>}
+                    {s.operante && <span style={{ fontSize: ".65rem", color: "#8B7FE8" }}>{s.operante}</span>}
+                    {s.tipo_registro && <span style={{ fontSize: ".65rem", color: "#378ADD", background: "rgba(55,138,221,.1)", borderRadius: 20, padding: "1px 7px" }}>{s.tipo_registro}</span>}
+                    {s.score_avaliado !== null && (
+                      <span style={{ fontSize: ".65rem", color: "#E05A4B" }}>
+                        score: {s.score_avaliado}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button
+                    onClick={() => rejeitarSugestao(s.id)}
+                    style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid rgba(224,90,75,.3)", background: "transparent", color: "#E05A4B", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                    Rejeitar
+                  </button>
+                  <button
+                    onClick={() => aprovarSugestao(s)}
+                    disabled={aprovando === s.id}
+                    style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".68rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", opacity: aprovando === s.id ? 0.6 : 1 }}>
+                    {aprovando === s.id ? "Aprovando..." : "Aprovar →"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Programas ativos */}
+    {data.programs.length === 0 && sugestoes.length === 0 ? (
+      <div style={{ ...card, padding: 32, textAlign: "center", color: "rgba(160,200,235,.3)", fontSize: ".82rem" }}>
+        Nenhum plano ativo para este paciente
+      </div>
+    ) : data.programs.map(p => {
+      const st = STATUS_PROG[p.status];
+      return (
+        <div key={p.id} style={{ ...card, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                <span style={{ fontSize: ".92rem", fontWeight: 700, color: "#e8f0f8" }}>{p.name}</span>
+                <span style={{ fontSize: ".65rem", background: st.bg, border: `1px solid ${st.borda}`, color: st.cor, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>{st.label}</span>
+              </div>
+              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{p.domain}</div>
+            </div>
+            {nivel !== "terapeuta" && (
+              <Link href={`/clinic/sessao?pacienteId=${data.id}&programaId=${p.id}`} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".72rem", fontWeight: 600, textDecoration: "none" }}>
+                Executar →
+              </Link>
+            )}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            {[{ l: "Taxa de sucesso", v: p.success }, { l: "Independência", v: p.independence }].map(m => (
+              <div key={m.l}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                  <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{m.l}</span>
+                  <span style={{ fontSize: ".72rem", color: m.v >= 80 ? "#1D9E75" : m.v >= 50 ? "#EF9F27" : "#E05A4B", fontWeight: 600 }}>{m.v}%</span>
+                </div>
+                <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${m.v}%`, background: m.v >= 80 ? "#1D9E75" : m.v >= 50 ? "#EF9F27" : "#E05A4B" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          {p.status === "stalled" && <div style={{ background: "rgba(224,90,75,.07)", border: "1px solid rgba(224,90,75,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#E05A4B" }}>Programa travado — revisar critério, nível de dica ou reforçadores</div>}
+          {p.status === "completed" && <div style={{ background: "rgba(55,138,221,.07)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#378ADD" }}>Programa concluído — considerar generalização</div>}
+          {p.success >= 80 && p.status === "active" && <div style={{ background: "rgba(29,158,117,.07)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#1D9E75" }}>Próximo de critério — considerar avançar nível de dica</div>}
+        </div>
+      );
+    })}
+  </div>
+)}
       {/* ── SKILL GRAPH ── */}
       {tab === "skill-graph" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
