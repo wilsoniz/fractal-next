@@ -844,15 +844,15 @@ async function aprovarSugestao(sugestao: any) {
     .single()
 
   // 5. Atualiza sugestão como aprovada
-  await supabase
-    .from("plano_sugestoes")
-    .update({
-      status:           "aprovado",
-      aprovado_por:     terapeuta?.id,
-      aprovado_em:      new Date().toISOString(),
-      plano_programa_id: planoProg?.id ?? null,
-    })
-    .eq("id", sugestao.id)
+await supabase
+  .from("plano_sugestoes")
+  .update({
+    status:       "aprovado",
+    aprovado_por: terapeuta?.id,
+    aprovado_em:  new Date().toISOString(),
+    // removenndo plano_programa_id daqui
+  })
+  .eq("id", sugestao.id)
 
   setSugestoes(prev => prev.filter(s => s.id !== sugestao.id))
   setAprovando(null)
