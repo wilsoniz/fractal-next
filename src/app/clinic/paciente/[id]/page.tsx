@@ -780,7 +780,6 @@ const [aprovando, setAprovando] = useState<string | null>(null)
 async function aprovarSugestao(sugestao: any) {
   setAprovando(sugestao.id)
 
-  // 1. Busca plano ativo do paciente
   const { data: planoAtivo, error: errPlano } = await supabase
     .from("planos")
     .select("id")
@@ -788,38 +787,23 @@ async function aprovarSugestao(sugestao: any) {
     .eq("status", "ativo")
     .maybeSingle()
 
-  console.log("plano ativo:", planoAtivo, errPlano)
+  console.log("1. plano ativo:", planoAtivo?.id, errPlano)
   let planoId = planoAtivo?.id
-
-  // 2. Se não tem plano ativo, cria um
-  if (!planoId) {
-    const { data: novoPlano } = await supabase
-      .from("planos")
-      .insert({
-        crianca_id:   params.id as string,
-        terapeuta_id: terapeuta?.id,
-        status:       "ativo",
-        nome:         "Plano de Intervenção",
-      })
-      .select("id")
-      .single()
-    planoId = novoPlano?.id
-  }
-
   if (!planoId) { setAprovando(null); return }
 
   // 3. Cria programa se não existir
-  let programaId: string | null = null
-  const { data: progExistente } = await supabase
+  const { data: progExistente, error: errProg } = await supabase
     .from("programas")
     .select("id")
     .eq("nome", sugestao.nome_programa)
     .maybeSingle()
 
-  if (progExistente) {
-    programaId = progExistente.id
-  } else {
-    const { data: novoProg } = await supabase
+  console.log("2. prog existente:", progExistente?.id, errProg)
+
+  let programaId: string | null = progExistente?.id ?? null
+
+  if (!programaId) {
+    const { data: novoProg, error: errNovo } = await supabase
       .from("programas")
       .insert({
         nome:          sugestao.nome_programa,
@@ -830,11 +814,13 @@ async function aprovarSugestao(sugestao: any) {
       })
       .select("id")
       .single()
+    console.log("3. novo prog:", novoProg?.id, errNovo)
     programaId = novoProg?.id ?? null
   }
 
-  // 4. Adiciona ao plano
-  const { data: planoProg } = await supabase
+  if (!programaId) { setAprovando(null); return }
+
+  const { data: planoProg, error: errPP } = await supabase
     .from("plano_programas")
     .insert({
       plano_id:    planoId,
@@ -844,16 +830,17 @@ async function aprovarSugestao(sugestao: any) {
     .select("id")
     .single()
 
-  // 5. Atualiza sugestão como aprovada
-await supabase
-  .from("plano_sugestoes")
-  .update({
-    status:       "aprovado",
-    aprovado_por: terapeuta?.id,
-    aprovado_em:  new Date().toISOString(),
-    // removenndo plano_programa_id daqui
-  })
-  .eq("id", sugestao.id)
+  console.log("4. plano_programa:", planoProg?.id, errPP)
+
+  await supabase
+    .from("plano_sugestoes")
+    .update({
+      status:       "aprovado",
+      aprovado_por: terapeuta?.id,
+      aprovado_em:  new Date().toISOString(),
+      plano_programa_id: planoProg?.id ?? null,
+    })
+    .eq("id", sugestao.id)
 
   setSugestoes(prev => prev.filter(s => s.id !== sugestao.id))
   setAprovando(null)
