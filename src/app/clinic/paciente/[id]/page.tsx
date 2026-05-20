@@ -543,7 +543,7 @@ const [aprovando, setAprovando] = useState<string | null>(null)
 
 
         // 8. Jornada clínica
-const { data: jornadaAtiva } = await supabase
+  const { data: jornadaAtiva } = await supabase
   .from("jornada_clinica")
   .select("*")
   .eq("paciente_id", criancaId)
@@ -576,17 +576,19 @@ if (jornadaAtiva) {
         .eq("jornada_id", anterior.id)
       setJornadaAnterior({ ...anterior, dominios: dominiosAnt ?? [] })
     }
-  }
-  // Busca sugestões pendentes
+
+      // Busca sugestões pendentes
     const { data: sugestoesData, error: sugestoesError } = await supabase
-  .from("plano_sugestoes")
-  .select("*")
-  .eq("crianca_id", criancaId)
-  .eq("status", "pendente")
-  .order("criado_em", { ascending: false })
-console.log("sugestoes:", sugestoesData, sugestoesError)
-setSugestoes(sugestoesData ?? [])
-}
+      .from("plano_sugestoes")
+      .select("*")
+      .eq("crianca_id", criancaId)
+      .eq("status", "pendente")
+      .order("criado_em", { ascending: false })
+      console.log("sugestoes:", sugestoesData, sugestoesError)
+      setSugestoes(sugestoesData ?? [])
+    }
+
+  }
         // Mapear radar
         const radarFormatado: RadarSnapshot[] = (radares ?? []).map((r: any, i: number) => ({
           date: `Semana ${(i + 1) * 4}`,
