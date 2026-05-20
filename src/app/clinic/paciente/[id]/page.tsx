@@ -804,16 +804,17 @@ async function aprovarSugestao(sugestao: any) {
 
   if (!programaId) {
     const { data: novoProg, error: errNovo } = await supabase
-      .from("programas")
-      .insert({
-        nome:          sugestao.nome_programa,
-        dominio:       sugestao.dominio ?? "",
-        operante:      sugestao.operante ?? "",
-        tipo_registro: sugestao.tipo_registro ?? "dtt",
-        ativo:         true,
-      })
-      .select("id")
-      .single()
+  .from("programas")
+  .insert({
+    nome:          sugestao.nome_programa,
+    dominio:       sugestao.dominio ?? "",
+    operante:      sugestao.operante ?? "",
+    tipo_registro: sugestao.tipo_registro ?? "dtt",
+    objetivo:      `Desenvolver ${sugestao.nome_programa}`,  // ← adicione
+    ativo:         true,
+  })
+  .select("id")
+  .single()
     console.log("3. novo prog:", novoProg?.id, errNovo)
     programaId = novoProg?.id ?? null
   }
