@@ -134,7 +134,6 @@ async function atualizarRepertorio(
 ) {
   for (const dominio of protocoloSel.dominios) {
     const ehBarreira = dominio.tipo_dominio === "barreira";
-    console.log("Dominio:", dominio.nome, "tipo:", dominio.tipo_dominio, "ehBarreira:", ehBarreira);
 
     for (const item of dominio.itens) {
       const pontuacao = respostas[item.id];
@@ -167,14 +166,12 @@ async function atualizarRepertorio(
                 fonte:         "vbmapp_barreiras",
               });
             if (insErr) console.error("Erro INSERT barreira:", insErr, item.descricao);
-            else console.log("Barreira inserida:", item.descricao, intensidade);
           } else {
             const { error: updErr } = await supabase
               .from("planos_comportamento_interferente")
               .update({ intensidade })
               .eq("id", existente.id);
             if (updErr) console.error("Erro UPDATE barreira:", updErr);
-            else console.log("Barreira atualizada:", item.descricao, intensidade);
           }
         }
         continue;
@@ -236,8 +233,6 @@ async function gerarRadarSnapshot(
       dominioRadarScores[chave].push(Math.round((pontuacao / item.pontuacao_max) * 100));
     }
   }
-  console.log("dominioRadarScores:", dominioRadarScores);
-  console.log("respostas count:", Object.keys(respostas).length);
   const media = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
   const { error: radarError } = await supabase.from("radar_snapshots").insert({
     crianca_id:          sessaoAtiva.crianca_id,
