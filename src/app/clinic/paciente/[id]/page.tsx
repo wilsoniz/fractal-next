@@ -542,51 +542,50 @@ const [aprovando, setAprovando] = useState<string | null>(null)
         if (vars) setVariaveis(vars);
 
 
-        // 8. Jornada clínica
-  const { data: jornadaAtiva } = await supabase
-  .from("jornada_clinica")
-  .select("*")
-  .eq("paciente_id", criancaId)
-  .eq("status", "ativo")
-  .single()
+ // 8. Jornada clínica
+        const { data: jornadaAtiva } = await supabase
+          .from("jornada_clinica")
+          .select("*")
+          .eq("paciente_id", criancaId)
+          .eq("status", "ativo")
+          .single()
 
-if (jornadaAtiva) {
-  setJornada(jornadaAtiva)
+        if (jornadaAtiva) {
+          setJornada(jornadaAtiva)
 
-  // Busca domínios desta jornada
-  const { data: dominiosJ } = await supabase
-    .from("jornada_dominios")
-    .select("*")
-    .eq("jornada_id", jornadaAtiva.id)
-    .order("score_atual", { ascending: true })
-  setJornadaDominios(dominiosJ ?? [])
+          const { data: dominiosJ } = await supabase
+            .from("jornada_dominios")
+            .select("*")
+            .eq("jornada_id", jornadaAtiva.id)
+            .order("score_atual", { ascending: true })
+          setJornadaDominios(dominiosJ ?? [])
 
-  // Busca jornada anterior se existir
-  if (jornadaAtiva.jornada_anterior_id) {
-    const { data: anterior } = await supabase
-      .from("jornada_clinica")
-      .select("*")
-      .eq("id", jornadaAtiva.jornada_anterior_id)
-      .single()
+          if (jornadaAtiva.jornada_anterior_id) {
+            const { data: anterior } = await supabase
+              .from("jornada_clinica")
+              .select("*")
+              .eq("id", jornadaAtiva.jornada_anterior_id)
+              .single()
 
-    if (anterior) {
-      const { data: dominiosAnt } = await supabase
-        .from("jornada_dominios")
-        .select("*")
-        .eq("jornada_id", anterior.id)
-      setJornadaAnterior({ ...anterior, dominios: dominiosAnt ?? [] })
-    }
-  }
-  // Busca sugestões pendentes
-    const { data: sugestoesData, error: sugestoesError } = await supabase
-      .from("plano_sugestoes")
-      .select("*")
-      .eq("crianca_id", criancaId)
-      .eq("status", "pendente")
-      .order("criado_em", { ascending: false })
-      console.log("sugestoes:", sugestoesData, sugestoesError)
-      setSugestoes(sugestoesData ?? [])
-    }
+            if (anterior) {
+              const { data: dominiosAnt } = await supabase
+                .from("jornada_dominios")
+                .select("*")
+                .eq("jornada_id", anterior.id)
+              setJornadaAnterior({ ...anterior, dominios: dominiosAnt ?? [] })
+            }
+          }
+        }
+
+        // 9. Sugestões pendentes
+        const { data: sugestoesData, error: sugestoesError } = await supabase
+          .from("plano_sugestoes")
+          .select("*")
+          .eq("crianca_id", criancaId)
+          .eq("status", "pendente")
+          .order("criado_em", { ascending: false })
+        console.log("sugestoes:", sugestoesData, sugestoesError)
+        setSugestoes(sugestoesData ?? [])
 
         // Mapear radar
         const radarFormatado: RadarSnapshot[] = (radares ?? []).map((r: any, i: number) => ({
