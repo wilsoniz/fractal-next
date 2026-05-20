@@ -781,13 +781,14 @@ async function aprovarSugestao(sugestao: any) {
   setAprovando(sugestao.id)
 
   // 1. Busca plano ativo do paciente
-  const { data: planoAtivo } = await supabase
+  const { data: planoAtivo, error: errPlano } = await supabase
     .from("planos")
     .select("id")
     .eq("crianca_id", params.id as string)
     .eq("status", "ativo")
     .maybeSingle()
 
+  console.log("plano ativo:", planoAtivo, errPlano)
   let planoId = planoAtivo?.id
 
   // 2. Se não tem plano ativo, cria um
