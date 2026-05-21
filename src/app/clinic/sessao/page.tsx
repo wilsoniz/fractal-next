@@ -1648,6 +1648,8 @@ if (tallyItens.length === 0) {
   </div>
 )}
 
+/* ── commit forçado ── */
+
 {/* ── FAB MOBILE ── */}
 {isMobile && <PainelMobile
   eventos={eventos}
