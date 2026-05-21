@@ -241,7 +241,7 @@ function SessaoInner() {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-  const check = () => setIsMobile(window.innerWidth < 768)
+  const check = () => setIsMobile(window.innerWidth < 1024)
   check()
   window.addEventListener("resize", check)
   return () => window.removeEventListener("resize", check)
@@ -1583,16 +1583,25 @@ if (tallyItens.length === 0) {
 
     {/* Assentimento */}
     <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 2 }}>Assentimento</div>
-    {([
-      ["assent_given",     "✓ Dado",       "#1D9E75"],
-      ["assent_revoked",   "✗ Revogado",   "#E05A4B"],
-      ["assent_recovered", "↺ Recuperado", "#EF9F27"],
-    ] as [EventType, string, string][]).map(([tipo, label, cor]) => (
-      <button key={tipo} onClick={() => registrarEvento(tipo)}
-        style={{ padding: "7px 4px", borderRadius: 8, border: `1px solid ${cor}33`, background: `${cor}0a`, color: cor, fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
-        {label}
-      </button>
-    ))}
+    {/* Estado atual */}
+<div style={{ padding: "6px 4px", borderRadius: 8, background: estadoAssentimento === "ativo" ? "rgba(29,158,117,.15)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.15)" : "rgba(26,58,92,.2)", border: `1px solid ${estadoAssentimento === "ativo" ? "rgba(29,158,117,.3)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.3)" : "rgba(26,58,92,.3)"}`, textAlign: "center", fontSize: ".55rem", color: estadoAssentimento === "ativo" ? "#1D9E75" : estadoAssentimento === "revogado" ? "#E05A4B" : "rgba(160,200,235,.3)", fontWeight: 600 }}>
+  {estadoAssentimento === "ativo" ? "✓ Ativo" : estadoAssentimento === "revogado" ? "✗ Revogado" : "— Pendente"}
+</div>
+
+{/* Botão único baseado no estado */}
+{estadoAssentimento !== "ativo" && (
+  <button onClick={() => alterarAssentimento("ativo")}
+    style={{ padding: "7px 4px", borderRadius: 8, border: "1px solid rgba(29,158,117,.33)", background: "rgba(29,158,117,.0a)", color: "#1D9E75", fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+    {estadoAssentimento === "pendente" ? "✓ Registrar" : "↺ Recuperar"}
+  </button>
+)}
+
+{estadoAssentimento === "ativo" && (
+  <button onClick={() => alterarAssentimento("revogado")}
+    style={{ padding: "7px 4px", borderRadius: 8, border: "1px solid rgba(224,90,75,.33)", background: "rgba(224,90,75,.0a)", color: "#E05A4B", fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+    ✗ Revogar
+  </button>
+)}
 
     <div style={{ height: 1, background: "rgba(26,58,92,.3)", margin: "4px 0" }} />
 
@@ -1647,8 +1656,6 @@ if (tallyItens.length === 0) {
     ))}
   </div>
 )}
-
-/* ── commit forçado ── */
 
 {/* ── FAB MOBILE ── */}
 {isMobile && <PainelMobile
