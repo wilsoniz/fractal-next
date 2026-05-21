@@ -236,7 +236,8 @@ function SessaoInner() {
   const [paciente,   setPaciente]   = useState<{id:string;nome:string;iniciais:string;gradient:string;diagnostico:string}|null>(null)
   const [sessaoDbId, setSessaoDbId] = useState<string|null>(null)
   const [loading,    setLoading]    = useState(true)
-
+  
+  const [estadoAssentimento, setEstadoAssentimento] = useState<"ativo"|"revogado"|"pendente">("pendente")
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -277,6 +278,7 @@ function SessaoInner() {
 // ── Tally ────────────────────────────────────────────────────────────────────
 const [tallyContadores, setTallyContadores] = useState<Record<string, number>>({})
 const [tallyRegistros, setTallyRegistros] = useState<{chave: string; label: string; ts: number}[]>([])
+
 
   // ── Persistência localStorage ─────────────────────────────────────────────────
   const STORAGE_KEY = "fracta_sessao_ativa"
@@ -671,6 +673,20 @@ const [tallyRegistros, setTallyRegistros] = useState<{chave: string; label: stri
       await supabase.from("session_events").insert({ sessao_id: sid, stage_id: stAtual?.dbId ?? null, tipo, timestamp: new Date().toISOString() })
     }
   }
+
+  function alterarAssentimento(novoEstado: "ativo"|"revogado") {
+  if (novoEstado === "ativo" && estadoAssentimento === "ativo") return // já está ativo
+  if (novoEstado === "revogado" && estadoAssentimento === "revogado") return // já está revogado
+  
+  if (novoEstado === "ativo") {
+    const tipo = estadoAssentimento === "pendente" ? "assent_given" : "assent_recovered"
+    registrarEvento(tipo as EventType)
+    setEstadoAssentimento("ativo")
+  } else {
+    registrarEvento("assent_revoked")
+    setEstadoAssentimento("revogado")
+  }
+}
 
   function togglePausa() {
     if (emPausa) { setEmPausa(false); registrarEvento("session_resumed") }
@@ -1639,8 +1655,9 @@ if (tallyItens.length === 0) {
   tallyContadores={tallyContadores}
   onEvento={registrarEvento}
   onTally={registrarTally}
+  estadoAssentimento={estadoAssentimento}
+  onAlterarAssentimento={alterarAssentimento}
 />}
-
 
         </div>
 
@@ -2721,6 +2738,8 @@ function ModalAvaliacaoSessao({ item, pacienteId, sessaoId, terapeutaId, onFecha
   const pct = totalItens > 0 ? Math.round(totalRespondidos / totalItens * 100) : 0
   const cor = protocolo?.cor ?? "#1D9E75"
 
+  
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.8)", backdropFilter: "blur(6px)", zIndex: 200, display: "flex", flexDirection: "column" }}>
 
@@ -2817,15 +2836,20 @@ function ModalAvaliacaoSessao({ item, pacienteId, sessaoId, terapeutaId, onFecha
 }
 
 
-function PainelMobile({ eventos, tallyItens, tallyContadores, onEvento, onTally }: {
+
+function PainelMobile({ eventos, tallyItens, tallyContadores, onEvento, onTally, estadoAssentimento, onAlterarAssentimento }: {
   eventos: EventoSessao[]
   tallyItens: { chave: string; label: string; cor: string }[]
   tallyContadores: Record<string, number>
   onEvento: (tipo: EventType) => void
   onTally: (chave: string, label: string) => void
-}) {
+  estadoAssentimento: "ativo"|"revogado"|"pendente"
+  onAlterarAssentimento: (estado: "ativo"|"revogado") => void
+}) 
+{
   const [aberto, setAberto] = useState(false)
   const [aba, setAba] = useState<"assentimento"|"contexto"|"tally">("tally")
+
 
   return (
     <>
@@ -2853,21 +2877,33 @@ function PainelMobile({ eventos, tallyItens, tallyContadores, onEvento, onTally 
             ))}
           </div>
 
-          {/* Aba Assentimento */}
           {aba === "assentimento" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {([
-                ["assent_given",     "✓ Assentimento dado",       "#1D9E75"],
-                ["assent_revoked",   "✗ Assentimento revogado",   "#E05A4B"],
-                ["assent_recovered", "↺ Assentimento recuperado", "#EF9F27"],
-              ] as [EventType, string, string][]).map(([tipo, label, cor]) => (
-                <button key={tipo} onClick={() => { onEvento(tipo); setAberto(false) }}
-                  style={{ padding: "16px", borderRadius: 12, border: `1px solid ${cor}44`, background: `${cor}12`, color: cor, fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    
+    {/* Estado atual */}
+    <div style={{ padding: "12px", borderRadius: 10, background: estadoAssentimento === "ativo" ? "rgba(29,158,117,.1)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.1)" : "rgba(26,58,92,.2)", border: `1px solid ${estadoAssentimento === "ativo" ? "rgba(29,158,117,.3)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.3)" : "rgba(26,58,92,.3)"}`, textAlign: "center" }}>
+      <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.5)", marginBottom: 4 }}>Estado atual</div>
+      <div style={{ fontSize: "1rem", fontWeight: 700, color: estadoAssentimento === "ativo" ? "#1D9E75" : estadoAssentimento === "revogado" ? "#E05A4B" : "rgba(160,200,235,.4)" }}>
+        {estadoAssentimento === "ativo" ? "✓ Assentimento ativo" : estadoAssentimento === "revogado" ? "✗ Assentimento revogado" : "Não registrado"}
+      </div>
+    </div>
+
+    {/* Ações disponíveis baseadas no estado */}
+    {estadoAssentimento !== "ativo" && (
+      <button onClick={() => { onAlterarAssentimento("ativo"); setAberto(false) }}
+        style={{ padding: "16px", borderRadius: 12, border: "1px solid rgba(29,158,117,.44)", background: "rgba(29,158,117,.12)", color: "#1D9E75", fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+        {estadoAssentimento === "pendente" ? "✓ Registrar assentimento" : "↺ Assentimento recuperado"}
+      </button>
+    )}
+    
+    {estadoAssentimento === "ativo" && (
+      <button onClick={() => { onAlterarAssentimento("revogado"); setAberto(false) }}
+        style={{ padding: "16px", borderRadius: 12, border: "1px solid rgba(224,90,75,.44)", background: "rgba(224,90,75,.12)", color: "#E05A4B", fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+        ✗ Revogar assentimento
+      </button>
+    )}
+  </div>
+)}
 
           {/* Aba Contexto */}
           {aba === "contexto" && (
