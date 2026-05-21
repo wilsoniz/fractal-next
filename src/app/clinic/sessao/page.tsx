@@ -127,11 +127,16 @@ const COMISSAO: Record<string, number> = {
 }
 
 const AVALIACOES_CAT = [
-  { id: "vbmapp", nome: "VB-MAPP",   dominio: "Comportamento verbal"        },
-  { id: "peak",   nome: "PEAK",      dominio: "Equivalência de estímulos"   },
-  { id: "ablls",  nome: "ABLLS-R",   dominio: "Linguagem e aprendizagem"    },
-  { id: "af_exp", nome: "AF Experimental", dominio: "Análise Funcional"     },
-  { id: "af_ind", nome: "AF Indireta",     dominio: "Análise Funcional"     },
+  { id: "vbmapp", nome: "VB-MAPP",   dominio: "Comportamento verbal",
+    tallyDominios: ["Mando", "Tato", "Ouvinte", "Intraverbal", "Imitação motora", "Social/Brincar"] },
+  { id: "peak",   nome: "PEAK",      dominio: "Equivalência de estímulos",
+    tallyDominios: ["Discriminação", "Matching", "Intraverbal", "Equivalência"] },
+  { id: "ablls",  nome: "ABLLS-R",   dominio: "Linguagem e aprendizagem",
+    tallyDominios: ["Linguagem receptiva", "Imitação", "Linguagem expressiva", "Habilidades sociais"] },
+  { id: "af_exp", nome: "AF Experimental", dominio: "Análise Funcional",
+    tallyDominios: ["Atenção", "Fuga", "Tangível", "Controle"] },
+  { id: "af_ind", nome: "AF Indireta",     dominio: "Análise Funcional",
+    tallyDominios: ["Atenção", "Fuga", "Tangível", "Automático"] },
 ]
 
 const CHECKLIST_GUIADO: Record<string, { item: string; obrigatorio: boolean }[]> = {
@@ -1187,11 +1192,29 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
 }
 
 // Tally dinâmico — baseado em avaliações ativas e comportamentos
-const tallyItens: { chave: string; label: string; cor: string; meta?: number }[] = []
-
-// 1. Domínios das avaliações ativas na sessão
-const avaliacoesAtivas = acoes.filter(a => a.area === "avaliacao" && a.tipo === "assessment")
+const tallyItens: { chave: string; label: string; cor: string }[] = []
 const dominiosAdicionados = new Set<string>()
+
+// 1. Avaliações ativas — usa tallyDominios do protocolo
+const avaliacoesAtivas = acoes.filter(a => a.area === "avaliacao" && a.tipo === "assessment")
+for (const av of avaliacoesAtivas) {
+  const cat = AVALIACOES_CAT.find(c => c.id === av.itemId)
+  if (cat?.tallyDominios) {
+    for (const dom of cat.tallyDominios) {
+      if (!dominiosAdicionados.has(dom)) {
+        dominiosAdicionados.add(dom)
+        tallyItens.push({ chave: `tally_${dom}`, label: dom, cor: "#8B7FE8" })
+      }
+    }
+  }
+}
+
+// Mínimo padrão se não houver avaliação ativa
+if (tallyItens.length === 0) {
+  tallyItens.push({ chave: "mando_esp", label: "Mando esp.", cor: "#1D9E75" })
+  tallyItens.push({ chave: "comp_int",  label: "Comp. interf.", cor: "#E05A4B" })
+}
+
 for (const av of avaliacoesAtivas) {
   const dominio = av.itemDominio
   if (!dominiosAdicionados.has(dominio)) {
