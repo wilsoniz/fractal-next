@@ -232,6 +232,14 @@ function SessaoInner() {
   const [sessaoDbId, setSessaoDbId] = useState<string|null>(null)
   const [loading,    setLoading]    = useState(true)
 
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+  const check = () => setIsMobile(window.innerWidth < 768)
+  check()
+  window.addEventListener("resize", check)
+  return () => window.removeEventListener("resize", check)
+}, [])
   // ── Estágios (só para atendimento e AT) ─────────────────────────────────────
   const [stages, setStages] = useState<Stage[]>(STAGE_KEYS.map(key => ({ key, status: "pending" as StageStatus })))
 
@@ -1530,64 +1538,87 @@ if (tallyItens.length === 0) {
             })}
           </div>
 
-          {/* Lateral — eventos rápidos + tally */}
-<div style={{ width: 100, borderLeft: "1px solid rgba(26,58,92,.35)", display: "flex", flexDirection: "column", padding: "10px 6px", gap: 6, background: "rgba(7,17,31,.5)", overflowY: "auto" }}>
-  
-  {/* Eventos clínicos */}
-  <div style={{ fontSize: ".55rem", color: "rgba(160,200,235,.3)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 4 }}>Eventos</div>
-  {([
-    ["assent_revoked",  "Revogado"  ],
-    ["avoidance_signal","Esquiva"   ],
-    ["distress_signal", "Desconf."  ],
-    ["break_requested", "Pausa"     ],
-    ["assent_recovered","Recuperou" ],
-  ] as [EventType, string][]).map(([tipo, label]) => {
-    const cfg = EVENT_CFG[tipo]
-    return (
-      <button key={tipo} onClick={() => registrarEvento(tipo)} style={{ padding: "8px 4px", borderRadius: 8, border: `1px solid ${cfg.cor}22`, background: `${cfg.cor}0a`, color: cfg.cor, fontSize: ".62rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-        <span style={{ fontSize: ".9rem" }}>{cfg.icone}</span>
-        <span>{label}</span>
+          {/* ── PAINEL LATERAL DESKTOP ── */}
+{!isMobile && (
+  <div style={{ width: 110, borderLeft: "1px solid rgba(26,58,92,.35)", display: "flex", flexDirection: "column", padding: "10px 6px", gap: 4, background: "rgba(7,17,31,.5)", overflowY: "auto" }}>
+
+    {/* Assentimento */}
+    <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 2 }}>Assentimento</div>
+    {([
+      ["assent_given",     "✓ Dado",       "#1D9E75"],
+      ["assent_revoked",   "✗ Revogado",   "#E05A4B"],
+      ["assent_recovered", "↺ Recuperado", "#EF9F27"],
+    ] as [EventType, string, string][]).map(([tipo, label, cor]) => (
+      <button key={tipo} onClick={() => registrarEvento(tipo)}
+        style={{ padding: "7px 4px", borderRadius: 8, border: `1px solid ${cor}33`, background: `${cor}0a`, color: cor, fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+        {label}
       </button>
-    )
-  })}
+    ))}
 
-  {/* Histórico de eventos */}
-  {eventos.length > 0 && (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center", marginTop: 4 }}>
-      {eventos.slice(0,6).map(ev => {
-        const cfg = EVENT_CFG[ev.tipo]
-        return <div key={ev.id} title={cfg.label} style={{ width: 18, height: 18, borderRadius: "50%", background: `${cfg.cor}20`, border: `1px solid ${cfg.cor}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".58rem", color: cfg.cor }}>{cfg.icone}</div>
-      })}
-    </div>
-  )}
+    <div style={{ height: 1, background: "rgba(26,58,92,.3)", margin: "4px 0" }} />
 
-  {/* Divisor */}
-  <div style={{ height: 1, background: "rgba(26,58,92,.4)", margin: "4px 0" }} />
-
-  {/* Tally */}
-  <div style={{ fontSize: ".55rem", color: "rgba(160,200,235,.3)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 4 }}>Tally</div>
-  {tallyItens.map(item => {
-    const count = tallyContadores[item.chave] ?? 0
-    return (
-      <button key={item.chave} onClick={() => registrarTally(item.chave, item.label)}
-        style={{ padding: "6px 4px", borderRadius: 8, border: `1px solid ${item.cor}33`, background: `${item.cor}0a`, color: item.cor, fontSize: ".58rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-        <span style={{ fontSize: "1rem", fontWeight: 800, color: count > 0 ? item.cor : "rgba(160,200,235,.3)" }}>{count}</span>
-        <span style={{ lineHeight: 1.2 }}>{item.label}</span>
+    {/* Contexto clínico */}
+    <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 2 }}>Contexto</div>
+    {([
+      ["distress_signal",  "Desconforto",  "#EF9F27"],
+      ["avoidance_signal", "Esquiva",      "#E05A4B"],
+      ["break_requested",  "Pausa",        "#4d6d8a"],
+    ] as [EventType, string, string][]).map(([tipo, label, cor]) => (
+      <button key={tipo} onClick={() => registrarEvento(tipo)}
+        style={{ padding: "7px 4px", borderRadius: 8, border: `1px solid ${cor}33`, background: `${cor}0a`, color: cor, fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+        {label}
       </button>
-    )
-  })}
+    ))}
 
-  {/* Últimos registros tally */}
-  {tallyRegistros.length > 0 && (
-    <div style={{ marginTop: 4 }}>
-      {tallyRegistros.slice(0,4).map((r, i) => (
-        <div key={i} style={{ fontSize: ".5rem", color: "rgba(160,200,235,.3)", textAlign: "center", marginBottom: 2 }}>
-          {new Date(r.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} {r.label}
-        </div>
-      ))}
-    </div>
-  )}
-</div>
+    {/* Histórico de eventos */}
+    {eventos.length > 0 && (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 2, justifyContent: "center", marginTop: 2 }}>
+        {eventos.slice(0, 8).map(ev => {
+          const cfg = EVENT_CFG[ev.tipo]
+          return (
+            <div key={ev.id} title={cfg.label}
+              style={{ width: 16, height: 16, borderRadius: "50%", background: `${cfg.cor}20`, border: `1px solid ${cfg.cor}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".5rem", color: cfg.cor }}>
+              {ev.tipo === "assent_given" ? "✓" : ev.tipo === "assent_revoked" ? "✗" : ev.tipo === "assent_recovered" ? "↺" : ev.tipo === "distress_signal" ? "⚠" : ev.tipo === "avoidance_signal" ? "!" : "⏸"}
+            </div>
+          )
+        })}
+      </div>
+    )}
+
+    <div style={{ height: 1, background: "rgba(26,58,92,.3)", margin: "4px 0" }} />
+
+    {/* Tally */}
+    <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 2 }}>Tally</div>
+    {tallyItens.map(item => {
+      const count = tallyContadores[item.chave] ?? 0
+      return (
+        <button key={item.chave} onClick={() => registrarTally(item.chave, item.label)}
+          style={{ padding: "8px 4px", borderRadius: 8, border: `1px solid ${item.cor}33`, background: count > 0 ? `${item.cor}15` : `${item.cor}05`, color: item.cor, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+          <span style={{ fontSize: "1.1rem", fontWeight: 800 }}>{count}</span>
+          <span style={{ fontSize: ".55rem", lineHeight: 1.2 }}>{item.label}</span>
+        </button>
+      )
+    })}
+
+    {/* Log do tally */}
+    {tallyRegistros.slice(0, 3).map((r, i) => (
+      <div key={i} style={{ fontSize: ".48rem", color: "rgba(160,200,235,.25)", textAlign: "center" }}>
+        {new Date(r.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+      </div>
+    ))}
+  </div>
+)}
+
+{/* ── FAB MOBILE ── */}
+{isMobile && <PainelMobile
+  eventos={eventos}
+  tallyItens={tallyItens}
+  tallyContadores={tallyContadores}
+  onEvento={registrarEvento}
+  onTally={registrarTally}
+/>}
+
+
         </div>
 
         {/* Biblioteca */}
@@ -2762,6 +2793,101 @@ function ModalAvaliacaoSessao({ item, pacienteId, sessaoId, terapeutaId, onFecha
   )
 }
 
+
+function PainelMobile({ eventos, tallyItens, tallyContadores, onEvento, onTally }: {
+  eventos: EventoSessao[]
+  tallyItens: { chave: string; label: string; cor: string }[]
+  tallyContadores: Record<string, number>
+  onEvento: (tipo: EventType) => void
+  onTally: (chave: string, label: string) => void
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [aba, setAba] = useState<"assentimento"|"contexto"|"tally">("tally")
+
+  return (
+    <>
+      {/* Overlay */}
+      {aberto && (
+        <div onClick={() => setAberto(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 40, backdropFilter: "blur(4px)" }} />
+      )}
+
+      {/* Painel expansível */}
+      {aberto && (
+        <div style={{ position: "fixed", bottom: 80, right: 12, zIndex: 50, width: 280, background: "rgba(7,17,31,.97)", border: "1px solid rgba(26,58,92,.5)", borderRadius: 16, padding: 16, boxShadow: "0 8px 32px rgba(0,0,0,.6)" }}>
+
+          {/* Abas */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>
+            {([
+              ["assentimento", "Assentimento"],
+              ["contexto",     "Contexto"    ],
+              ["tally",        "Tally"       ],
+            ] as const).map(([id, label]) => (
+              <button key={id} onClick={() => setAba(id)}
+                style={{ flex: 1, padding: "6px 4px", borderRadius: 8, border: `1px solid ${aba === id ? "#1D9E75" : "rgba(26,58,92,.4)"}`, background: aba === id ? "rgba(29,158,117,.15)" : "transparent", color: aba === id ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: aba === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Aba Assentimento */}
+          {aba === "assentimento" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {([
+                ["assent_given",     "✓ Assentimento dado",       "#1D9E75"],
+                ["assent_revoked",   "✗ Assentimento revogado",   "#E05A4B"],
+                ["assent_recovered", "↺ Assentimento recuperado", "#EF9F27"],
+              ] as [EventType, string, string][]).map(([tipo, label, cor]) => (
+                <button key={tipo} onClick={() => { onEvento(tipo); setAberto(false) }}
+                  style={{ padding: "16px", borderRadius: 12, border: `1px solid ${cor}44`, background: `${cor}12`, color: cor, fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Aba Contexto */}
+          {aba === "contexto" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {([
+                ["distress_signal",  "Desconforto / MO", "#EF9F27"],
+                ["avoidance_signal", "Esquiva",          "#E05A4B"],
+                ["break_requested",  "Pausa",            "#4d6d8a"],
+              ] as [EventType, string, string][]).map(([tipo, label, cor]) => (
+                <button key={tipo} onClick={() => { onEvento(tipo); setAberto(false) }}
+                  style={{ padding: "16px", borderRadius: 12, border: `1px solid ${cor}44`, background: `${cor}12`, color: cor, fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Aba Tally */}
+          {aba === "tally" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {tallyItens.map(item => {
+                const count = tallyContadores[item.chave] ?? 0
+                return (
+                  <button key={item.chave} onClick={() => onTally(item.chave, item.label)}
+                    style={{ padding: "20px 10px", borderRadius: 12, border: `1px solid ${item.cor}44`, background: count > 0 ? `${item.cor}15` : `${item.cor}08`, color: item.cor, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: "1.8rem", fontWeight: 800, lineHeight: 1 }}>{count}</span>
+                    <span style={{ fontSize: ".72rem", fontWeight: 600, lineHeight: 1.3 }}>{item.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* FAB */}
+      <button onClick={() => setAberto(p => !p)}
+        style={{ position: "fixed", bottom: 90, right: 16, zIndex: 50, width: 56, height: 56, borderRadius: "50%", border: "none", background: aberto ? "rgba(224,90,75,.9)" : "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: "1.4rem", fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 20px rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {aberto ? "×" : "⚡"}
+      </button>
+    </>
+  )
+}
 
 // ─── EXPORT ───────────────────────────────────────────────────────────────────
 export default function ClinicSessaoPage() {
