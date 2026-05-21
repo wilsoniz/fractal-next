@@ -674,6 +674,11 @@ const [tallyRegistros, setTallyRegistros] = useState<{chave: string; label: stri
     }
   }
 
+  function togglePausa() {
+    if (emPausa) { setEmPausa(false); registrarEvento("session_resumed") }
+    else         { setEmPausa(true);  registrarEvento("session_paused")  }
+  }
+
   function alterarAssentimento(novoEstado: "ativo"|"revogado") {
   if (novoEstado === "ativo" && estadoAssentimento === "ativo") return // já está ativo
   if (novoEstado === "revogado" && estadoAssentimento === "revogado") return // já está revogado
@@ -687,11 +692,6 @@ const [tallyRegistros, setTallyRegistros] = useState<{chave: string; label: stri
     setEstadoAssentimento("revogado")
   }
 }
-
-  function togglePausa() {
-    if (emPausa) { setEmPausa(false); registrarEvento("session_resumed") }
-    else         { setEmPausa(true);  registrarEvento("session_paused")  }
-  }
 
   // ── CASCATA DE ENCERRAMENTO ─────────────────────────────────────────────────
   async function confirmarEncerramento() {
