@@ -261,6 +261,10 @@ function SessaoInner() {
   const timerRef = useRef<ReturnType<typeof setInterval>|null>(null)
   const duracaoContratadaSeg = duracaoMin * 60
 
+// ── Tally ────────────────────────────────────────────────────────────────────
+const [tallyContadores, setTallyContadores] = useState<Record<string, number>>({})
+const [tallyRegistros, setTallyRegistros] = useState<{chave: string; label: string; ts: number}[]>([])
+
   // ── Persistência localStorage ─────────────────────────────────────────────────
   const STORAGE_KEY = "fracta_sessao_ativa"
 
@@ -1167,6 +1171,37 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
     const stCfg   = stAtual ? STAGES_CFG[stAtual.key] : null
     const acoesArea = acoes.filter(a => a.area === areaAtiva)
 
+
+    function registrarTally(chave: string, label: string) {
+        const ts = Date.now()
+        setTallyContadores(prev => ({ ...prev, [chave]: (prev[chave] ?? 0) + 1 }))
+        setTallyRegistros(prev => [{ chave, label, ts }, ...prev])
+}
+
+// Tally dinâmico — baseado em avaliações ativas e comportamentos
+const tallyItens: { chave: string; label: string; cor: string; meta?: number }[] = []
+
+// 1. Domínios das avaliações ativas na sessão
+const avaliacoesAtivas = acoes.filter(a => a.area === "avaliacao" && a.tipo === "assessment")
+const dominiosAdicionados = new Set<string>()
+for (const av of avaliacoesAtivas) {
+  const dominio = av.itemDominio
+  if (!dominiosAdicionados.has(dominio)) {
+    dominiosAdicionados.add(dominio)
+    tallyItens.push({ chave: `dom_${dominio}`, label: dominio, cor: "#8B7FE8" })
+  }
+  // Operante específico se disponível
+  if (av.operanteVerbal && !dominiosAdicionados.has(av.operanteVerbal)) {
+    dominiosAdicionados.add(av.operanteVerbal)
+    tallyItens.push({ chave: `op_${av.operanteVerbal}`, label: av.operanteVerbal, cor: "#378ADD" })
+  }
+}
+
+// 2. Mínimo sempre disponível
+if (tallyItens.length === 0) {
+  tallyItens.push({ chave: "mando_esp", label: "Mando esp.", cor: "#1D9E75" })
+}
+
     return (
       <div style={{ minHeight: "100vh", background: "#07111f", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column" }}>
 
@@ -1495,34 +1530,64 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
             })}
           </div>
 
-          {/* Lateral — eventos rápidos */}
-          <div style={{ width: 100, borderLeft: "1px solid rgba(26,58,92,.35)", display: "flex", flexDirection: "column", padding: "10px 6px", gap: 6, background: "rgba(7,17,31,.5)" }}>
-            <div style={{ fontSize: ".55rem", color: "rgba(160,200,235,.3)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 4 }}>Eventos</div>
-            {([
-              ["assent_revoked",  "Revogado",  ],
-              ["avoidance_signal","Esquiva",   ],
-              ["distress_signal", "Desconf.",  ],
-              ["break_requested", "Pausa",     ],
-              ["assent_recovered","Recuperou", ],
-            ] as [EventType, string][]).map(([tipo, label]) => {
-              const cfg = EVENT_CFG[tipo]
-              return (
-                <button key={tipo} onClick={() => registrarEvento(tipo)} style={{ padding: "8px 4px", borderRadius: 8, border: `1px solid ${cfg.cor}22`, background: `${cfg.cor}0a`, color: cfg.cor, fontSize: ".62rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                  <span style={{ fontSize: ".9rem" }}>{cfg.icone}</span>
-                  <span>{label}</span>
-                </button>
-              )
-            })}
-            {eventos.length > 0 && (
-              <div style={{ marginTop: 8, flex: 1, overflowY: "auto" }}>
-                <div style={{ fontSize: ".55rem", color: "rgba(160,200,235,.2)", textAlign: "center", marginBottom: 4 }}>{eventos.length}x</div>
-                {eventos.slice(0,6).map(ev => {
-                  const cfg = EVENT_CFG[ev.tipo]
-                  return <div key={ev.id} title={cfg.label} style={{ width: 20, height: 20, borderRadius: "50%", background: `${cfg.cor}20`, border: `1px solid ${cfg.cor}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".65rem", color: cfg.cor, margin: "0 auto 4px" }}>{cfg.icone}</div>
-                })}
-              </div>
-            )}
-          </div>
+          {/* Lateral — eventos rápidos + tally */}
+<div style={{ width: 100, borderLeft: "1px solid rgba(26,58,92,.35)", display: "flex", flexDirection: "column", padding: "10px 6px", gap: 6, background: "rgba(7,17,31,.5)", overflowY: "auto" }}>
+  
+  {/* Eventos clínicos */}
+  <div style={{ fontSize: ".55rem", color: "rgba(160,200,235,.3)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 4 }}>Eventos</div>
+  {([
+    ["assent_revoked",  "Revogado"  ],
+    ["avoidance_signal","Esquiva"   ],
+    ["distress_signal", "Desconf."  ],
+    ["break_requested", "Pausa"     ],
+    ["assent_recovered","Recuperou" ],
+  ] as [EventType, string][]).map(([tipo, label]) => {
+    const cfg = EVENT_CFG[tipo]
+    return (
+      <button key={tipo} onClick={() => registrarEvento(tipo)} style={{ padding: "8px 4px", borderRadius: 8, border: `1px solid ${cfg.cor}22`, background: `${cfg.cor}0a`, color: cfg.cor, fontSize: ".62rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        <span style={{ fontSize: ".9rem" }}>{cfg.icone}</span>
+        <span>{label}</span>
+      </button>
+    )
+  })}
+
+  {/* Histórico de eventos */}
+  {eventos.length > 0 && (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center", marginTop: 4 }}>
+      {eventos.slice(0,6).map(ev => {
+        const cfg = EVENT_CFG[ev.tipo]
+        return <div key={ev.id} title={cfg.label} style={{ width: 18, height: 18, borderRadius: "50%", background: `${cfg.cor}20`, border: `1px solid ${cfg.cor}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".58rem", color: cfg.cor }}>{cfg.icone}</div>
+      })}
+    </div>
+  )}
+
+  {/* Divisor */}
+  <div style={{ height: 1, background: "rgba(26,58,92,.4)", margin: "4px 0" }} />
+
+  {/* Tally */}
+  <div style={{ fontSize: ".55rem", color: "rgba(160,200,235,.3)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 4 }}>Tally</div>
+  {tallyItens.map(item => {
+    const count = tallyContadores[item.chave] ?? 0
+    return (
+      <button key={item.chave} onClick={() => registrarTally(item.chave, item.label)}
+        style={{ padding: "6px 4px", borderRadius: 8, border: `1px solid ${item.cor}33`, background: `${item.cor}0a`, color: item.cor, fontSize: ".58rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+        <span style={{ fontSize: "1rem", fontWeight: 800, color: count > 0 ? item.cor : "rgba(160,200,235,.3)" }}>{count}</span>
+        <span style={{ lineHeight: 1.2 }}>{item.label}</span>
+      </button>
+    )
+  })}
+
+  {/* Últimos registros tally */}
+  {tallyRegistros.length > 0 && (
+    <div style={{ marginTop: 4 }}>
+      {tallyRegistros.slice(0,4).map((r, i) => (
+        <div key={i} style={{ fontSize: ".5rem", color: "rgba(160,200,235,.3)", textAlign: "center", marginBottom: 2 }}>
+          {new Date(r.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} {r.label}
+        </div>
+      ))}
+    </div>
+  )}
+</div>
         </div>
 
         {/* Biblioteca */}
