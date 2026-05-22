@@ -1244,16 +1244,39 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
 
 
 
-    function registrarTally(chave: string, label: string) {
-        const ts = Date.now()
-        setTallyContadores(prev => ({ ...prev, [chave]: (prev[chave] ?? 0) + 1 }))
-        setTallyRegistros(prev => [{ chave, label, ts }, ...prev])
+function registrarTally(chave: string, label: string) {
+  const ts = Date.now()
+  
+  setTallyContadores(prev => {
+    const novoCount = (prev[chave] ?? 0) + 1
+    const updated = { ...prev, [chave]: novoCount }
+    
+    // Cruza com critérios e pontua automaticamente
+    const novasPontuacoes: Record<string, number> = {}
+    for (const criterio of tallyCriterios) {
+      // Verifica se este critério é do mesmo domínio do tally
+      const dominioChave = `tally_${criterio.dominio.charAt(0).toUpperCase()}${criterio.dominio.slice(1)}`
+      const countDominio = updated[dominioChave] ?? updated[chave] ?? 0
+      
+      if (countDominio >= criterio.valor_criterio) {
+        novasPontuacoes[criterio.item_id] = criterio.pontuacao_max
+      }
+    }
+    
+    if (Object.keys(novasPontuacoes).length > 0) {
+      setTallyPontuacoesAuto(prev => ({ ...prev, ...novasPontuacoes }))
+    }
+    
+    return updated
+  })
+  
+  setTallyRegistros(prev => [{ chave, label, ts }, ...prev])
 }
 
 // Tally dinâmico — baseado em avaliações ativas e comportamentos
 const tallyItens: { chave: string; label: string; cor: string }[] = []
 const dominiosAdicionados = new Set<string>()
-
+const [tallyPontuacoesAuto, setTallyPontuacoesAuto] = useState<Record<string, number>>({})
 
 // 1. Avaliações ativas — usa tallyDominios do protocolo
 const avaliacoesAtivas = acoes.filter(a => a.area === "avaliacao" && a.tipo === "assessment")
@@ -1447,11 +1470,12 @@ if (tallyItens.length === 0) {
 
                       {acao.tipo === "assessment" ? (
   <RegistroAvaliacao
-    acao={acao}
-    pacienteId={paciente?.id ?? ""}
-    sessaoId={sessaoDbId ?? ""}
-    terapeutaId={terapeuta?.id ?? ""}
-  />
+  acao={acao}
+  pacienteId={paciente?.id ?? ""}
+  sessaoId={sessaoDbId ?? ""}
+  terapeutaId={terapeuta?.id ?? ""}
+  pontuacoesAuto={tallyPontuacoesAuto}  // ← novo
+/>
 ) : (() => {
   // Usa hierarquia personalizada do programa se existir,
   // senão cai na hierarquia derivada do operante (legado)
@@ -1943,8 +1967,8 @@ ${notaEncerr || "—"}`
 }
 
 
-function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId }: {
-  itemId: string; pacienteId: string; sessaoId: string; terapeutaId: string
+function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontuacoesAuto }: {
+  itemId: string; pacienteId: string; sessaoId: string; terapeutaId: string; pontuacoesAuto?: Record<string, number>
 }) {
   const [protocolo, setProtocolo] = useState<any>(null)
   const [sessaoAval, setSessaoAval] = useState<any>(null)
@@ -1956,8 +1980,19 @@ function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId }: {
 
   const SIGLA_MAP: Record<string, string> = {
     vbmapp: "VB-MAPP", peak: "PEAK", ablls: "ABLLS-R",
+    
   }
-
+// Aplica pontuações automáticas do tally
+  useEffect(() => {
+    if (!pontuacoesAuto || !sessaoAval) return
+    
+    for (const [item_id, pontuacao] of Object.entries(pontuacoesAuto)) {
+      // Só aplica se ainda não foi pontuado manualmente
+      if (respostas[item_id] === undefined) {
+        registrarResposta(item_id, pontuacao)
+      }
+    }
+  }, [pontuacoesAuto, sessaoAval])
   useEffect(() => {
     async function carregar() {
       const sigla = SIGLA_MAP[itemId]
@@ -2026,6 +2061,7 @@ function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId }: {
     }
     carregar()
   }, [itemId, pacienteId])
+
 
   async function registrarResposta(item_id: string, pontuacao: number) {
     if (!sessaoAval) return
@@ -2132,8 +2168,9 @@ function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId }: {
 
 // ─── REGISTRO DE AVALIAÇÃO ───────────────────────────────────────────────────
 
-function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId }: {
+function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoesAuto }: {
   acao: Acao; pacienteId: string; sessaoId: string; terapeutaId: string
+  pontuacoesAuto?: Record<string, number>  // ← novo
 }) {
   const isPref = acao.itemId === "pref_mswo" || acao.itemId === "pref_livre"
   const isMSWO = acao.itemId === "pref_mswo"
@@ -2459,13 +2496,14 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId }: {
 
     // ── VB-MAPP / PEAK / ABLLS — folha de registro inline ──────────────────────
     return (
-      <FolhaRegistroInline
-        itemId={acao.itemId}
-        pacienteId={pacienteId}
-        sessaoId={sessaoId}
-        terapeutaId={terapeutaId}
-      />
-    )
+  <FolhaRegistroInline
+    itemId={acao.itemId}
+    pacienteId={pacienteId}
+    sessaoId={sessaoId}
+    terapeutaId={terapeutaId}
+    pontuacoesAuto={pontuacoesAuto}  // ← novo
+  />
+)
 }
 
 // ─── COMPONENTES AUXILIARES ──────────────────────────────────────────────────
