@@ -279,6 +279,10 @@ function SessaoInner() {
 const [tallyContadores, setTallyContadores] = useState<Record<string, number>>({})
 const [tallyRegistros, setTallyRegistros] = useState<{chave: string; label: string; ts: number}[]>([])
 
+const [tallyCriterios, setTallyCriterios] = useState<{
+item_id: string; codigo: string; descricao: string; dominio: string; valor_criterio: number; pontuacao_max: number
+}[]>([])
+
 
   // ── Persistência localStorage ─────────────────────────────────────────────────
   const STORAGE_KEY = "fracta_sessao_ativa"
@@ -589,6 +593,42 @@ const [tallyRegistros, setTallyRegistros] = useState<{chave: string; label: stri
     planoProgramaId: item.planoProgramaId,      // ← novo
   }
 
+  // Carrega critérios de contagem se for avaliação formal
+if (item.tipo === "avaliacao" && ["vbmapp", "peak", "ablls"].includes(item.id)) {
+  const SIGLA_MAP: Record<string, string> = {
+    vbmapp: "VB-MAPP", peak: "PEAK", ablls: "ABLLS-R"
+  }
+  const sigla = SIGLA_MAP[item.id]
+  const { data: prot } = await supabase
+    .from("avaliacao_protocolos")
+    .select("id")
+    .eq("sigla", sigla)
+    .single()
+
+  if (prot) {
+    const { data: criterios } = await supabase
+      .from("avaliacao_itens")
+      .select(`
+        id, codigo, descricao, valor_criterio, pontuacao_max,
+        avaliacao_dominios ( nome, dominio_radar )
+      `)
+      .eq("tipo_criterio", "contagem")
+      .not("valor_criterio", "is", null)
+      .order("codigo")
+
+    if (criterios) {
+      setTallyCriterios(criterios.map((c: any) => ({
+        item_id: c.id,
+        codigo: c.codigo,
+        descricao: c.descricao,
+        dominio: c.avaliacao_dominios?.dominio_radar ?? c.avaliacao_dominios?.nome ?? "",
+        valor_criterio: c.valor_criterio,
+        pontuacao_max: c.pontuacao_max,
+      })))
+    }
+  }
+}
+
   if (sessaoDbId) {
     const stAtual = stages.find(s => s.status === "active")
     const { data: acDb } = await supabase.from("session_actions").insert({
@@ -608,6 +648,8 @@ const [tallyRegistros, setTallyRegistros] = useState<{chave: string; label: stri
   setAcaoAtiva(novaAcao)
   setLibAberta(false)
 }
+
+
 
   // ── Registrar operante ──────────────────────────────────────────────────────
  async function registrarOperante(correto: boolean, nivelKey?: string) {
@@ -1201,6 +1243,7 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
     const acoesArea = acoes.filter(a => a.area === areaAtiva)
 
 
+
     function registrarTally(chave: string, label: string) {
         const ts = Date.now()
         setTallyContadores(prev => ({ ...prev, [chave]: (prev[chave] ?? 0) + 1 }))
@@ -1210,6 +1253,7 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
 // Tally dinâmico — baseado em avaliações ativas e comportamentos
 const tallyItens: { chave: string; label: string; cor: string }[] = []
 const dominiosAdicionados = new Set<string>()
+
 
 // 1. Avaliações ativas — usa tallyDominios do protocolo
 const avaliacoesAtivas = acoes.filter(a => a.area === "avaliacao" && a.tipo === "assessment")
@@ -1672,6 +1716,41 @@ if (tallyItens.length === 0) {
 
         {/* Biblioteca */}
         {libAberta && <Biblioteca itens={libFiltrada} tab={libTab} setTab={setLibTab} busca={libBusca} setBusca={setLibBusca} onAdd={adicionarAcao} onFechar={() => setLibAberta(false)} />}
+
+{/* Marcos atingidos pelo tally */}
+{tallyCriterios.length > 0 && (
+  <div style={{ marginTop: 4 }}>
+    <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 4 }}>Marcos</div>
+    {tallyCriterios
+      .filter(c => {
+        // Encontra o tally item correspondente ao domínio
+        const tallyChave = `tally_${c.dominio.charAt(0).toUpperCase() + c.dominio.slice(1)}`
+        const count = tallyContadores[tallyChave] ?? 
+                      tallyContadores[`tally_Mando`] ?? 0
+        return count > 0
+      })
+      .map(c => {
+        const tallyChave = Object.keys(tallyContadores).find(k => 
+          k.toLowerCase().includes(c.dominio.toLowerCase()) ||
+          c.codigo.toLowerCase().startsWith(c.dominio.charAt(0).toLowerCase())
+        )
+        const count = tallyChave ? (tallyContadores[tallyChave] ?? 0) : 0
+        const atingido = count >= c.valor_criterio
+        return (
+          <div key={c.item_id} style={{ 
+            padding: "4px", borderRadius: 6, marginBottom: 3,
+            background: atingido ? "rgba(29,158,117,.15)" : "rgba(26,58,92,.15)",
+            border: `1px solid ${atingido ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.3)"}`,
+            fontSize: ".52rem", textAlign: "center",
+            color: atingido ? "#1D9E75" : "rgba(160,200,235,.4)"
+          }}>
+            <div style={{ fontWeight: 700 }}>{c.codigo} {atingido ? "✓" : `${count}/${c.valor_criterio}`}</div>
+          </div>
+        )
+      })
+    }
+  </div>
+)}
 
         {/* Pop-ups */}
         {showAvisoTempo && <AvisoTempo onContinuar={() => setShowAvisoTempo(false)} onEncerrar={() => { setShowAvisoTempo(false); setShowEncModal(true) }} />}
