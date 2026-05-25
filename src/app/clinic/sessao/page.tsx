@@ -1982,20 +1982,7 @@ function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontua
     vbmapp: "VB-MAPP", peak: "PEAK", ablls: "ABLLS-R",
     
   }
-// Aplica pontuações automáticas do tally
-useEffect(() => {
-  if (!pontuacoesAuto || !sessaoAval) return
-  
-  const aplicar = async () => {
-    for (const [item_id, pontuacao] of Object.entries(pontuacoesAuto)) {
-      if (respostas[item_id] === undefined) {
-        await registrarResposta(item_id, pontuacao)
-      }
-    }
-  }
-  
-  aplicar()
-}, [JSON.stringify(pontuacoesAuto), sessaoAval?.id])
+
   useEffect(() => {
     async function carregar() {
       const sigla = SIGLA_MAP[itemId]
@@ -2063,6 +2050,20 @@ useEffect(() => {
       setLoading(false)
     }
     carregar()
+    useEffect(() => {
+  if (!pontuacoesAuto || Object.keys(pontuacoesAuto).length === 0) return
+  setRespostas(prev => {
+    const updated = { ...prev }
+    let mudou = false
+    for (const [item_id, pontuacao] of Object.entries(pontuacoesAuto)) {
+      if (updated[item_id] === undefined) {
+        updated[item_id] = pontuacao
+        mudou = true
+      }
+    }
+    return mudou ? updated : prev
+  })
+}, [JSON.stringify(pontuacoesAuto)])
   }, [itemId, pacienteId])
 
 
