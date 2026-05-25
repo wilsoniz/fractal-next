@@ -266,7 +266,21 @@ function SessaoInner() {
  
   // ── Modal avaliação formal ────────────────────────────────────────────────────
   const [modalAvaliacao, setModalAvaliacao] = useState<LibItem | null>(null)
- 
+  const [tallyPontuacoesAuto, setTallyPontuacoesAuto] = useState<Record<string, number>>({})
+// ── Encerramento ──────────────────────────────────────────────────────────────
+  const [showEncModal,    setShowEncModal]    = useState(false)
+  const [familiaComunic,  setFamiliaComunic]  = useState<boolean|null>(null)
+  const [notaEncerr,      setNotaEncerr]      = useState("")
+  const [salvandoEnc,     setSalvandoEnc]     = useState(false)
+  const [dragOver,        setDragOver]        = useState(false)
+
+  // ── Supervisão ────────────────────────────────────────────────────────────────
+  const [encaminhamentos, setEncaminhamentos] = useState<Encaminhamento[]>([])
+  const [novoEnc,         setNovoEnc]         = useState({ programaNome: "", acao: "", prioridade: "media" as "alta"|"media"|"baixa" })
+  const [assinaturaSup,   setAssinaturaSup]   = useState(false)
+  const [assinaturaSupv,  setAssinaturaSupv]  = useState(false)
+
+
   // ── Timer ─────────────────────────────────────────────────────────────────────
   const [segundos,           setSegundos]           = useState(0)
   const [emPausa,            setEmPausa]            = useState(false)
@@ -322,19 +336,7 @@ item_id: string; codigo: string; descricao: string; dominio: string; valor_crite
     } catch { /* ignora erro de parse */ }
   }, [])
 
-  // ── Encerramento ──────────────────────────────────────────────────────────────
-  const [showEncModal,    setShowEncModal]    = useState(false)
-  const [familiaComunic,  setFamiliaComunic]  = useState<boolean|null>(null)
-  const [notaEncerr,      setNotaEncerr]      = useState("")
-  const [salvandoEnc,     setSalvandoEnc]     = useState(false)
-  const [dragOver,        setDragOver]        = useState(false)
-
-  // ── Supervisão ────────────────────────────────────────────────────────────────
-  const [encaminhamentos, setEncaminhamentos] = useState<Encaminhamento[]>([])
-  const [novoEnc,         setNovoEnc]         = useState({ programaNome: "", acao: "", prioridade: "media" as "alta"|"media"|"baixa" })
-  const [assinaturaSup,   setAssinaturaSup]   = useState(false)
-  const [assinaturaSupv,  setAssinaturaSupv]  = useState(false)
-
+  
   // ── Carregar dados ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!pacienteId) { setLoading(false); return }
@@ -720,6 +722,37 @@ if (item.tipo === "avaliacao" && ["vbmapp", "peak", "ablls"].includes(item.id)) 
     if (emPausa) { setEmPausa(false); registrarEvento("session_resumed") }
     else         { setEmPausa(true);  registrarEvento("session_paused")  }
   }
+
+
+function registrarTally(chave: string, label: string) {
+  const ts = Date.now()
+  
+  setTallyContadores(prev => {
+    const novoCount = (prev[chave] ?? 0) + 1
+    const updated = { ...prev, [chave]: novoCount }
+    
+    // Cruza com critérios e pontua automaticamente
+    const novasPontuacoes: Record<string, number> = {}
+    for (const criterio of tallyCriterios) {
+      // Verifica se este critério é do mesmo domínio do tally
+      const dominioChave = `tally_${criterio.dominio.charAt(0).toUpperCase()}${criterio.dominio.slice(1)}`
+      const countDominio = updated[dominioChave] ?? updated[chave] ?? 0
+      
+      if (countDominio >= criterio.valor_criterio) {
+        novasPontuacoes[criterio.item_id] = criterio.pontuacao_max
+      }
+    }
+    
+    if (Object.keys(novasPontuacoes).length > 0) {
+      setTallyPontuacoesAuto(prev => ({ ...prev, ...novasPontuacoes }))
+    }
+    
+    return updated
+  })
+  
+  setTallyRegistros(prev => [{ chave, label, ts }, ...prev])
+}
+
 
   function alterarAssentimento(novoEstado: "ativo"|"revogado") {
   if (novoEstado === "ativo" && estadoAssentimento === "ativo") return // já está ativo
@@ -1234,6 +1267,12 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
     )
   }
 
+  // Tally dinâmico — baseado em avaliações ativas e comportamentos
+  const tallyItens: { chave: string; label: string; cor: string }[] = []
+  const dominiosAdicionados = new Set<string>()
+  // Avaliações ativas — usa tallyDominios do protocolo
+  const avaliacoesAtivas = acoes.filter(a => a.area === "avaliacao" && a.tipo === "assessment")
+
   // ══════════════════════════════════════════════════════════════════════════
   // SESSÃO ATIVA — ATENDIMENTO / AT
   // ══════════════════════════════════════════════════════════════════════════
@@ -1244,42 +1283,10 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
 
 
 
-function registrarTally(chave: string, label: string) {
-  const ts = Date.now()
-  
-  setTallyContadores(prev => {
-    const novoCount = (prev[chave] ?? 0) + 1
-    const updated = { ...prev, [chave]: novoCount }
-    
-    // Cruza com critérios e pontua automaticamente
-    const novasPontuacoes: Record<string, number> = {}
-    for (const criterio of tallyCriterios) {
-      // Verifica se este critério é do mesmo domínio do tally
-      const dominioChave = `tally_${criterio.dominio.charAt(0).toUpperCase()}${criterio.dominio.slice(1)}`
-      const countDominio = updated[dominioChave] ?? updated[chave] ?? 0
-      
-      if (countDominio >= criterio.valor_criterio) {
-        novasPontuacoes[criterio.item_id] = criterio.pontuacao_max
-      }
-    }
-    
-    if (Object.keys(novasPontuacoes).length > 0) {
-      setTallyPontuacoesAuto(prev => ({ ...prev, ...novasPontuacoes }))
-    }
-    
-    return updated
-  })
-  
-  setTallyRegistros(prev => [{ chave, label, ts }, ...prev])
-}
 
-// Tally dinâmico — baseado em avaliações ativas e comportamentos
-const tallyItens: { chave: string; label: string; cor: string }[] = []
-const dominiosAdicionados = new Set<string>()
-const [tallyPontuacoesAuto, setTallyPontuacoesAuto] = useState<Record<string, number>>({})
 
 // 1. Avaliações ativas — usa tallyDominios do protocolo
-const avaliacoesAtivas = acoes.filter(a => a.area === "avaliacao" && a.tipo === "assessment")
+
 for (const av of avaliacoesAtivas) {
   const cat = AVALIACOES_CAT.find(c => c.id === av.itemId)
   if (cat?.tallyDominios) {
