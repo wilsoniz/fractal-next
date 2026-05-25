@@ -2050,7 +2050,9 @@ function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontua
       setLoading(false)
     }
     carregar()
-    useEffect(() => {
+  }, [itemId, pacienteId])
+
+useEffect(() => {
   if (!pontuacoesAuto || Object.keys(pontuacoesAuto).length === 0) return
   setRespostas(prev => {
     const updated = { ...prev }
@@ -2064,8 +2066,6 @@ function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontua
     return mudou ? updated : prev
   })
 }, [JSON.stringify(pontuacoesAuto)])
-  }, [itemId, pacienteId])
-
 
   async function registrarResposta(item_id: string, pontuacao: number) {
     if (!sessaoAval) return
