@@ -1983,16 +1983,19 @@ function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontua
     
   }
 // Aplica pontuações automáticas do tally
-  useEffect(() => {
-    if (!pontuacoesAuto || !sessaoAval) return
-    
+useEffect(() => {
+  if (!pontuacoesAuto || !sessaoAval) return
+  
+  const aplicar = async () => {
     for (const [item_id, pontuacao] of Object.entries(pontuacoesAuto)) {
-      // Só aplica se ainda não foi pontuado manualmente
       if (respostas[item_id] === undefined) {
-        registrarResposta(item_id, pontuacao)
+        await registrarResposta(item_id, pontuacao)
       }
     }
-  }, [pontuacoesAuto, sessaoAval])
+  }
+  
+  aplicar()
+}, [JSON.stringify(pontuacoesAuto), sessaoAval?.id])
   useEffect(() => {
     async function carregar() {
       const sigla = SIGLA_MAP[itemId]
