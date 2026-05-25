@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useClinicContext } from "../layout";
@@ -2050,22 +2050,20 @@ function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontua
       setLoading(false)
     }
     carregar()
+    
   }, [itemId, pacienteId])
 
-useEffect(() => {
-  if (!pontuacoesAuto || Object.keys(pontuacoesAuto).length === 0) return
-  setRespostas(prev => {
-    const updated = { ...prev }
-    let mudou = false
-    for (const [item_id, pontuacao] of Object.entries(pontuacoesAuto)) {
-      if (updated[item_id] === undefined) {
-        updated[item_id] = pontuacao
-        mudou = true
-      }
+// Merge respostas manuais com automáticas do tally
+const respostasEfetivas = useMemo(() => {
+  if (!pontuacoesAuto || Object.keys(pontuacoesAuto).length === 0) return respostas
+  const merged = { ...respostas }
+  for (const [item_id, pontuacao] of Object.entries(pontuacoesAuto)) {
+    if (merged[item_id] === undefined) {
+      merged[item_id] = pontuacao
     }
-    return mudou ? updated : prev
-  })
-}, [JSON.stringify(pontuacoesAuto)])
+  }
+  return merged
+}, [respostas, pontuacoesAuto])  
 
   async function registrarResposta(item_id: string, pontuacao: number) {
     if (!sessaoAval) return
@@ -2102,7 +2100,7 @@ useEffect(() => {
   const cor = protocolo?.cor ?? "#1D9E75"
   const dominioAtivoObj = protocolo?.dominios?.find((d: any) => d.id === dominioAtivo)
   const totalItens = protocolo?.dominios?.reduce((a: number, d: any) => a + d.itens.length, 0) ?? 0
-  const totalRespondidos = Object.keys(respostas).length
+  const totalRespondidos = Object.keys(respostasEfetivas).length
   const pct = totalItens > 0 ? Math.round(totalRespondidos / totalItens * 100) : 0
 
   return (
@@ -2119,7 +2117,7 @@ useEffect(() => {
       {/* Tabs de domínios */}
       <div style={{ display: "flex", gap: 4, overflowX: "auto", paddingBottom: 4 }}>
         {protocolo?.dominios?.map((d: any) => {
-          const respondidos = d.itens.filter((i: any) => respostas[i.id] !== undefined).length
+          const respondidos = d.itens.filter((i: any) => respostasEfetivas[i.id] !== undefined).length
           const ativo = dominioAtivo === d.id
           return (
             <button key={d.id} onClick={() => setDominioAtivo(d.id)}
@@ -2133,7 +2131,7 @@ useEffect(() => {
       {/* Itens do domínio ativo */}
       <div style={{ maxHeight: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
         {dominioAtivoObj?.itens?.map((item: any) => {
-          const resposta = respostas[item.id]
+          const resposta = respostasEfetivas[item.id]
           const respondido = resposta !== undefined
           return (
             <div key={item.id} style={{ background: respondido ? `${cor}08` : "rgba(13,32,53,.6)", border: `1px solid ${respondido ? cor + "33" : "rgba(26,58,92,.4)"}`, borderRadius: 10, padding: "10px 12px" }}>
