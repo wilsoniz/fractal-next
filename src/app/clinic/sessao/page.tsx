@@ -1972,7 +1972,6 @@ ${notaEncerr || "—"}`
 
 function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontuacoesAuto }: {
   itemId: string; pacienteId: string; sessaoId: string; terapeutaId: string; pontuacoesAuto?: Record<string, number>
-  onPontuacaoAuto?: (callbacks: Record<string, (pontuacao: number) => void>) => void
 }) {
   const [protocolo, setProtocolo] = useState<any>(null)
   const [sessaoAval, setSessaoAval] = useState<any>(null)
@@ -2081,14 +2080,57 @@ const respostasEfetivas = useMemo(() => {
   }
 
   async function concluirAvaliacao() {
-    if (!sessaoAval || !protocolo) return
-    await supabase.from("avaliacoes_sessoes")
-      .update({ status: "concluida", concluida_em: new Date().toISOString() })
-      .eq("id", sessaoAval.id)
-    await atualizarRepertorioSessao(protocolo, sessaoAval, respostas, pacienteId)
-    await atualizarJornadaSessao(protocolo, sessaoAval, respostas, pacienteId)
-    setConcluido(true)
+  if (!sessaoAval || !protocolo) return
+  await supabase.from("avaliacoes_sessoes")
+    .update({ status: "concluida", concluida_em: new Date().toISOString() })
+    .eq("id", sessaoAval.id)
+  await atualizarRepertorioSessao(protocolo, sessaoAval, respostas, pacienteId)
+  await atualizarJornadaSessao(protocolo, sessaoAval, respostas, pacienteId)
+  
+  // Gerar sugestões de programas baseadas nos scores baixos
+  for (const dominio of protocolo.dominios) {
+    if (dominio.tipo_dominio === "barreira") continue
+    for (const item of dominio.itens) {
+      const pontuacao = respostas[item.id]
+      if (pontuacao === undefined) continue
+      const scorePercent = Math.round((pontuacao / item.pontuacao_max) * 100)
+      if (scorePercent > 79) continue
+
+      const { data: programasSugeridos } = await supabase
+        .from("avaliacao_item_programas")
+        .select("*")
+        .eq("avaliacao_item_id", item.id)
+
+      if (!programasSugeridos || programasSugeridos.length === 0) continue
+
+      for (const prog of programasSugeridos) {
+        const { data: existente } = await supabase
+          .from("plano_sugestoes")
+          .select("id")
+          .eq("crianca_id", pacienteId)
+          .eq("avaliacao_item_id", item.id)
+          .eq("nome_programa", prog.nome)
+          .in("status", ["pendente", "aprovado"])
+          .maybeSingle()
+
+        if (existente) continue
+
+        await supabase.from("plano_sugestoes").insert({
+          crianca_id:          pacienteId,
+          terapeuta_id:        terapeutaId,
+          avaliacao_sessao_id: sessaoAval.id,
+          avaliacao_item_id:   item.id,
+          nome_programa:       prog.nome,
+          dominio:             prog.dominio,
+          score_avaliado:      scorePercent,
+          status:              "pendente",
+        })
+      }
+    }
   }
+  
+  setConcluido(true)
+}
 
   if (loading) return (
     <div style={{ padding: 16, fontSize: ".78rem", color: "rgba(160,200,235,.4)" }}>Carregando protocolo...</div>
