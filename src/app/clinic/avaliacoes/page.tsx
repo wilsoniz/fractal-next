@@ -347,8 +347,7 @@ async function gerarSugestoesProgramas(
         .from("avaliacao_item_programas")
         .select("*")
         .eq("avaliacao_item_id", item.id)
-        .lte("score_gatilho", scorePercent === 0 ? 0 : scorePercent)
-        .order("ordem")
+        .order("id")
 
       if (!programasSugeridos || programasSugeridos.length === 0) continue
 

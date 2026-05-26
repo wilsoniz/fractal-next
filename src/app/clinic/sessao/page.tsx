@@ -1281,10 +1281,6 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
     const stCfg   = stAtual ? STAGES_CFG[stAtual.key] : null
     const acoesArea = acoes.filter(a => a.area === areaAtiva)
 
-
-
-
-
 // 1. Avaliações ativas — usa tallyDominios do protocolo
 
 for (const av of avaliacoesAtivas) {
@@ -1976,6 +1972,7 @@ ${notaEncerr || "—"}`
 
 function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontuacoesAuto }: {
   itemId: string; pacienteId: string; sessaoId: string; terapeutaId: string; pontuacoesAuto?: Record<string, number>
+  onPontuacaoAuto?: (callbacks: Record<string, (pontuacao: number) => void>) => void
 }) {
   const [protocolo, setProtocolo] = useState<any>(null)
   const [sessaoAval, setSessaoAval] = useState<any>(null)
