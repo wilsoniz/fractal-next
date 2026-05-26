@@ -2102,7 +2102,7 @@ const respostasEfetivas = useMemo(() => {
         .eq("avaliacao_item_id", item.id)
 
       if (!programasSugeridos || programasSugeridos.length === 0) continue
-
+//mudei
       for (const prog of programasSugeridos) {
         const { data: existente } = await supabase
           .from("plano_sugestoes")
