@@ -2096,12 +2096,12 @@ const respostasEfetivas = useMemo(() => {
       if (pontuacao === undefined) continue
       const scorePercent = Math.round((pontuacao / item.pontuacao_max) * 100)
       if (scorePercent > 79) continue
-
+              console.log("item com score baixo:", item.codigo, scorePercent)  // ← adicione aq
       const { data: programasSugeridos } = await supabase
         .from("avaliacao_item_programas")
         .select("*")
         .eq("avaliacao_item_id", item.id)
-
+              console.log("programas encontrados:", programasSugeridos?.length ?? 0, item.id)  // ← e aqui
       if (!programasSugeridos || programasSugeridos.length === 0) continue
 //mudei
       for (const prog of programasSugeridos) {
