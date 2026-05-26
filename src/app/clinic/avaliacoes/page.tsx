@@ -332,6 +332,12 @@ async function gerarSugestoesProgramas(
   sessaoAtiva: SessaoAtiva,
   respostas: RespostaLocal
 ) {
+  console.log("gerarSugestoesProgramas iniciou", { 
+    protocolo: protocoloSel.sigla, 
+    sessaoId: sessaoAtiva.id,
+    criancaId: sessaoAtiva.crianca_id,
+    respostas 
+  })
   // 1. Para cada item com score abaixo do gatilho (79%)
   for (const dominio of protocoloSel.dominios) {
     if (dominio.tipo_dominio === "barreira") continue
@@ -361,7 +367,7 @@ async function gerarSugestoesProgramas(
           .eq("item_programa_id", prog.id)
           .in("status", ["pendente", "aprovado"])
           .maybeSingle()
-
+console.log("item", item.id, item.codigo, "score", scorePercent, "programas encontrados:", programasSugeridos?.length ?? 0)
         if (existente) continue // já existe, não duplica
 
         // 4. Cria sugestão
