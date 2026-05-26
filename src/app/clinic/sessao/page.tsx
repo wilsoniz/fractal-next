@@ -2081,6 +2081,7 @@ const respostasEfetivas = useMemo(() => {
 
   async function concluirAvaliacao() {
   if (!sessaoAval || !protocolo) return
+  console.log("concluirAvaliacao iniciou", { sessaoId: sessaoAval.id, pacienteId, dominios: protocolo.dominios.length })
   await supabase.from("avaliacoes_sessoes")
     .update({ status: "concluida", concluida_em: new Date().toISOString() })
     .eq("id", sessaoAval.id)
