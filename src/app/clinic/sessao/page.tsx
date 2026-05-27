@@ -337,8 +337,8 @@ item_id: string; codigo: string; descricao: string; dominio: string; valor_crite
   }, [])
 
   
-  // ── Carregar dados ─────────────────────────────────────────────────────────────
-  useEffect(() => {
+// ── Carregar dados ─────────────────────────────────────────────────────────────
+useEffect(() => {
     if (!pacienteId) { setLoading(false); return }
  async function carregar() {
   setLoading(true)
@@ -459,9 +459,31 @@ item_id: string; codigo: string; descricao: string; dominio: string; valor_crite
     planejado: false,
   }))
 
-  setBiblioteca([...planejados, ...libGeral, ...libAvals])
+  // Sugestões pendentes
+const { data: sugestoesPendentes } = await supabase
+  .from("plano_sugestoes")
+  .select("*")
+  .eq("crianca_id", pacienteId)
+  .eq("status", "pendente")
+
+const libSugestoes: LibItem[] = (sugestoesPendentes ?? []).map((s: any) => ({
+  id: s.id,
+  nome: `💡 ${s.nome_programa}`,
+  dominio: s.dominio ?? "comunicacao",
+  tipo: "programa" as const,
+  planejado: true,
+  operante: s.operante,
+  totalTentativas: 10,
+  hierarquiaDicas: ["independente", "gestual", "modelo", "física parcial", "física total"],
+  estrategiaDica: "least_to_most",
+}))
+
+setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
+
   setLoading(false)
 }
+
+//acaba aqui
     carregar()
   }, [pacienteId])
 
