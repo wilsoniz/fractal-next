@@ -266,6 +266,7 @@ function SessaoInner() {
  
   // ── Modal avaliação formal ────────────────────────────────────────────────────
   const [modalAvaliacao, setModalAvaliacao] = useState<LibItem | null>(null)
+  const [modalConfigurarPrograma, setModalConfigurarPrograma] = useState<LibItem | null>(null)
   const [tallyPontuacoesAuto, setTallyPontuacoesAuto] = useState<Record<string, number>>({})
 // ── Encerramento ──────────────────────────────────────────────────────────────
   const [showEncModal,    setShowEncModal]    = useState(false)
@@ -1284,7 +1285,13 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
         )}
 
         {/* Biblioteca */}
-        {libAberta && <Biblioteca itens={libFiltrada} tab={libTab} setTab={setLibTab} busca={libBusca} setBusca={setLibBusca} onAdd={adicionarAcao} onFechar={() => setLibAberta(false)} />}
+        {libAberta && <Biblioteca itens={libFiltrada} tab={libTab} setTab={setLibTab} busca={libBusca} setBusca={setLibBusca} onAdd={(item) => {
+  if (item.tipo === "avaliacao" || (item.planejado && !item.nome.startsWith("💡"))) {
+    adicionarAcao(item)
+  } else {
+    setModalConfigurarPrograma(item)
+  }
+}} onFechar={() => setLibAberta(false)} />}
       </div>
     )
   }
@@ -1764,7 +1771,13 @@ if (tallyItens.length === 0) {
         </div>
 
         {/* Biblioteca */}
-        {libAberta && <Biblioteca itens={libFiltrada} tab={libTab} setTab={setLibTab} busca={libBusca} setBusca={setLibBusca} onAdd={adicionarAcao} onFechar={() => setLibAberta(false)} />}
+        {libAberta && <Biblioteca itens={libFiltrada} tab={libTab} setTab={setLibTab} busca={libBusca} setBusca={setLibBusca} onAdd={(item) => {
+  if (item.tipo === "avaliacao" || (item.planejado && !item.nome.startsWith("💡"))) {
+    adicionarAcao(item)
+  } else {
+    setModalConfigurarPrograma(item)
+  }
+}} onFechar={() => setLibAberta(false)} />}
 
 {/* Marcos atingidos pelo tally */}
 {tallyCriterios.length > 0 && (
@@ -1800,7 +1813,17 @@ if (tallyItens.length === 0) {
     }
   </div>
 )}
-
+{/* Modal configurar programa */}
+{modalConfigurarPrograma && (
+  <ModalConfigurarPrograma
+    item={modalConfigurarPrograma}
+    onConfirmar={(itemConfigurado) => {
+      adicionarAcao(itemConfigurado)
+      setModalConfigurarPrograma(null)
+    }}
+    onCancelar={() => setModalConfigurarPrograma(null)}
+  />
+)}
         {/* Pop-ups */}
         {showAvisoTempo && <AvisoTempo onContinuar={() => setShowAvisoTempo(false)} onEncerrar={() => { setShowAvisoTempo(false); setShowEncModal(true) }} />}
         {showEncModal && (
@@ -2655,6 +2678,141 @@ function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setF
           <button onClick={onConfirmar} disabled={!podeFinalizar || salvando}
             style={{ flex: 2, padding: "11px", borderRadius: 10, border: "none", background: podeFinalizar && !salvando ? "linear-gradient(135deg,#E05A4B,#c04030)" : "rgba(26,58,92,.4)", color: podeFinalizar && !salvando ? "#fff" : "rgba(160,200,235,.3)", fontWeight: 800, fontSize: ".82rem", cursor: podeFinalizar && !salvando ? "pointer" : "not-allowed", fontFamily: "var(--font-sans)" }}>
             {salvando ? "Finalizando..." : "Finalizar sessão →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
+  item: LibItem
+  onConfirmar: (item: LibItem) => void
+  onCancelar: () => void
+}) {
+  const HIERARQUIAS_PRESET: Record<string, string[]> = {
+    mando_net: ["espera", "contextual", "gestual", "visual", "ecoica_parcial", "ecoica_total"],
+    mando_dtt: ["independente", "gestual", "modelo", "ecoica", "física parcial", "física total"],
+    generica:  ["independente", "gestual", "modelo", "física parcial", "física total"],
+  }
+
+  const presetInicial = item.operante === "mando" ? "mando_net" : "generica"
+  const [preset, setPreset] = useState(presetInicial)
+  const [hierarquia, setHierarquia] = useState<string[]>(
+  (item.hierarquiaDicas?.length ?? 0) > 0 ? (item.hierarquiaDicas ?? []) : HIERARQUIAS_PRESET[presetInicial]
+)
+  const [delay, setDelay] = useState(2)
+  const [estrategia, setEstrategia] = useState<"least_to_most"|"most_to_least">("least_to_most")
+  const [novoNivel, setNovoNivel] = useState("")
+
+  function aplicarPreset(p: string) {
+    setPreset(p)
+    setHierarquia([...HIERARQUIAS_PRESET[p]])
+  }
+
+  function removerNivel(idx: number) {
+    setHierarquia(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function adicionarNivel() {
+    if (!novoNivel.trim()) return
+    setHierarquia(prev => [...prev, novoNivel.trim()])
+    setNovoNivel("")
+  }
+
+  function confirmar() {
+    onConfirmar({
+      ...item,
+      nome: item.nome.replace("💡 ", ""),
+      hierarquiaDicas: hierarquia,
+      estrategiaDica: estrategia,
+    })
+  }
+
+  const inp: React.CSSProperties = {
+    padding: "8px 10px", borderRadius: 8,
+    border: "1px solid rgba(26,58,92,.4)",
+    background: "rgba(13,32,53,.6)", color: "#e8f0f8",
+    fontSize: ".75rem", fontFamily: "var(--font-sans)",
+    outline: "none", boxSizing: "border-box" as const,
+  }
+
+  return (
+    <div onClick={onCancelar} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "rgba(7,17,31,.97)", border: "1px solid rgba(26,58,92,.5)", borderRadius: 16, padding: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
+        
+        <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>
+          Configurar programa
+        </div>
+        <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.5)", marginBottom: 20 }}>
+          {item.nome.replace("💡 ", "")}
+        </div>
+
+        {/* Preset */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Hierarquia base</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {[
+              ["mando_net", "Mando NET"],
+              ["mando_dtt", "Mando DTT"],
+              ["generica",  "Genérica"],
+            ].map(([id, label]) => (
+              <button key={id} onClick={() => aplicarPreset(id)}
+                style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${preset === id ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: preset === id ? "rgba(29,158,117,.1)" : "transparent", color: preset === id ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: preset === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Níveis editáveis */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Níveis de dica (arraste para reordenar)</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {hierarquia.map((nivel, idx) => (
+              <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: idx === 0 ? "rgba(29,158,117,.1)" : "rgba(26,58,92,.2)", borderRadius: 8, border: `1px solid ${idx === 0 ? "rgba(29,158,117,.3)" : "rgba(26,58,92,.3)"}` }}>
+                <span style={{ fontSize: ".72rem", color: idx === 0 ? "#1D9E75" : "rgba(160,200,235,.7)", flex: 1 }}>
+                  {idx === 0 ? "✓ " : `${idx}. `}{nivel}
+                </span>
+                {idx > 0 && (
+                  <button onClick={() => removerNivel(idx)} style={{ background: "none", border: "none", color: "rgba(224,90,75,.5)", cursor: "pointer", fontSize: ".8rem", padding: 0 }}>×</button>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            <input value={novoNivel} onChange={e => setNovoNivel(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") adicionarNivel() }}
+              placeholder="+ Adicionar nível..."
+              style={{ ...inp, flex: 1 }} />
+            <button onClick={adicionarNivel} style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(29,158,117,.2)", color: "#1D9E75", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+              Add
+            </button>
+          </div>
+        </div>
+
+        {/* Delay e estratégia */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Delay de prompt (s)</div>
+            <input type="number" min={0} max={10} value={delay} onChange={e => setDelay(parseInt(e.target.value))}
+              style={{ ...inp, width: "100%" }} />
+          </div>
+          <div>
+            <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Estratégia</div>
+            <select value={estrategia} onChange={e => setEstrategia(e.target.value as any)}
+              style={{ ...inp, width: "100%" }}>
+              <option value="least_to_most">Menos → Mais</option>
+              <option value="most_to_least">Mais → Menos</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onCancelar} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid rgba(26,58,92,.5)", background: "transparent", color: "rgba(160,200,235,.6)", fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            Cancelar
+          </button>
+          <button onClick={confirmar} style={{ flex: 2, padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            Adicionar à sessão →
           </button>
         </div>
       </div>
