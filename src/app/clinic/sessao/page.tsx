@@ -31,6 +31,7 @@ interface Acao {
   hierarquiaDicas?: string[]    // ← novo
   planoId?: string
   planoProgramaId?: string      // ← novo
+  tipo_registro?: "dtt" | "frequencia" | "duracao" | "latencia" | "encadeamento" | "matching"
 }
 
 interface LibItem {
@@ -40,15 +41,16 @@ interface LibItem {
   tipo: "programa" | "avaliacao"
   planejado: boolean
   planoId?: string
-  planoProgramaId?: string      // ← novo
-  alvoId?: string               // ← novo
+  planoProgramaId?: string
+  alvoId?: string
   taxaHistorica?: number
   operante?: string
   totalTentativas?: number
-  hierarquiaDicas?: string[]    // ← novo: array ordenado de níveis
-  estrategiaDica?: string       // ← novo
-  sd?: string                   // ← novo
-  estimulos?: any[]             // ← novo
+  hierarquiaDicas?: string[]
+  estrategiaDica?: string
+  sd?: string
+  estimulos?: any[]
+  tipo_registro?: "dtt" | "frequencia" | "duracao" | "latencia" | "encadeamento" | "matching"  // ← novo
 }
 
 interface Encaminhamento {
@@ -616,6 +618,7 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
     hierarquiaDicas: item.hierarquiaDicas,      // ← novo
     planoId: item.planoId,
     planoProgramaId: item.planoProgramaId,      // ← novo
+    tipo_registro: item.tipo_registro ?? "dtt",  // ← adicione
   }
 
   // Carrega critérios de contagem se for avaliação formal
@@ -1527,12 +1530,18 @@ if (tallyItens.length === 0) {
   terapeutaId={terapeuta?.id ?? ""}
   pontuacoesAuto={tallyPontuacoesAuto}  // ← novo
 />
+
 ) : (() => {
+  // Folha de frequência
+if (acao.tipo_registro === "frequencia") {
+  return <FolhaFrequencia acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
+}
   // Usa hierarquia personalizada do programa se existir,
   // senão cai na hierarquia derivada do operante (legado)
+  
   const usaHierarquiaCustom =
     acao.hierarquiaDicas && acao.hierarquiaDicas.length > 0
-
+  
   if (usaHierarquiaCustom) {
     const niveis = acao.hierarquiaDicas!
     return (
@@ -2668,7 +2677,7 @@ function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setF
   const card: React.CSSProperties = { background: "rgba(13,32,53,.9)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 14 }
   const ehSupervisao = tipoSessao === "supervisao"
   const podeFinalizar = ehSupervisao || familiaComunic !== null
-
+  
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
       <div style={{ ...card, padding: 28, width: "100%", maxWidth: 460 }}>
@@ -2725,7 +2734,9 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
     mando_dtt: ["independente", "gestual", "modelo", "ecoica", "física parcial", "física total"],
     generica:  ["independente", "gestual", "modelo", "física parcial", "física total"],
   }
-
+const [tipoRegistro, setTipoRegistro] = useState<"dtt"|"frequencia"|"duracao"|"latencia"|"encadeamento"|"matching">(
+  item.tipo_registro ?? "dtt"
+)
   const presetInicial = item.operante === "mando" ? "mando_net" : "generica"
   const [preset, setPreset] = useState(presetInicial)
   const [hierarquia, setHierarquia] = useState<string[]>(
@@ -2751,13 +2762,14 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
   }
 
   function confirmar() {
-    onConfirmar({
-      ...item,
-      nome: item.nome.replace("💡 ", ""),
-      hierarquiaDicas: hierarquia,
-      estrategiaDica: estrategia,
-    })
-  }
+  onConfirmar({
+    ...item,
+    nome: item.nome.replace("💡 ", ""),
+    hierarquiaDicas: hierarquia,
+    estrategiaDica: estrategia,
+    tipo_registro: tipoRegistro,  // ← adicione
+  })
+}
 
   const inp: React.CSSProperties = {
     padding: "8px 10px", borderRadius: 8,
@@ -2821,8 +2833,29 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
           </div>
         </div>
 
-        {/* Delay e estratégia */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+        {/* Tipo de registro */}
+<div style={{ marginBottom: 16 }}>
+  <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Tipo de registro</div>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+    {([
+      ["dtt",          "DTT",          "Tentativa discreta"],
+      ["frequencia",   "Frequência",   "Contagem livre"],
+      ["duracao",      "Duração",      "Tempo de resposta"],
+      ["latencia",     "Latência",     "SD → resposta"],
+      ["encadeamento", "Encadeamento", "Task analysis"],
+      ["matching",     "Matching",     "Estímulo/comparação"],
+    ] as const).map(([id, label, desc]) => (
+      <button key={id} onClick={() => setTipoRegistro(id)}
+        style={{ padding: "8px 6px", borderRadius: 8, border: `1px solid ${tipoRegistro === id ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: tipoRegistro === id ? "rgba(55,138,221,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
+        <div style={{ fontSize: ".72rem", fontWeight: tipoRegistro === id ? 700 : 400, color: tipoRegistro === id ? "#378ADD" : "rgba(160,200,235,.5)" }}>{label}</div>
+        <div style={{ fontSize: ".58rem", color: "rgba(160,200,235,.3)", marginTop: 2 }}>{desc}</div>
+      </button>
+    ))}
+  </div>
+</div>
+
+{/* Delay e estratégia */}
+<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Delay de prompt (s)</div>
             <input type="number" min={0} max={10} value={delay} onChange={e => setDelay(parseInt(e.target.value))}
@@ -2846,6 +2879,92 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
             Adicionar à sessão →
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function FolhaFrequencia({ acao, onRegistrar, atingiuLimite }: {
+  acao: Acao
+  onRegistrar: (correto: boolean, nivel?: string) => void
+  atingiuLimite: boolean
+}) {
+  const ops = acao.operantes
+  const total = ops.length
+  const meta = acao.totalTentativas ?? 10
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {atingiuLimite && (
+        <div style={{ padding: "12px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 10, textAlign: "center" }}>
+          <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#EF9F27" }}>Meta atingida</div>
+          <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)" }}>Encerre ou continue se necessário</div>
+        </div>
+      )}
+
+      {/* Contador principal */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, padding: "20px 0" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "3.5rem", fontWeight: 800, color: "#1D9E75", lineHeight: 1 }}>{total}</div>
+          <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.4)", marginTop: 4 }}>ocorrências</div>
+        </div>
+        <div style={{ width: 1, height: 60, background: "rgba(26,58,92,.4)" }} />
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "1.8rem", fontWeight: 700, color: "rgba(160,200,235,.3)", lineHeight: 1 }}>{meta}</div>
+          <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.3)", marginTop: 4 }}>meta</div>
+        </div>
+      </div>
+
+      {/* Barra de progresso */}
+      <div style={{ height: 6, background: "rgba(26,58,92,.4)", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${Math.min(100, Math.round(total / meta * 100))}%`, background: total >= meta ? "#1D9E75" : "#378ADD", transition: "width .3s" }} />
+      </div>
+      <div style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", textAlign: "center" }}>
+        {Math.min(100, Math.round(total / meta * 100))}% da meta · {Math.max(0, meta - total)} restantes
+      </div>
+
+      {/* Histórico visual */}
+      {ops.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 4 }}>
+          {ops.map((op, i) => (
+            <div key={i} style={{ width: 28, height: 28, borderRadius: 6, background: "rgba(29,158,117,.15)", border: "1px solid rgba(29,158,117,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".65rem", color: "#1D9E75", fontWeight: 700 }}>
+              {i + 1}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Botão de registro */}
+      <button
+        onClick={() => onRegistrar(true, "independente")}
+        style={{
+          padding: "20px",
+          borderRadius: 14,
+          border: "none",
+          background: "linear-gradient(135deg,#1D9E75,#0f8f7a)",
+          color: "#07111f",
+          fontSize: "1.1rem",
+          fontWeight: 800,
+          cursor: "pointer",
+          fontFamily: "var(--font-sans)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+        }}
+      >
+        <span style={{ fontSize: "1.4rem" }}>+</span>
+        Registrar ocorrência
+      </button>
+
+      {/* Botão de nível de dica */}
+      <div style={{ display: "flex", gap: 6 }}>
+        {["gestual", "modelo", "física parcial"].map(nivel => (
+          <button key={nivel} onClick={() => onRegistrar(true, nivel)}
+            style={{ flex: 1, padding: "8px 6px", borderRadius: 9, border: "1px solid rgba(55,138,221,.3)", background: "rgba(55,138,221,.06)", color: "rgba(55,138,221,.7)", fontSize: ".62rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
+            + {nivel}
+          </button>
+        ))}
       </div>
     </div>
   )
