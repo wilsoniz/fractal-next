@@ -844,7 +844,23 @@ for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.le
   const total = ops.length
   const acertos = ops.filter(o => o.correto).length
   const taxa = Math.round(acertos / total * 100)
-  const independencia = Math.round(ops.filter(o => o.promptLevel === "independente").length / total * 100)
+  const PESO_PROMPT: Record<string, number> = {
+  "independente": 1.0,
+  "gestual": 0.8,
+  "visual": 0.7,
+  "ecoica_parcial": 0.5,
+  "ecoico": 0.5,
+  "modelo": 0.4,
+  "ecoica_total": 0.3,
+  "física parcial": 0.2,
+  "fisico_parcial": 0.2,
+  "física total": 0.1,
+  "fisico_total": 0.1,
+  "erro": 0.0,
+}
+const independencia = total > 0
+  ? Math.round(ops.reduce((acc, o) => acc + (PESO_PROMPT[o.promptLevel] ?? 0.5), 0) / total * 100)
+  : 0
 
   const status =
     taxa === 0 ? "ausente" :
@@ -1445,7 +1461,9 @@ if (tallyItens.length === 0) {
               const acertos = ops.filter(o => o.correto).length
               const taxa    = ops.length > 0 ? Math.round(acertos / ops.length * 100) : null
               const grafOps = ops.map((op,i) => ({ n: i+1, taxa: Math.round(ops.slice(0,i+1).filter(o=>o.correto).length/(i+1)*100) }))
-              const criterio= taxa !== null && taxa >= 80
+              const criterio = taxa !== null && taxa >= 80
+              const totalMax = acao.totalTentativas ?? 10
+              const atingiuLimite = ops.length >= totalMax
 
               return (
                 <div key={acao.id} style={{ ...card, marginBottom: 10, border: `1px solid ${isAtiva ? "rgba(35,196,143,.35)" : "rgba(26,58,92,.5)"}`, overflow: "hidden" }}>
@@ -1459,6 +1477,7 @@ if (tallyItens.length === 0) {
                         {acao.taxaHistorica !== undefined && <span style={{ fontSize: ".6rem", color: "#8B7FE8" }}>hist: {acao.taxaHistorica}%</span>}
                         <span style={{ fontSize: ".62rem", color: "rgba(160,200,235,.35)" }}>{ops.length}/{acao.totalTentativas ?? 10} tentativas</span>
                         {criterio && <span style={{ fontSize: ".62rem", color: "#1D9E75", background: "rgba(29,158,117,.1)", borderRadius: 20, padding: "1px 8px", fontWeight: 700 }}>✓ Critério</span>}
+                    {atingiuLimite && !criterio && <span style={{ fontSize: ".62rem", color: "#EF9F27", background: "rgba(239,159,39,.1)", borderRadius: 20, padding: "1px 8px", fontWeight: 700 }}>⚠ Limite atingido</span>}
                       </div>
                     </div>
 
@@ -1517,10 +1536,16 @@ if (tallyItens.length === 0) {
   if (usaHierarquiaCustom) {
     const niveis = acao.hierarquiaDicas!
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{
-          fontSize: ".62rem",
-          color: "rgba(160,200,235,.35)",
+  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    {atingiuLimite && (
+      <div style={{ padding: "12px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 10, textAlign: "center", marginBottom: 4 }}>
+        <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#EF9F27", marginBottom: 2 }}>Limite de tentativas atingido</div>
+        <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)" }}>Encerre ou continue se necessário clinicamente</div>
+      </div>
+    )}
+    <div style={{
+      fontSize: ".62rem",
+      color: "rgba(160,200,235,.35)",
           textTransform: "uppercase",
           letterSpacing: ".06em",
           marginBottom: 2
@@ -1616,10 +1641,16 @@ if (tallyItens.length === 0) {
   // Fallback legado — hierarquia derivada do operante
   const hier = getHierarquia(acao.hierarquiaTipo ?? "generica")
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{
-        fontSize: ".62rem",
-        color: "rgba(160,200,235,.35)",
+  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    {atingiuLimite && (
+      <div style={{ padding: "12px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 10, textAlign: "center", marginBottom: 4 }}>
+        <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#EF9F27", marginBottom: 2 }}>Limite de tentativas atingido</div>
+        <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)" }}>Encerre ou continue se necessário clinicamente</div>
+      </div>
+    )}
+    <div style={{
+      fontSize: ".62rem",
+      color: "rgba(160,200,235,.35)",
         textTransform: "uppercase",
         letterSpacing: ".06em",
         marginBottom: 2
