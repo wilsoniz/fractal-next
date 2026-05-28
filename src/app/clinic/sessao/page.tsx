@@ -1536,6 +1536,11 @@ if (tallyItens.length === 0) {
 if (acao.tipo_registro === "frequencia") {
   return <FolhaFrequencia acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
 }
+
+if (acao.tipo_registro === "duracao") {
+  return <FolhaDuracao acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
+}
+
   // Usa hierarquia personalizada do programa se existir,
   // senão cai na hierarquia derivada do operante (legado)
   
@@ -2966,6 +2971,123 @@ function FolhaFrequencia({ acao, onRegistrar, atingiuLimite }: {
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+function FolhaDuracao({ acao, onRegistrar, atingiuLimite }: {
+  acao: Acao
+  onRegistrar: (correto: boolean, nivel?: string) => void
+  atingiuLimite: boolean
+}) {
+  const [rodando, setRodando] = useState(false)
+  const [inicio, setInicio] = useState<number | null>(null)
+  const [tempoAtual, setTempoAtual] = useState(0)
+  const [episodios, setEpisodios] = useState<number[]>([])
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (rodando) {
+      timerRef.current = setInterval(() => {
+        setTempoAtual(Date.now() - (inicio ?? Date.now()))
+      }, 100)
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [rodando, inicio])
+
+  function iniciar() {
+    setInicio(Date.now())
+    setTempoAtual(0)
+    setRodando(true)
+  }
+
+  function encerrar() {
+    if (!inicio) return
+    const duracao = Date.now() - inicio
+    setEpisodios(prev => [...prev, duracao])
+    setRodando(false)
+    setTempoAtual(0)
+    setInicio(null)
+    onRegistrar(true, "independente")
+  }
+
+  function fmtMs(ms: number) {
+    const s = Math.floor(ms / 1000)
+    const m = Math.floor(s / 60)
+    return `${m}:${String(s % 60).padStart(2, "0")}.${String(Math.floor((ms % 1000) / 100))}`
+  }
+
+  const media = episodios.length > 0
+    ? Math.round(episodios.reduce((a, b) => a + b, 0) / episodios.length)
+    : 0
+  const maior = episodios.length > 0 ? Math.max(...episodios) : 0
+  const meta = (acao.totalTentativas ?? 5) * 60000 // meta em ms
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {atingiuLimite && (
+        <div style={{ padding: "12px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 10, textAlign: "center" }}>
+          <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#EF9F27" }}>Meta atingida</div>
+        </div>
+      )}
+
+      {/* Timer principal */}
+      <div style={{ textAlign: "center", padding: "24px 0" }}>
+        <div style={{ fontSize: "3.5rem", fontWeight: 800, color: rodando ? "#1D9E75" : "rgba(160,200,235,.3)", fontFamily: "monospace", lineHeight: 1, transition: "color .3s" }}>
+          {fmtMs(rodando ? tempoAtual : 0)}
+        </div>
+        <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.4)", marginTop: 6 }}>
+          {rodando ? "Episódio em andamento..." : episodios.length === 0 ? "Toque para iniciar" : `${episodios.length} episódio(s) registrado(s)`}
+        </div>
+      </div>
+
+      {/* Botão principal */}
+      {!rodando ? (
+        <button onClick={iniciar}
+          style={{ padding: "20px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: "1rem", fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <span style={{ fontSize: "1.4rem" }}>▶</span>
+          {episodios.length === 0 ? "Iniciar episódio" : "Novo episódio"}
+        </button>
+      ) : (
+        <button onClick={encerrar}
+          style={{ padding: "20px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#E05A4B,#c04030)", color: "#fff", fontSize: "1rem", fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <span style={{ fontSize: "1.4rem" }}>■</span>
+          Encerrar episódio
+        </button>
+      )}
+
+      {/* Estatísticas */}
+      {episodios.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          {[
+            { l: "Episódios", v: episodios.length },
+            { l: "Média", v: fmtMs(media) },
+            { l: "Maior", v: fmtMs(maior) },
+          ].map(k => (
+            <div key={k.l} style={{ padding: "10px", background: "rgba(26,58,92,.2)", borderRadius: 9, textAlign: "center" }}>
+              <div style={{ fontSize: ".6rem", color: "rgba(160,200,235,.4)", marginBottom: 3 }}>{k.l}</div>
+              <div style={{ fontSize: ".85rem", fontWeight: 700, color: "#e8f0f8" }}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Histórico de episódios */}
+      {episodios.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {episodios.map((ep, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", background: "rgba(26,58,92,.15)", borderRadius: 7 }}>
+              <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20 }}>#{i+1}</span>
+              <div style={{ flex: 1, height: 4, background: "rgba(26,58,92,.4)", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${Math.min(100, Math.round(ep / meta * 100))}%`, background: "#1D9E75" }} />
+              </div>
+              <span style={{ fontSize: ".72rem", fontWeight: 600, color: "#1D9E75", width: 60, textAlign: "right" as const }}>{fmtMs(ep)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
