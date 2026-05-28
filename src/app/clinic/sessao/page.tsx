@@ -3450,17 +3450,20 @@ function FolhaMatching({ acao, onRegistrar, atingiuLimite }: {
   const NUM_TENTATIVAS = acao.totalTentativas ?? 10
   const NUM_COMPARACOES = 3
 
-  useEffect(() => {
-    if (!acao.matrizId) { setLoading(false); return }
-    supabase
-      .from("stimulus_matrix_cells")
-      .select("*")
-      .eq("matrix_id", acao.matrizId)
-      .then(({ data }) => {
-        setCelulas(data ?? [])
-        setLoading(false)
-      })
-  }, [acao.matrizId])
+  const matrizIdRef = useRef<string | undefined>(undefined)
+
+useEffect(() => {
+  if (!acao.matrizId || matrizIdRef.current === acao.matrizId) return
+  matrizIdRef.current = acao.matrizId
+  supabase
+    .from("stimulus_matrix_cells")
+    .select("*")
+    .eq("matrix_id", acao.matrizId)
+    .then(({ data }) => {
+      setCelulas(data ?? [])
+      setLoading(false)
+    })
+}, [acao.matrizId])
 
   function gerarBloco() {
     if (celulas.length === 0) return
