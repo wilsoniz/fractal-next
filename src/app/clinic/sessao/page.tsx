@@ -1553,6 +1553,10 @@ if (acao.tipo_registro === "latencia") {
   return <FolhaLatencia acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
 }
 
+if (acao.tipo_registro === "encadeamento") {
+  return <FolhaEncadeamento acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
+}
+
   // Usa hierarquia personalizada do programa se existir,
   // senão cai na hierarquia derivada do operante (legado)
   
@@ -3267,6 +3271,108 @@ function FolhaLatencia({ acao, onRegistrar, atingiuLimite }: {
           {latencias.map((l, i) => (
             <div key={i} style={{ padding: "4px 10px", borderRadius: 20, background: l.ms < 3000 ? "rgba(29,158,117,.1)" : "rgba(239,159,39,.1)", border: `1px solid ${l.ms < 3000 ? "rgba(29,158,117,.3)" : "rgba(239,159,39,.3)"}`, fontSize: ".65rem", color: l.ms < 3000 ? "#1D9E75" : "#EF9F27", fontWeight: 600 }}>
               #{i+1} {fmtMs(l.ms)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FolhaEncadeamento({ acao, onRegistrar, atingiuLimite }: {
+  acao: Acao
+  onRegistrar: (correto: boolean, nivel?: string) => void
+  atingiuLimite: boolean
+}) {
+  const passos = acao.passosEncadeamento ?? []
+  const direcao = acao.direcaoEncadeamento ?? "frente"
+  
+  const NIVEIS = ["I", "G", "V", "M", "FP", "FT", "E", "NA"] as const
+  type Nivel = typeof NIVEIS[number]
+  
+  const NIVEL_CONFIG: Record<Nivel, { label: string; cor: string; correto: boolean; peso: number }> = {
+    "I":  { label: "Independente",    cor: "#1D9E75", correto: true,  peso: 1.0 },
+    "G":  { label: "Gestual",         cor: "#378ADD", correto: true,  peso: 0.8 },
+    "V":  { label: "Verbal",          cor: "#8B7FE8", correto: true,  peso: 0.6 },
+    "M":  { label: "Modelo",          cor: "#EF9F27", correto: true,  peso: 0.4 },
+    "FP": { label: "Física parcial",  cor: "#E05A4B", correto: true,  peso: 0.2 },
+    "FT": { label: "Física total",    cor: "#E05A4B", correto: true,  peso: 0.1 },
+    "E":  { label: "Erro",            cor: "#E05A4B", correto: false, peso: 0.0 },
+    "NA": { label: "N/A",             cor: "rgba(160,200,235,.3)", correto: false, peso: 0.0 },
+  }
+
+  const [registros, setRegistros] = useState<Record<number, Nivel>>({})
+
+  const passosOrdenados = direcao === "tras" ? [...passos].reverse() : passos
+
+  function registrarPasso(idx: number, nivel: Nivel) {
+    setRegistros(prev => ({ ...prev, [idx]: nivel }))
+    if (nivel !== "NA") onRegistrar(NIVEL_CONFIG[nivel].correto, nivel.toLowerCase())
+  }
+
+  const passosConcluidos = Object.keys(registros).length
+  const passosIndependentes = Object.values(registros).filter(n => n === "I").length
+  const pctIndependencia = passosConcluidos > 0
+    ? Math.round(passosIndependentes / passos.length * 100)
+    : 0
+
+  if (passos.length === 0) return (
+    <div style={{ padding: 20, textAlign: "center", color: "rgba(160,200,235,.4)", fontSize: ".78rem" }}>
+      Nenhum passo definido. Configure os passos no modal do programa.
+    </div>
+  )
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontSize: ".65rem", color: "rgba(160,200,235,.4)", textTransform: "uppercase", letterSpacing: ".06em" }}>
+          Encadeamento {direcao === "frente" ? "à frente" : direcao === "tras" ? "atrás" : "cadeia total"}
+        </div>
+        <div style={{ flex: 1, height: 4, background: "rgba(26,58,92,.4)", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${Math.round(passosConcluidos / passos.length * 100)}%`, background: "#1D9E75", transition: "width .3s" }} />
+        </div>
+        <div style={{ fontSize: ".72rem", fontWeight: 700, color: pctIndependencia >= 80 ? "#1D9E75" : "#EF9F27" }}>
+          {pctIndependencia}% I
+        </div>
+      </div>
+
+      {/* Passos */}
+      {passosOrdenados.map((passo, idx) => {
+        const idxReal = direcao === "tras" ? passos.length - 1 - idx : idx
+        const nivelAtual = registros[idxReal]
+        const cfg = nivelAtual ? NIVEL_CONFIG[nivelAtual] : null
+
+        return (
+          <div key={idxReal} style={{ padding: "10px 12px", borderRadius: 10, background: cfg ? `${cfg.cor}10` : "rgba(26,58,92,.2)", border: `1px solid ${cfg ? cfg.cor + "33" : "rgba(26,58,92,.3)"}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20, flexShrink: 0 }}>{idxReal + 1}.</span>
+              <span style={{ fontSize: ".78rem", color: "#e8f0f8", flex: 1 }}>{passo}</span>
+              {cfg && <span style={{ fontSize: ".65rem", color: cfg.cor, fontWeight: 700, background: `${cfg.cor}15`, borderRadius: 20, padding: "2px 8px" }}>{nivelAtual}</span>}
+            </div>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
+              {NIVEIS.map(n => (
+                <button key={n} onClick={() => registrarPasso(idxReal, n)}
+                  style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${nivelAtual === n ? NIVEL_CONFIG[n].cor + "66" : "rgba(26,58,92,.4)"}`, background: nivelAtual === n ? NIVEL_CONFIG[n].cor + "20" : "transparent", color: nivelAtual === n ? NIVEL_CONFIG[n].cor : "rgba(160,200,235,.35)", fontSize: ".62rem", fontWeight: nivelAtual === n ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Resumo */}
+      {passosConcluidos > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          {[
+            { l: "Concluídos", v: `${passosConcluidos}/${passos.length}` },
+            { l: "Independentes", v: passosIndependentes },
+            { l: "% Independência", v: `${pctIndependencia}%` },
+          ].map(k => (
+            <div key={k.l} style={{ padding: "10px", background: "rgba(26,58,92,.2)", borderRadius: 9, textAlign: "center" }}>
+              <div style={{ fontSize: ".6rem", color: "rgba(160,200,235,.4)", marginBottom: 3 }}>{k.l}</div>
+              <div style={{ fontSize: ".85rem", fontWeight: 700, color: pctIndependencia >= 80 ? "#1D9E75" : "#e8f0f8" }}>{k.v}</div>
             </div>
           ))}
         </div>
