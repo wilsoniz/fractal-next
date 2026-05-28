@@ -3466,52 +3466,53 @@ useEffect(() => {
 }, [acao.matrizId])
 
   function gerarBloco() {
-    if (celulas.length === 0) return
-    const grupos = [...new Set(celulas.map(c => c.group_index))]
-    const tentativas: TentativaBloco[] = []
+  if (celulas.length === 0) return
+  const grupos = [...new Set(celulas.map(c => c.group_index))]
+  if (grupos.length < 2) return
+  
+  const tentativas: TentativaBloco[] = []
+  const historicoPosicoes: number[] = []
 
-    // Controle anti-viés de posição
-    const posicoes = [0, 1, 2]
-    let ultimasPos: number[] = []
+  for (let i = 0; i < NUM_TENTATIVAS; i++) {
+    const grupoAlvo = grupos[Math.floor(Math.random() * grupos.length)]
+    const modelo = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_MODELO.includes(c.column_id))
+    const correto = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_COMPARACAO.includes(c.column_id))
+    if (!modelo || !correto) continue
 
-    for (let i = 0; i < NUM_TENTATIVAS; i++) {
-      const grupoAlvo = grupos[Math.floor(Math.random() * grupos.length)]
-      const modelo = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_MODELO.includes(c.column_id))
-      const correto = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_COMPARACAO.includes(c.column_id))
-      if (!modelo || !correto) continue
+    const distratores = grupos
+      .filter(g => g !== grupoAlvo)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, NUM_COMPARACOES - 1)
+      .map(g => celulas.find(c => c.group_index === g && COLUNAS_COMPARACAO.includes(c.column_id)))
+      .filter(Boolean) as Celula[]
 
-      const gruposDistratores = grupos.filter(g => g !== grupoAlvo)
-      const distratores = gruposDistratores
-        .sort(() => Math.random() - 0.5)
-        .slice(0, NUM_COMPARACOES - 1)
-        .map(g => celulas.find(c => c.group_index === g && COLUNAS_COMPARACAO.includes(c.column_id)))
-        .filter(Boolean) as Celula[]
+    if (distratores.length < NUM_COMPARACOES - 1) continue
 
-      // Anti-viés: evita mesma posição correta 3x seguidas
-      let posicaoCorreta: number
-      do {
-        posicaoCorreta = posicoes[Math.floor(Math.random() * posicoes.length)]
-      } while (ultimasPos.slice(-2).every(p => p === posicaoCorreta))
-      ultimasPos.push(posicaoCorreta)
+    // Anti-viés simples — sem loop
+    const ultimas2 = historicoPosicoes.slice(-2)
+    let posicaoCorreta = Math.floor(Math.random() * NUM_COMPARACOES)
+    if (ultimas2.length === 2 && ultimas2[0] === posicaoCorreta && ultimas2[1] === posicaoCorreta) {
+      posicaoCorreta = (posicaoCorreta + 1) % NUM_COMPARACOES
+    }
+    historicoPosicoes.push(posicaoCorreta)
 
-      const todasComp = [correto, ...distratores]
-      const comparacoes: { celula: Celula; posicao: number }[] = []
-      let distIdx = 0
-      for (let p = 0; p < NUM_COMPARACOES; p++) {
-        if (p === posicaoCorreta) {
-          comparacoes.push({ celula: correto, posicao: p })
-        } else {
-          comparacoes.push({ celula: distratores[distIdx++] ?? correto, posicao: p })
-        }
+    const comparacoes: { celula: Celula; posicao: number }[] = []
+    let distIdx = 0
+    for (let p = 0; p < NUM_COMPARACOES; p++) {
+      if (p === posicaoCorreta) {
+        comparacoes.push({ celula: correto, posicao: p })
+      } else {
+        comparacoes.push({ celula: distratores[distIdx++], posicao: p })
       }
-
-      tentativas.push({ modelo, correto, comparacoes, posicaoCorreta })
     }
 
-    setBloco(tentativas)
-    setTentativaIdx(0)
-    setFase("planejamento")
+    tentativas.push({ modelo, correto, comparacoes, posicaoCorreta })
   }
+
+  setBloco(tentativas)
+  setTentativaIdx(0)
+  setFase("planejamento")
+}
 
   function iniciarBloco() {
     setTentativaIdx(0)
