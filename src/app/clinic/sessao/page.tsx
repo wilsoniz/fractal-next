@@ -35,6 +35,7 @@ interface Acao {
   // Em LibItem e Acao:
   passosEncadeamento?: string[]
   direcaoEncadeamento?: "frente" | "tras" | "total"
+  matrizId?: string
 }
 
 interface LibItem {
@@ -57,6 +58,7 @@ interface LibItem {
   // Em LibItem e Acao:
   passosEncadeamento?: string[]
   direcaoEncadeamento?: "frente" | "tras" | "total"
+  matrizId?: string
 }
 
 interface Encaminhamento {
@@ -624,9 +626,10 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
     hierarquiaDicas: item.hierarquiaDicas,      // ← novo
     planoId: item.planoId,
     planoProgramaId: item.planoProgramaId,      // ← novo
-    tipo_registro: item.tipo_registro ?? "dtt",  // ← adicione
+    tipo_registro: item.tipo_registro ?? "dtt",  
     passosEncadeamento: item.passosEncadeamento,
     direcaoEncadeamento: item.direcaoEncadeamento,
+    matrizId: item.matrizId, // ← novo
   }
 
   // Carrega critérios de contagem se for avaliação formal
@@ -1555,6 +1558,10 @@ if (acao.tipo_registro === "latencia") {
 
 if (acao.tipo_registro === "encadeamento") {
   return <FolhaEncadeamento acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
+}
+
+if (acao.tipo_registro === "matching") {
+  return <FolhaMatching acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
 }
 
   // Usa hierarquia personalizada do programa se existir,
@@ -2763,6 +2770,18 @@ const [passosEncadeamento, setPassosEncadeamento] = useState<string[]>([""])
 const [direcaoEncadeamento, setDirecaoEncadeamento] = useState<"frente"|"tras"|"total">("frente")
 const [novoPasso, setNovoPasso] = useState("")
 
+//matrizes
+
+const [matrizId, setMatrizId] = useState<string>(item.matrizId ?? "")
+const [matrizes, setMatrizes] = useState<{id: string; name: string}[]>([])
+
+useEffect(() => {
+  supabase.from("stimulus_matrices").select("id, name").then(({ data }) => {
+    setMatrizes(data ?? [])
+  })
+}, [])
+
+
 
   const presetInicial = item.operante === "mando" ? "mando_net" : "generica"
   const [preset, setPreset] = useState(presetInicial)
@@ -2797,6 +2816,7 @@ const [novoPasso, setNovoPasso] = useState("")
     tipo_registro: tipoRegistro,
     passosEncadeamento: tipoRegistro === "encadeamento" ? passosEncadeamento.filter(p => p.trim()) : undefined,
     direcaoEncadeamento: tipoRegistro === "encadeamento" ? direcaoEncadeamento : undefined,
+    matrizId: tipoRegistro === "matching" ? matrizId : undefined,
   })
 }
 
@@ -2917,6 +2937,27 @@ const [novoPasso, setNovoPasso] = useState("")
         Add
       </button>
     </div>
+  </div>
+)}
+
+{/* Seleção de matriz — só aparece quando tipo é matching */}
+{tipoRegistro === "matching" && (
+  <div style={{ marginBottom: 16 }}>
+    <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Matriz de estímulos</div>
+    {matrizes.length === 0 ? (
+      <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.3)", padding: "12px", background: "rgba(26,58,92,.2)", borderRadius: 8, textAlign: "center" }}>
+        Nenhuma matriz cadastrada
+      </div>
+    ) : (
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {matrizes.map(m => (
+          <button key={m.id} onClick={() => setMatrizId(m.id)}
+            style={{ padding: "10px 14px", borderRadius: 9, border: `1px solid ${matrizId === m.id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: matrizId === m.id ? "rgba(139,127,232,.1)" : "transparent", color: matrizId === m.id ? "#8B7FE8" : "rgba(160,200,235,.5)", fontSize: ".75rem", fontWeight: matrizId === m.id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" as const }}>
+            {m.name || "Sem nome"}
+          </button>
+        ))}
+      </div>
+    )}
   </div>
 )}
 
@@ -3376,6 +3417,219 @@ function FolhaEncadeamento({ acao, onRegistrar, atingiuLimite }: {
             </div>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+function FolhaMatching({ acao, onRegistrar, atingiuLimite }: {
+  acao: Acao
+  onRegistrar: (correto: boolean, nivel?: string) => void
+  atingiuLimite: boolean
+}) {
+  type Celula = { group_index: number; column_id: string; inline_type: string; inline_label: string; inline_url: string | null }
+  
+  const [celulas, setCelulas] = useState<Celula[]>([])
+  const [tentativaAtual, setTentativaAtual] = useState<{
+    modelo: Celula
+    correto: Celula
+    comparacoes: { celula: Celula; posicao: number }[]
+    posicaoCorreta: number
+  } | null>(null)
+  const [historico, setHistorico] = useState<{ correto: boolean; prompt: string; posicaoEscolhida: number; posicaoCorreta: number }[]>([])
+  const [nivelSelecionado, setNivelSelecionado] = useState("I")
+  const [loading, setLoading] = useState(true)
+  const [fase, setFase] = useState<"preparando"|"tentativa"|"resultado">("preparando")
+  const [ultimoResultado, setUltimoResultado] = useState<boolean | null>(null)
+
+  const COLUNAS_MODELO = ["A"]
+  const COLUNAS_COMPARACAO = ["B", "C", "D", "E"]
+
+  useEffect(() => {
+    if (!acao.matrizId) { setLoading(false); return }
+    supabase
+      .from("stimulus_matrix_cells")
+      .select("*")
+      .eq("matrix_id", acao.matrizId)
+      .then(({ data }) => {
+        setCelulas(data ?? [])
+        setLoading(false)
+      })
+  }, [acao.matrizId])
+
+  function sortearTentativa() {
+    if (celulas.length === 0) return
+    
+    const grupos = [...new Set(celulas.map(c => c.group_index))]
+    const grupoAlvo = grupos[Math.floor(Math.random() * grupos.length)]
+    
+    const modelo = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_MODELO.includes(c.column_id))
+    const correto = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_COMPARACAO.includes(c.column_id))
+    
+    if (!modelo || !correto) return
+
+    // Distratores de outros grupos
+    const numComparacoes = acao.totalTentativas ? Math.min(3, grupos.length) : 3
+    const gruposDistratores = grupos.filter(g => g !== grupoAlvo)
+    const shuffled = gruposDistratores.sort(() => Math.random() - 0.5).slice(0, numComparacoes - 1)
+    const distratores = shuffled
+      .map(g => celulas.find(c => c.group_index === g && COLUNAS_COMPARACAO.includes(c.column_id)))
+      .filter(Boolean) as Celula[]
+
+    // Monta comparações com posições randomizadas
+    const todasComparacoes = [correto, ...distratores]
+    const shuffledComps = todasComparacoes
+      .map((c, i) => ({ celula: c, posicao: i }))
+      .sort(() => Math.random() - 0.5)
+      .map((c, i) => ({ ...c, posicao: i }))
+
+    const posicaoCorreta = shuffledComps.findIndex(c => c.celula === correto)
+
+    setTentativaAtual({ modelo, correto, comparacoes: shuffledComps, posicaoCorreta })
+    setFase("tentativa")
+  }
+
+  function registrarEscolha(posicaoEscolhida: number) {
+    if (!tentativaAtual) return
+    const acertou = posicaoEscolhida === tentativaAtual.posicaoCorreta
+    setHistorico(prev => [...prev, {
+      correto: acertou,
+      prompt: nivelSelecionado,
+      posicaoEscolhida,
+      posicaoCorreta: tentativaAtual.posicaoCorreta
+    }])
+    setUltimoResultado(acertou)
+    setFase("resultado")
+    onRegistrar(acertou, nivelSelecionado)
+    setTimeout(() => {
+      setFase("preparando")
+      setUltimoResultado(null)
+      setTentativaAtual(null)
+    }, 1000)
+  }
+
+  function renderEstimulo(celula: Celula, tamanho: "grande" | "pequeno" = "pequeno") {
+    const pad = tamanho === "grande" ? "20px 24px" : "12px 14px"
+    const fs = tamanho === "grande" ? "1rem" : ".82rem"
+    return (
+      <div style={{ padding: pad, background: "rgba(26,58,92,.3)", borderRadius: 10, textAlign: "center", fontSize: fs, color: "#e8f0f8", fontWeight: 600 }}>
+        {celula.inline_type === "audio" ? "🔊 Áudio" : celula.inline_label || "—"}
+      </div>
+    )
+  }
+
+  const acertos = historico.filter(h => h.correto).length
+  const pct = historico.length > 0 ? Math.round(acertos / historico.length * 100) : 0
+
+  // Detecção de viés de posição
+  const viesPosicao = historico.length >= 5
+    ? (() => {
+        const contagem = [0, 0, 0]
+        historico.forEach(h => { if (h.posicaoEscolhida < 3) contagem[h.posicaoEscolhida]++ })
+        const max = Math.max(...contagem)
+        const idx = contagem.indexOf(max)
+        const pctPos = Math.round(max / historico.length * 100)
+        if (pctPos >= 60) return { posicao: ["esquerda", "centro", "direita"][idx], pct: pctPos }
+        return null
+      })()
+    : null
+
+  if (!acao.matrizId) return (
+    <div style={{ padding: 20, textAlign: "center", color: "rgba(160,200,235,.4)", fontSize: ".78rem" }}>
+      Nenhuma matriz selecionada. Configure no modal do programa.
+    </div>
+  )
+
+  if (loading) return (
+    <div style={{ padding: 16, fontSize: ".78rem", color: "rgba(160,200,235,.4)" }}>Carregando estímulos...</div>
+  )
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {atingiuLimite && (
+        <div style={{ padding: "12px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 10, textAlign: "center" }}>
+          <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#EF9F27" }}>Meta atingida</div>
+        </div>
+      )}
+
+      {/* Viés de posição */}
+      {viesPosicao && (
+        <div style={{ padding: "10px 12px", background: "rgba(224,90,75,.08)", border: "1px solid rgba(224,90,75,.2)", borderRadius: 9 }}>
+          <div style={{ fontSize: ".72rem", color: "#E05A4B", fontWeight: 600 }}>
+            ⚠ Possível viés de posição ({viesPosicao.posicao} — {viesPosicao.pct}% das escolhas)
+          </div>
+        </div>
+      )}
+
+      {/* Stats */}
+      {historico.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          {[
+            { l: "Tentativas", v: historico.length },
+            { l: "Acertos", v: acertos },
+            { l: "% Acerto", v: `${pct}%` },
+          ].map(k => (
+            <div key={k.l} style={{ padding: "10px", background: "rgba(26,58,92,.2)", borderRadius: 9, textAlign: "center" }}>
+              <div style={{ fontSize: ".6rem", color: "rgba(160,200,235,.4)", marginBottom: 3 }}>{k.l}</div>
+              <div style={{ fontSize: ".85rem", fontWeight: 700, color: pct >= 80 ? "#1D9E75" : "#e8f0f8" }}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Fase resultado */}
+      {fase === "resultado" && (
+        <div style={{ padding: "16px", background: ultimoResultado ? "rgba(29,158,117,.1)" : "rgba(224,90,75,.1)", border: `1px solid ${ultimoResultado ? "rgba(29,158,117,.3)" : "rgba(224,90,75,.3)"}`, borderRadius: 12, textAlign: "center" }}>
+          <div style={{ fontSize: "1.5rem" }}>{ultimoResultado ? "✓" : "✗"}</div>
+          <div style={{ fontSize: ".82rem", fontWeight: 700, color: ultimoResultado ? "#1D9E75" : "#E05A4B" }}>
+            {ultimoResultado ? "Correto!" : "Erro"}
+          </div>
+        </div>
+      )}
+
+      {/* Tentativa ativa */}
+      {fase === "tentativa" && tentativaAtual && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Modelo */}
+          <div>
+            <div style={{ fontSize: ".62rem", color: "rgba(160,200,235,.35)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Estímulo modelo</div>
+            {renderEstimulo(tentativaAtual.modelo, "grande")}
+          </div>
+
+          {/* Nível de dica */}
+          <div style={{ display: "flex", gap: 4 }}>
+            {["I", "G", "V", "M", "FP", "FT"].map(n => (
+              <button key={n} onClick={() => setNivelSelecionado(n)}
+                style={{ flex: 1, padding: "5px 2px", borderRadius: 6, border: `1px solid ${nivelSelecionado === n ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: nivelSelecionado === n ? "rgba(29,158,117,.1)" : "transparent", color: nivelSelecionado === n ? "#1D9E75" : "rgba(160,200,235,.35)", fontSize: ".58rem", fontWeight: nivelSelecionado === n ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                {n}
+              </button>
+            ))}
+          </div>
+
+          {/* Comparações */}
+          <div>
+            <div style={{ fontSize: ".62rem", color: "rgba(160,200,235,.35)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>A criança escolheu:</div>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${tentativaAtual.comparacoes.length}, 1fr)`, gap: 8 }}>
+              {tentativaAtual.comparacoes.map((comp, idx) => (
+                <button key={idx} onClick={() => registrarEscolha(idx)}
+                  style={{ padding: "16px 8px", borderRadius: 12, border: "1px solid rgba(26,58,92,.4)", background: "rgba(26,58,92,.2)", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const, fontSize: ".78rem", color: "#e8f0f8", fontWeight: 600 }}>
+                  {comp.celula.inline_type === "audio" ? "🔊" : comp.celula.inline_label || "—"}
+                  <div style={{ fontSize: ".55rem", color: "rgba(160,200,235,.3)", marginTop: 4 }}>
+                    {["E", "C", "D", "4"][idx]}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Botão sortear */}
+      {fase === "preparando" && (
+        <button onClick={sortearTentativa}
+          style={{ padding: "18px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#8B7FE8,#6b5fd8)", color: "#fff", fontSize: "1rem", fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          {historico.length === 0 ? "🎲 Iniciar tentativa" : "🎲 Próxima tentativa"}
+        </button>
       )}
     </div>
   )
