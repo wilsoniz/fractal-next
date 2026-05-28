@@ -3428,22 +3428,27 @@ function FolhaMatching({ acao, onRegistrar, atingiuLimite }: {
   atingiuLimite: boolean
 }) {
   type Celula = { group_index: number; column_id: string; inline_type: string; inline_label: string; inline_url: string | null }
-  
-  const [celulas, setCelulas] = useState<Celula[]>([])
-  const [tentativaAtual, setTentativaAtual] = useState<{
+  type TentativaBloco = {
     modelo: Celula
     correto: Celula
     comparacoes: { celula: Celula; posicao: number }[]
     posicaoCorreta: number
-  } | null>(null)
-  const [historico, setHistorico] = useState<{ correto: boolean; prompt: string; posicaoEscolhida: number; posicaoCorreta: number }[]>([])
-  const [nivelSelecionado, setNivelSelecionado] = useState("I")
+    resultado?: boolean
+    prompt?: string
+  }
+
+  const [celulas, setCelulas] = useState<Celula[]>([])
   const [loading, setLoading] = useState(true)
-  const [fase, setFase] = useState<"preparando"|"tentativa"|"resultado">("preparando")
+  const [bloco, setBloco] = useState<TentativaBloco[]>([])
+  const [tentativaIdx, setTentativaIdx] = useState(0)
+  const [fase, setFase] = useState<"planejamento"|"execucao"|"concluido">("planejamento")
+  const [nivelSelecionado, setNivelSelecionado] = useState("I")
   const [ultimoResultado, setUltimoResultado] = useState<boolean | null>(null)
 
   const COLUNAS_MODELO = ["A"]
   const COLUNAS_COMPARACAO = ["B", "C", "D", "E"]
+  const NUM_TENTATIVAS = acao.totalTentativas ?? 10
+  const NUM_COMPARACOES = 3
 
   useEffect(() => {
     if (!acao.matrizId) { setLoading(false); return }
@@ -3457,82 +3462,89 @@ function FolhaMatching({ acao, onRegistrar, atingiuLimite }: {
       })
   }, [acao.matrizId])
 
-  function sortearTentativa() {
+  function gerarBloco() {
     if (celulas.length === 0) return
-    
     const grupos = [...new Set(celulas.map(c => c.group_index))]
-    const grupoAlvo = grupos[Math.floor(Math.random() * grupos.length)]
-    
-    const modelo = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_MODELO.includes(c.column_id))
-    const correto = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_COMPARACAO.includes(c.column_id))
-    
-    if (!modelo || !correto) return
+    const tentativas: TentativaBloco[] = []
 
-    // Distratores de outros grupos
-    const numComparacoes = acao.totalTentativas ? Math.min(3, grupos.length) : 3
-    const gruposDistratores = grupos.filter(g => g !== grupoAlvo)
-    const shuffled = gruposDistratores.sort(() => Math.random() - 0.5).slice(0, numComparacoes - 1)
-    const distratores = shuffled
-      .map(g => celulas.find(c => c.group_index === g && COLUNAS_COMPARACAO.includes(c.column_id)))
-      .filter(Boolean) as Celula[]
+    // Controle anti-viés de posição
+    const posicoes = [0, 1, 2]
+    let ultimasPos: number[] = []
 
-    // Monta comparações com posições randomizadas
-    const todasComparacoes = [correto, ...distratores]
-    const shuffledComps = todasComparacoes
-      .map((c, i) => ({ celula: c, posicao: i }))
-      .sort(() => Math.random() - 0.5)
-      .map((c, i) => ({ ...c, posicao: i }))
+    for (let i = 0; i < NUM_TENTATIVAS; i++) {
+      const grupoAlvo = grupos[Math.floor(Math.random() * grupos.length)]
+      const modelo = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_MODELO.includes(c.column_id))
+      const correto = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_COMPARACAO.includes(c.column_id))
+      if (!modelo || !correto) continue
 
-    const posicaoCorreta = shuffledComps.findIndex(c => c.celula === correto)
+      const gruposDistratores = grupos.filter(g => g !== grupoAlvo)
+      const distratores = gruposDistratores
+        .sort(() => Math.random() - 0.5)
+        .slice(0, NUM_COMPARACOES - 1)
+        .map(g => celulas.find(c => c.group_index === g && COLUNAS_COMPARACAO.includes(c.column_id)))
+        .filter(Boolean) as Celula[]
 
-    setTentativaAtual({ modelo, correto, comparacoes: shuffledComps, posicaoCorreta })
-    setFase("tentativa")
+      // Anti-viés: evita mesma posição correta 3x seguidas
+      let posicaoCorreta: number
+      do {
+        posicaoCorreta = posicoes[Math.floor(Math.random() * posicoes.length)]
+      } while (ultimasPos.slice(-2).every(p => p === posicaoCorreta))
+      ultimasPos.push(posicaoCorreta)
+
+      const todasComp = [correto, ...distratores]
+      const comparacoes: { celula: Celula; posicao: number }[] = []
+      let distIdx = 0
+      for (let p = 0; p < NUM_COMPARACOES; p++) {
+        if (p === posicaoCorreta) {
+          comparacoes.push({ celula: correto, posicao: p })
+        } else {
+          comparacoes.push({ celula: distratores[distIdx++] ?? correto, posicao: p })
+        }
+      }
+
+      tentativas.push({ modelo, correto, comparacoes, posicaoCorreta })
+    }
+
+    setBloco(tentativas)
+    setTentativaIdx(0)
+    setFase("planejamento")
+  }
+
+  function iniciarBloco() {
+    setTentativaIdx(0)
+    setFase("execucao")
   }
 
   function registrarEscolha(posicaoEscolhida: number) {
-    if (!tentativaAtual) return
-    const acertou = posicaoEscolhida === tentativaAtual.posicaoCorreta
-    setHistorico(prev => [...prev, {
-      correto: acertou,
-      prompt: nivelSelecionado,
-      posicaoEscolhida,
-      posicaoCorreta: tentativaAtual.posicaoCorreta
-    }])
+    const tentativa = bloco[tentativaIdx]
+    if (!tentativa) return
+    const acertou = posicaoEscolhida === tentativa.posicaoCorreta
+
+    const novoBloco = [...bloco]
+    novoBloco[tentativaIdx] = { ...tentativa, resultado: acertou, prompt: nivelSelecionado }
+    setBloco(novoBloco)
     setUltimoResultado(acertou)
-    setFase("resultado")
     onRegistrar(acertou, nivelSelecionado)
+
     setTimeout(() => {
-      setFase("preparando")
       setUltimoResultado(null)
-      setTentativaAtual(null)
-    }, 1000)
+      if (tentativaIdx + 1 >= bloco.length) {
+        setFase("concluido")
+      } else {
+        setTentativaIdx(prev => prev + 1)
+      }
+    }, 800)
   }
 
-  function renderEstimulo(celula: Celula, tamanho: "grande" | "pequeno" = "pequeno") {
-    const pad = tamanho === "grande" ? "20px 24px" : "12px 14px"
-    const fs = tamanho === "grande" ? "1rem" : ".82rem"
-    return (
-      <div style={{ padding: pad, background: "rgba(26,58,92,.3)", borderRadius: 10, textAlign: "center", fontSize: fs, color: "#e8f0f8", fontWeight: 600 }}>
-        {celula.inline_type === "audio" ? "🔊 Áudio" : celula.inline_label || "—"}
-      </div>
-    )
+  function labelEstimulo(c: Celula) {
+    return c.inline_type === "audio" ? "🔊" : c.inline_label || "—"
   }
 
-  const acertos = historico.filter(h => h.correto).length
-  const pct = historico.length > 0 ? Math.round(acertos / historico.length * 100) : 0
-
-  // Detecção de viés de posição
-  const viesPosicao = historico.length >= 5
-    ? (() => {
-        const contagem = [0, 0, 0]
-        historico.forEach(h => { if (h.posicaoEscolhida < 3) contagem[h.posicaoEscolhida]++ })
-        const max = Math.max(...contagem)
-        const idx = contagem.indexOf(max)
-        const pctPos = Math.round(max / historico.length * 100)
-        if (pctPos >= 60) return { posicao: ["esquerda", "centro", "direita"][idx], pct: pctPos }
-        return null
-      })()
-    : null
+  const POS_LABEL = ["E", "C", "D"]
+  const acertos = bloco.filter(t => t.resultado === true).length
+  const pct = bloco.filter(t => t.resultado !== undefined).length > 0
+    ? Math.round(acertos / bloco.filter(t => t.resultado !== undefined).length * 100)
+    : 0
 
   if (!acao.matrizId) return (
     <div style={{ padding: 20, textAlign: "center", color: "rgba(160,200,235,.4)", fontSize: ".78rem" }}>
@@ -3552,84 +3564,122 @@ function FolhaMatching({ acao, onRegistrar, atingiuLimite }: {
         </div>
       )}
 
-      {/* Viés de posição */}
-      {viesPosicao && (
-        <div style={{ padding: "10px 12px", background: "rgba(224,90,75,.08)", border: "1px solid rgba(224,90,75,.2)", borderRadius: 9 }}>
-          <div style={{ fontSize: ".72rem", color: "#E05A4B", fontWeight: 600 }}>
-            ⚠ Possível viés de posição ({viesPosicao.posicao} — {viesPosicao.pct}% das escolhas)
-          </div>
-        </div>
+      {/* Fase planejamento — sem bloco ainda */}
+      {fase === "planejamento" && bloco.length === 0 && (
+        <button onClick={gerarBloco}
+          style={{ padding: "18px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#8B7FE8,#6b5fd8)", color: "#fff", fontSize: "1rem", fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          🎲 Gerar bloco de {NUM_TENTATIVAS} tentativas
+        </button>
       )}
 
-      {/* Stats */}
-      {historico.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-          {[
-            { l: "Tentativas", v: historico.length },
-            { l: "Acertos", v: acertos },
-            { l: "% Acerto", v: `${pct}%` },
-          ].map(k => (
-            <div key={k.l} style={{ padding: "10px", background: "rgba(26,58,92,.2)", borderRadius: 9, textAlign: "center" }}>
-              <div style={{ fontSize: ".6rem", color: "rgba(160,200,235,.4)", marginBottom: 3 }}>{k.l}</div>
-              <div style={{ fontSize: ".85rem", fontWeight: 700, color: pct >= 80 ? "#1D9E75" : "#e8f0f8" }}>{k.v}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Tabela do bloco */}
+      {bloco.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
 
-      {/* Fase resultado */}
-      {fase === "resultado" && (
-        <div style={{ padding: "16px", background: ultimoResultado ? "rgba(29,158,117,.1)" : "rgba(224,90,75,.1)", border: `1px solid ${ultimoResultado ? "rgba(29,158,117,.3)" : "rgba(224,90,75,.3)"}`, borderRadius: 12, textAlign: "center" }}>
-          <div style={{ fontSize: "1.5rem" }}>{ultimoResultado ? "✓" : "✗"}</div>
-          <div style={{ fontSize: ".82rem", fontWeight: 700, color: ultimoResultado ? "#1D9E75" : "#E05A4B" }}>
-            {ultimoResultado ? "Correto!" : "Erro"}
-          </div>
-        </div>
-      )}
-
-      {/* Tentativa ativa */}
-      {fase === "tentativa" && tentativaAtual && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Modelo */}
-          <div>
-            <div style={{ fontSize: ".62rem", color: "rgba(160,200,235,.35)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Estímulo modelo</div>
-            {renderEstimulo(tentativaAtual.modelo, "grande")}
-          </div>
-
-          {/* Nível de dica */}
-          <div style={{ display: "flex", gap: 4 }}>
-            {["I", "G", "V", "M", "FP", "FT"].map(n => (
-              <button key={n} onClick={() => setNivelSelecionado(n)}
-                style={{ flex: 1, padding: "5px 2px", borderRadius: 6, border: `1px solid ${nivelSelecionado === n ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: nivelSelecionado === n ? "rgba(29,158,117,.1)" : "transparent", color: nivelSelecionado === n ? "#1D9E75" : "rgba(160,200,235,.35)", fontSize: ".58rem", fontWeight: nivelSelecionado === n ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                {n}
-              </button>
+          {/* Header da tabela */}
+          <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 1fr 1fr 1fr", gap: 6, padding: "6px 10px" }}>
+            {["#", "Modelo", "Esq.", "Centro", "Dir."].map(h => (
+              <div key={h} style={{ fontSize: ".58rem", color: "rgba(160,200,235,.3)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center" as const }}>{h}</div>
             ))}
           </div>
 
-          {/* Comparações */}
-          <div>
-            <div style={{ fontSize: ".62rem", color: "rgba(160,200,235,.35)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>A criança escolheu:</div>
-            <div style={{ display: "grid", gridTemplateColumns: `repeat(${tentativaAtual.comparacoes.length}, 1fr)`, gap: 8 }}>
-              {tentativaAtual.comparacoes.map((comp, idx) => (
-                <button key={idx} onClick={() => registrarEscolha(idx)}
-                  style={{ padding: "16px 8px", borderRadius: 12, border: "1px solid rgba(26,58,92,.4)", background: "rgba(26,58,92,.2)", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const, fontSize: ".78rem", color: "#e8f0f8", fontWeight: 600 }}>
-                  {comp.celula.inline_type === "audio" ? "🔊" : comp.celula.inline_label || "—"}
-                  <div style={{ fontSize: ".55rem", color: "rgba(160,200,235,.3)", marginTop: 4 }}>
-                    {["E", "C", "D", "4"][idx]}
+          {/* Linhas */}
+          <div style={{ maxHeight: 300, overflowY: "auto" }}>
+            {bloco.map((t, idx) => {
+              const isAtual = fase === "execucao" && idx === tentativaIdx
+              const concluida = t.resultado !== undefined
+              const cor = isAtual ? "rgba(139,127,232,.2)" : concluida ? t.resultado ? "rgba(29,158,117,.08)" : "rgba(224,90,75,.08)" : "rgba(26,58,92,.15)"
+              const borda = isAtual ? "rgba(139,127,232,.5)" : concluida ? t.resultado ? "rgba(29,158,117,.25)" : "rgba(224,90,75,.25)" : "rgba(26,58,92,.25)"
+
+              return (
+                <div key={idx} style={{ display: "grid", gridTemplateColumns: "28px 1fr 1fr 1fr 1fr", gap: 6, padding: "8px 10px", borderRadius: 8, background: cor, border: `1px solid ${borda}`, marginBottom: 4, transition: "all .3s" }}>
+                  {/* Número */}
+                  <div style={{ fontSize: ".65rem", fontWeight: isAtual ? 800 : 400, color: isAtual ? "#8B7FE8" : concluida ? t.resultado ? "#1D9E75" : "#E05A4B" : "rgba(160,200,235,.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {concluida ? (t.resultado ? "✓" : "✗") : isAtual ? "▶" : idx + 1}
                   </div>
-                </button>
-              ))}
-            </div>
+                  {/* Modelo */}
+                  <div style={{ fontSize: ".68rem", color: isAtual ? "#e8f0f8" : "rgba(160,200,235,.6)", textAlign: "center" as const, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {labelEstimulo(t.modelo)}
+                  </div>
+                  {/* Comparações E/C/D */}
+                  {t.comparacoes.map((comp, pi) => (
+                    <div key={pi} style={{ fontSize: ".68rem", color: pi === t.posicaoCorreta ? (isAtual ? "#1D9E75" : "rgba(29,158,117,.5)") : isAtual ? "rgba(160,200,235,.6)" : "rgba(160,200,235,.3)", textAlign: "center" as const, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: pi === t.posicaoCorreta && isAtual ? 700 : 400 }}>
+                      {labelEstimulo(comp.celula)}
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
           </div>
+
+          {/* Botões de controle do bloco */}
+          {fase === "planejamento" && (
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <button onClick={gerarBloco}
+                style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid rgba(139,127,232,.3)", background: "transparent", color: "#8B7FE8", fontSize: ".75rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                🔀 Regenerar
+              </button>
+              <button onClick={iniciarBloco}
+                style={{ flex: 2, padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#8B7FE8,#6b5fd8)", color: "#fff", fontSize: ".82rem", fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                ▶ Iniciar bloco
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Botão sortear */}
-      {fase === "preparando" && (
-        <button onClick={sortearTentativa}
-          style={{ padding: "18px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#8B7FE8,#6b5fd8)", color: "#fff", fontSize: "1rem", fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-          {historico.length === 0 ? "🎲 Iniciar tentativa" : "🎲 Próxima tentativa"}
-        </button>
+      {/* Área de execução da tentativa atual */}
+      {fase === "execucao" && bloco[tentativaIdx] && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
+          {/* Feedback resultado */}
+          {ultimoResultado !== null && (
+            <div style={{ padding: "12px", background: ultimoResultado ? "rgba(29,158,117,.1)" : "rgba(224,90,75,.1)", border: `1px solid ${ultimoResultado ? "rgba(29,158,117,.3)" : "rgba(224,90,75,.3)"}`, borderRadius: 10, textAlign: "center" }}>
+              <div style={{ fontSize: "1.2rem" }}>{ultimoResultado ? "✓" : "✗"}</div>
+            </div>
+          )}
+
+          {ultimoResultado === null && (
+            <>
+              {/* Nível de dica */}
+              <div style={{ display: "flex", gap: 4 }}>
+                {["I", "G", "V", "M", "FP", "FT"].map(n => (
+                  <button key={n} onClick={() => setNivelSelecionado(n)}
+                    style={{ flex: 1, padding: "5px 2px", borderRadius: 6, border: `1px solid ${nivelSelecionado === n ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: nivelSelecionado === n ? "rgba(29,158,117,.1)" : "transparent", color: nivelSelecionado === n ? "#1D9E75" : "rgba(160,200,235,.35)", fontSize: ".58rem", fontWeight: nivelSelecionado === n ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+
+              {/* Botões E/C/D */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {bloco[tentativaIdx].comparacoes.map((comp, idx) => (
+                  <button key={idx} onClick={() => registrarEscolha(idx)}
+                    style={{ padding: "16px 8px", borderRadius: 12, border: "1px solid rgba(26,58,92,.4)", background: "rgba(26,58,92,.2)", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
+                    <div style={{ fontSize: ".55rem", color: "rgba(160,200,235,.3)", marginBottom: 4 }}>{POS_LABEL[idx]}</div>
+                    <div style={{ fontSize: ".85rem", color: "#e8f0f8", fontWeight: 600 }}>
+                      {labelEstimulo(comp.celula)}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Bloco concluído */}
+      {fase === "concluido" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ padding: "16px", background: pct >= 80 ? "rgba(29,158,117,.1)" : "rgba(239,159,39,.1)", border: `1px solid ${pct >= 80 ? "rgba(29,158,117,.3)" : "rgba(239,159,39,.3)"}`, borderRadius: 12, textAlign: "center" }}>
+            <div style={{ fontSize: "2rem", fontWeight: 800, color: pct >= 80 ? "#1D9E75" : "#EF9F27" }}>{pct}%</div>
+            <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.5)", marginTop: 4 }}>{acertos}/{bloco.length} acertos no bloco</div>
+          </div>
+          <button onClick={gerarBloco}
+            style={{ padding: "14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#8B7FE8,#6b5fd8)", color: "#fff", fontSize: ".85rem", fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            🎲 Novo bloco
+          </button>
+        </div>
       )}
     </div>
   )
