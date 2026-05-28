@@ -32,6 +32,9 @@ interface Acao {
   planoId?: string
   planoProgramaId?: string      // ← novo
   tipo_registro?: "dtt" | "frequencia" | "duracao" | "latencia" | "encadeamento" | "matching"
+  // Em LibItem e Acao:
+  passosEncadeamento?: string[]
+  direcaoEncadeamento?: "frente" | "tras" | "total"
 }
 
 interface LibItem {
@@ -51,6 +54,9 @@ interface LibItem {
   sd?: string
   estimulos?: any[]
   tipo_registro?: "dtt" | "frequencia" | "duracao" | "latencia" | "encadeamento" | "matching"  // ← novo
+  // Em LibItem e Acao:
+  passosEncadeamento?: string[]
+  direcaoEncadeamento?: "frente" | "tras" | "total"
 }
 
 interface Encaminhamento {
@@ -619,6 +625,8 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
     planoId: item.planoId,
     planoProgramaId: item.planoProgramaId,      // ← novo
     tipo_registro: item.tipo_registro ?? "dtt",  // ← adicione
+    passosEncadeamento: item.passosEncadeamento,
+    direcaoEncadeamento: item.direcaoEncadeamento,
   }
 
   // Carrega critérios de contagem se for avaliação formal
@@ -2746,6 +2754,12 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
 const [tipoRegistro, setTipoRegistro] = useState<"dtt"|"frequencia"|"duracao"|"latencia"|"encadeamento"|"matching">(
   item.tipo_registro ?? "dtt"
 )
+//encadeamento
+const [passosEncadeamento, setPassosEncadeamento] = useState<string[]>([""])
+const [direcaoEncadeamento, setDirecaoEncadeamento] = useState<"frente"|"tras"|"total">("frente")
+const [novoPasso, setNovoPasso] = useState("")
+
+
   const presetInicial = item.operante === "mando" ? "mando_net" : "generica"
   const [preset, setPreset] = useState(presetInicial)
   const [hierarquia, setHierarquia] = useState<string[]>(
@@ -2776,7 +2790,9 @@ const [tipoRegistro, setTipoRegistro] = useState<"dtt"|"frequencia"|"duracao"|"l
     nome: item.nome.replace("💡 ", ""),
     hierarquiaDicas: hierarquia,
     estrategiaDica: estrategia,
-    tipo_registro: tipoRegistro,  // ← adicione
+    tipo_registro: tipoRegistro,
+    passosEncadeamento: tipoRegistro === "encadeamento" ? passosEncadeamento.filter(p => p.trim()) : undefined,
+    direcaoEncadeamento: tipoRegistro === "encadeamento" ? direcaoEncadeamento : undefined,
   })
 }
 
@@ -2862,6 +2878,43 @@ const [tipoRegistro, setTipoRegistro] = useState<"dtt"|"frequencia"|"duracao"|"l
     ))}
   </div>
 </div>
+
+{/* Editor de passos — só aparece quando tipo é encadeamento */}
+{tipoRegistro === "encadeamento" && (
+  <div style={{ marginBottom: 16 }}>
+    <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Direção do encadeamento</div>
+    <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+      {([["frente","À frente"],["tras","Atrás"],["total","Cadeia total"]] as const).map(([id, label]) => (
+        <button key={id} onClick={() => setDirecaoEncadeamento(id)}
+          style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${direcaoEncadeamento === id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: direcaoEncadeamento === id ? "rgba(139,127,232,.1)" : "transparent", color: direcaoEncadeamento === id ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: direcaoEncadeamento === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          {label}
+        </button>
+      ))}
+    </div>
+
+    <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Passos da tarefa</div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+      {passosEncadeamento.filter(p => p.trim()).map((passo, idx) => (
+        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(26,58,92,.2)", borderRadius: 8, border: "1px solid rgba(26,58,92,.3)" }}>
+          <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20 }}>{idx + 1}.</span>
+          <span style={{ fontSize: ".75rem", color: "#e8f0f8", flex: 1 }}>{passo}</span>
+          <button onClick={() => setPassosEncadeamento(prev => prev.filter((_, i) => i !== idx))}
+            style={{ background: "none", border: "none", color: "rgba(224,90,75,.5)", cursor: "pointer", fontSize: ".8rem" }}>×</button>
+        </div>
+      ))}
+    </div>
+    <div style={{ display: "flex", gap: 6 }}>
+      <input value={novoPasso} onChange={e => setNovoPasso(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter" && novoPasso.trim()) { setPassosEncadeamento(prev => [...prev, novoPasso.trim()]); setNovoPasso("") }}}
+        placeholder="Descrever passo... (Enter para adicionar)"
+        style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".75rem", fontFamily: "var(--font-sans)", outline: "none" }} />
+      <button onClick={() => { if (novoPasso.trim()) { setPassosEncadeamento(prev => [...prev, novoPasso.trim()]); setNovoPasso("") }}}
+        style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(139,127,232,.2)", color: "#8B7FE8", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+        Add
+      </button>
+    </div>
+  </div>
+)}
 
 {/* Delay e estratégia */}
 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
