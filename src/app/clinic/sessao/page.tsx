@@ -1541,6 +1541,10 @@ if (acao.tipo_registro === "duracao") {
   return <FolhaDuracao acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
 }
 
+if (acao.tipo_registro === "latencia") {
+  return <FolhaLatencia acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
+}
+
   // Usa hierarquia personalizada do programa se existir,
   // senão cai na hierarquia derivada do operante (legado)
   
@@ -3084,6 +3088,132 @@ function FolhaDuracao({ acao, onRegistrar, atingiuLimite }: {
                 <div style={{ height: "100%", width: `${Math.min(100, Math.round(ep / meta * 100))}%`, background: "#1D9E75" }} />
               </div>
               <span style={{ fontSize: ".72rem", fontWeight: 600, color: "#1D9E75", width: 60, textAlign: "right" as const }}>{fmtMs(ep)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FolhaLatencia({ acao, onRegistrar, atingiuLimite }: {
+  acao: Acao
+  onRegistrar: (correto: boolean, nivel?: string) => void
+  atingiuLimite: boolean
+}) {
+  const [fase, setFase] = useState<"aguardando"|"medindo"|"registrado">("aguardando")
+  const [inicio, setInicio] = useState<number | null>(null)
+  const [tempoAtual, setTempoAtual] = useState(0)
+  const [latencias, setLatencias] = useState<{ms: number; nivel: string}[]>([])
+  const [nivelSelecionado, setNivelSelecionado] = useState("independente")
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (fase === "medindo") {
+      timerRef.current = setInterval(() => {
+        setTempoAtual(Date.now() - (inicio ?? Date.now()))
+      }, 50)
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [fase, inicio])
+
+  function apresentarSD() {
+    setInicio(Date.now())
+    setTempoAtual(0)
+    setFase("medindo")
+  }
+
+  function registrarResposta() {
+    if (!inicio) return
+    const ms = Date.now() - inicio
+    setLatencias(prev => [...prev, { ms, nivel: nivelSelecionado }])
+    setFase("registrado")
+    onRegistrar(true, nivelSelecionado)
+    setTimeout(() => setFase("aguardando"), 1200)
+  }
+
+  function fmtMs(ms: number) {
+    return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
+  }
+
+  const media = latencias.length > 0
+    ? Math.round(latencias.reduce((a, b) => a + b.ms, 0) / latencias.length)
+    : 0
+  const menor = latencias.length > 0 ? Math.min(...latencias.map(l => l.ms)) : 0
+  const niveis = acao.hierarquiaDicas ?? ["independente", "gestual", "modelo", "física parcial"]
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {atingiuLimite && (
+        <div style={{ padding: "12px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 10, textAlign: "center" }}>
+          <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#EF9F27" }}>Meta atingida</div>
+        </div>
+      )}
+
+      {/* Display de latência */}
+      <div style={{ textAlign: "center", padding: "20px 0" }}>
+        <div style={{ fontSize: "3rem", fontWeight: 800, fontFamily: "monospace", lineHeight: 1,
+          color: fase === "medindo" ? "#EF9F27" : fase === "registrado" ? "#1D9E75" : "rgba(160,200,235,.3)" }}>
+          {fase === "medindo" ? fmtMs(tempoAtual) : fase === "registrado" ? `✓ ${fmtMs(latencias[latencias.length-1]?.ms ?? 0)}` : "—"}
+        </div>
+        <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.4)", marginTop: 6 }}>
+          {fase === "aguardando" ? `${latencias.length} tentativa(s) registrada(s)` :
+           fase === "medindo" ? "Aguardando resposta..." : "Registrado!"}
+        </div>
+      </div>
+
+      {/* Nível de dica */}
+      <div>
+        <div style={{ fontSize: ".62rem", color: "rgba(160,200,235,.35)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Nível de dica</div>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const }}>
+          {niveis.map(n => (
+            <button key={n} onClick={() => setNivelSelecionado(n)}
+              style={{ padding: "5px 10px", borderRadius: 20, border: `1px solid ${nivelSelecionado === n ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: nivelSelecionado === n ? "rgba(29,158,117,.1)" : "transparent", color: nivelSelecionado === n ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: nivelSelecionado === n ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Botões de ação */}
+      {fase === "aguardando" && (
+        <button onClick={apresentarSD}
+          style={{ padding: "18px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#EF9F27,#e08a1a)", color: "#07111f", fontSize: "1rem", fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          📣 Apresentar SD — iniciar timer
+        </button>
+      )}
+
+      {fase === "medindo" && (
+        <button onClick={registrarResposta}
+          style={{ padding: "18px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: "1rem", fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          ✓ Criança respondeu
+        </button>
+      )}
+
+      {/* Estatísticas */}
+      {latencias.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          {[
+            { l: "Tentativas", v: latencias.length },
+            { l: "Média", v: fmtMs(media) },
+            { l: "Menor", v: fmtMs(menor) },
+          ].map(k => (
+            <div key={k.l} style={{ padding: "10px", background: "rgba(26,58,92,.2)", borderRadius: 9, textAlign: "center" }}>
+              <div style={{ fontSize: ".6rem", color: "rgba(160,200,235,.4)", marginBottom: 3 }}>{k.l}</div>
+              <div style={{ fontSize: ".85rem", fontWeight: 700, color: "#e8f0f8" }}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Histórico */}
+      {latencias.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6 }}>
+          {latencias.map((l, i) => (
+            <div key={i} style={{ padding: "4px 10px", borderRadius: 20, background: l.ms < 3000 ? "rgba(29,158,117,.1)" : "rgba(239,159,39,.1)", border: `1px solid ${l.ms < 3000 ? "rgba(29,158,117,.3)" : "rgba(239,159,39,.3)"}`, fontSize: ".65rem", color: l.ms < 3000 ? "#1D9E75" : "#EF9F27", fontWeight: 600 }}>
+              #{i+1} {fmtMs(l.ms)}
             </div>
           ))}
         </div>
