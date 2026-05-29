@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useClinicContext } from "../layout";
+import { supabase } from "@/lib/supabase"
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type TabPerfil = "vitrine" | "formacao" | "disponibilidade" | "avaliacoes" | "configuracoes" | "supervisao";
@@ -142,11 +143,66 @@ export default function TerapeutaPerfilPage() {
   const { terapeuta: terapeutaCtx } = useClinicContext();
   const nivelCtx = terapeutaCtx?.nivel ?? "supervisor";
 
-  const [tab,     setTab]     = useState<TabPerfil>("vitrine");
-  const [perfil,  setPerfil]  = useState<PerfilData>(PERFIL_INICIAL);
-  const [editBio, setEditBio] = useState(false);
-  const [bioDraft,setBioDraft]= useState(perfil.bio);
-  const [salvando,setSalvando]= useState(false);
+  const [tab,      setTab]      = useState<TabPerfil>("vitrine")
+  const [perfil,   setPerfil]   = useState<PerfilData>(PERFIL_INICIAL)
+  const [loading,  setLoading]  = useState(true)
+  const [editBio,  setEditBio]  = useState(false)
+  const [bioDraft, setBioDraft] = useState("")
+  const [salvando, setSalvando] = useState(false)
+
+  useEffect(() => {
+    async function carregar() {
+      if (!terapeutaCtx?.id) { setLoading(false); return }
+      const { data } = await supabase.from("profiles").select("*").eq("id", terapeutaCtx.id).single()
+      if (data) {
+        const nomeParts = (data.nome ?? "").split(" ")
+        const nome = nomeParts[0] ?? ""
+        const sobrenome = nomeParts.slice(1).join(" ") ?? ""
+        const iniciais = nomeParts.map((n: string) => n[0]).slice(0, 2).join("").toUpperCase()
+        setPerfil(prev => ({
+          ...prev, nome, sobrenome, iniciais,
+          titulo: data.titulo ?? "", nivel: (data.nivel_senioridade as Nivel) ?? "terapeuta",
+          cidade: data.cidade ?? "", estado: data.estado ?? "", bio: data.bio ?? "",
+          especialidades: data.especialidades ?? [], abordagens: data.abordagens ?? [],
+          modalidades: data.modalidades ?? ["presencial"], valorSessao: data.valor_sessao ?? 0,
+          anosExperiencia: data.anos_experiencia ?? 0, tempoResposta: data.tempo_resposta ?? "< 24 horas",
+          aceitaPlano: data.aceita_plano ?? false, planosAceitos: data.planos_aceitos ?? [],
+          visivel: data.visivel_fractacare ?? false, destaque: data.destaque ?? false,
+          disponibilidade: data.disponibilidade?.length > 0 ? data.disponibilidade : prev.disponibilidade,
+        }))
+        setBioDraft(data.bio ?? "")
+      }
+      setLoading(false)
+    }
+    carregar()
+  }, [terapeutaCtx?.id])
+
+  async function salvarPerfil(campos: Partial<PerfilData>) {
+    if (!terapeutaCtx?.id) return
+    setSalvando(true)
+    await supabase.from("profiles").update({
+      titulo: campos.titulo ?? perfil.titulo, cidade: campos.cidade ?? perfil.cidade,
+      estado: campos.estado ?? perfil.estado, bio: campos.bio ?? perfil.bio,
+      especialidades: campos.especialidades ?? perfil.especialidades,
+      abordagens: campos.abordagens ?? perfil.abordagens,
+      modalidades: campos.modalidades ?? perfil.modalidades,
+      valor_sessao: campos.valorSessao ?? perfil.valorSessao,
+      anos_experiencia: campos.anosExperiencia ?? perfil.anosExperiencia,
+      tempo_resposta: campos.tempoResposta ?? perfil.tempoResposta,
+      aceita_plano: campos.aceitaPlano ?? perfil.aceitaPlano,
+      planos_aceitos: campos.planosAceitos ?? perfil.planosAceitos,
+      visivel_fractacare: campos.visivel ?? perfil.visivel,
+      destaque: campos.destaque ?? perfil.destaque,
+      disponibilidade: campos.disponibilidade ?? perfil.disponibilidade,
+      atualizado_em: new Date().toISOString(),
+    }).eq("id", terapeutaCtx.id)
+    setPerfil(prev => ({ ...prev, ...campos }))
+    setSalvando(false)
+  }
+
+  async function salvarDisponibilidade() {
+  await salvarPerfil({ disponibilidade: perfil.disponibilidade })
+  }
 
   const notaMedia = useMemo(() => {
     if (!perfil.avaliacoes.length) return 0;
@@ -507,6 +563,11 @@ export default function TerapeutaPerfilPage() {
         </div>
       )}
 
+      <button onClick={salvarDisponibilidade}
+        style={{ padding: "12px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".85rem", cursor: "pointer" }}>
+        {salvando ? "Salvando..." : "Salvar disponibilidade"}
+        </button>
+
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* TAB: AVALIAÇÕES */}
       {/* ════════════════════════════════════════════════════════════════════ */}
@@ -616,8 +677,8 @@ export default function TerapeutaPerfilPage() {
             </div>
           </div>
 
-          <button style={{ padding: 14, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".9rem", cursor: "pointer" }}>
-            Salvar configurações
+          <button onClick={() => salvarPerfil(perfil)} style={{ padding: 14, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".9rem", cursor: "pointer" }}>
+          {salvando ? "Salvando..." : "Salvar configurações"}
           </button>
         </div>
       )}
