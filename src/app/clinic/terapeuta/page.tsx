@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase"
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type TabPerfil = "vitrine" | "formacao" | "disponibilidade" | "avaliacoes" | "configuracoes" | "supervisao";
-type Nivel     = "terapeuta" | "coordenador" | "supervisor";
+type Nivel = "terapeuta" | "coordenador" | "senior" | "supervisor";
 
 interface Certificacao {
   id: string;
@@ -110,11 +110,12 @@ const PERFIL_INICIAL: PerfilData = {
 };
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
-const NIVEL_CONFIG: Record<Nivel, { label: string; cor: string; bg: string }> = {
-  terapeuta:   { label: "Terapeuta / RBT",  cor: "#1D9E75", bg: "rgba(29,158,117,.1)"  },
-  coordenador: { label: "Coordenador ABA",  cor: "#EF9F27", bg: "rgba(239,159,39,.1)"  },
-  supervisor:  { label: "Supervisor / BCBA",cor: "#8B7FE8", bg: "rgba(139,127,232,.1)" },
-};
+const NIVEL_CONFIG: Record<Nivel, { label: string; cor: string; bg: string; modo: string }> = {
+  terapeuta:   { label: "Terapeuta / RBT",      cor: "#1D9E75", bg: "rgba(29,158,117,.1)",  modo: "Modo guiado"       },
+  coordenador: { label: "Coordenador ABA",       cor: "#EF9F27", bg: "rgba(239,159,39,.1)",  modo: "Modo semi-guiado"  },
+  senior:      { label: "Terapeuta Sênior",      cor: "#378ADD", bg: "rgba(55,138,221,.1)",  modo: "Modo livre · atendimento" },
+  supervisor:  { label: "Supervisor / BCBA",     cor: "#8B7FE8", bg: "rgba(139,127,232,.1)", modo: "Modo livre · supervisão"  },
+}
 
 const TIPO_CERT_CONFIG = {
   graduacao:       { label: "Graduação",       cor: "#378ADD", icon: "🎓" },
@@ -662,12 +663,12 @@ export default function TerapeutaPerfilPage() {
 
           <div style={{ ...card, padding: 20 }}>
             <div style={{ ...lbl }}>Nível de senioridade</div>
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {(Object.entries(NIVEL_CONFIG) as [Nivel, typeof NIVEL_CONFIG[Nivel]][]).map(([key, nc]) => (
-                <div key={key} style={{ flex: 1, padding: "12px 14px", background: perfil.nivel === key ? nc.bg : "rgba(26,58,92,.2)", border: `1px solid ${perfil.nivel === key ? nc.cor + "55" : "rgba(26,58,92,.4)"}`, borderRadius: 10 }}>
+                <div key={key} style={{ padding: "12px 14px", background: perfil.nivel === key ? nc.bg : "rgba(26,58,92,.2)", border: `1px solid ${perfil.nivel === key ? nc.cor + "55" : "rgba(26,58,92,.4)"}`, borderRadius: 10 }}>
                   <div style={{ fontSize: ".75rem", fontWeight: 700, color: perfil.nivel === key ? nc.cor : "rgba(160,200,235,.84)" }}>{nc.label}</div>
                   <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 2 }}>
-                    {key === "terapeuta" ? "Modo guiado" : key === "coordenador" ? "Modo semi-guiado" : "Modo livre · BCBA"}
+                    {nc.modo}
                   </div>
                 </div>
               ))}
