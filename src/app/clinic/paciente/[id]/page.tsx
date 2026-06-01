@@ -584,7 +584,7 @@ const [aprovando, setAprovando] = useState<string | null>(null)
           .eq("crianca_id", criancaId)
           .eq("status", "pendente")
           .order("criado_em", { ascending: false })
-        console.log("sugestoes:", sugestoesData, sugestoesError)
+        
         setSugestoes(sugestoesData ?? [])
 
         // Mapear radar
@@ -787,7 +787,6 @@ async function aprovarSugestao(sugestao: any) {
     .eq("status", "ativo")
     .maybeSingle()
 
-  console.log("1. plano ativo:", planoAtivo?.id, errPlano)
   let planoId = planoAtivo?.id
   if (!planoId) { setAprovando(null); return }
 
@@ -797,8 +796,6 @@ async function aprovarSugestao(sugestao: any) {
     .select("id")
     .eq("nome", sugestao.nome_programa)
     .maybeSingle()
-
-  console.log("2. prog existente:", progExistente?.id, errProg)
 
   let programaId: string | null = progExistente?.id ?? null
 
@@ -815,7 +812,6 @@ async function aprovarSugestao(sugestao: any) {
   })
   .select("id")
   .single()
-    console.log("3. novo prog:", novoProg?.id, errNovo)
     programaId = novoProg?.id ?? null
   }
 
@@ -830,8 +826,6 @@ async function aprovarSugestao(sugestao: any) {
     })
     .select("id")
     .single()
-
-  console.log("4. plano_programa:", planoProg?.id, errPP)
 
   await supabase
     .from("plano_sugestoes")
@@ -1386,7 +1380,7 @@ async function rejeitarSugestao(id: string) {
       )}
 
       {/* ── HISTÓRICO ── */}
-      {tab === "historico" && <HistoricoSessoes criancaId={params.id as string} />}
+      {tab === "historico" && <HistoricoSessoes criancaId={params.id as string} criancaNome={data?.name ?? '—'} />}
 
 {/* ── JORNADA CLÍNICA ── */}
 {tab === "jornada" && (
@@ -1403,6 +1397,7 @@ async function rejeitarSugestao(id: string) {
 
 
       {/* ── CONTRATO ── */}
+      {tab === "historico" && <HistoricoSessoes criancaId={params.id as string} criancaNome={data?.name ?? '—'} />}
       {tab === "contrato" && <ContratoTab criancaId={params.id as string} terapeutaId={terapeuta?.id ?? ""} />}
 
       {/* Modal adicionar habilidade */}
