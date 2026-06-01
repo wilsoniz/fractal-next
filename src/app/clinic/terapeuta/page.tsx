@@ -23,14 +23,14 @@ interface Avaliacao {
   id: string;
   familiaNome: string;
   pacienteIniciais: string;
-  nota: number; // 1-5
+  nota: number;
   comentario: string;
   data: string;
   verificada: boolean;
 }
 
 interface DisponibilidadeSlot {
-  dia: number; // 0=dom
+  dia: number;
   turno: "manha" | "tarde" | "noite";
   disponivel: boolean;
 }
@@ -58,8 +58,10 @@ interface PerfilData {
   sessoesTotais: number;
   taxaSucesso: number;
   tempoResposta: string;
-  visivel: boolean; // visível no FractaCare
+  visivel: boolean;
   destaque: boolean;
+  conselhoProfissional: string;
+  registroProfissional: string;
 }
 
 // ─── MOCK ─────────────────────────────────────────────────────────────────────
@@ -107,6 +109,8 @@ const PERFIL_INICIAL: PerfilData = {
   tempoResposta: "< 2 horas",
   visivel: true,
   destaque: true,
+  conselhoProfissional: "",
+  registroProfissional: "",
 };
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
@@ -126,6 +130,9 @@ const TIPO_CERT_CONFIG = {
 
 const DIAS_LABEL = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 const TURNOS_LABEL = { manha: "Manhã (8–12h)", tarde: "Tarde (13–18h)", noite: "Noite (18–21h)" };
+
+// Opções de conselho profissional
+const CONSELHOS = ["CRP", "CRA", "CREFITO", "CFP", "BACB", "ABPMC", "Outro"];
 
 function Stars({ nota, size = 14 }: { nota: number; size?: number }) {
   return (
@@ -170,6 +177,8 @@ export default function TerapeutaPerfilPage() {
           aceitaPlano: data.aceita_plano ?? false, planosAceitos: data.planos_aceitos ?? [],
           visivel: data.visivel_fractacare ?? false, destaque: data.destaque ?? false,
           disponibilidade: data.disponibilidade?.length > 0 ? data.disponibilidade : prev.disponibilidade,
+          conselhoProfissional: data.conselho_profissional ?? "",
+          registroProfissional: data.registro_profissional ?? "",
         }))
         setBioDraft(data.bio ?? "")
       }
@@ -195,6 +204,8 @@ export default function TerapeutaPerfilPage() {
       visivel_fractacare: campos.visivel ?? perfil.visivel,
       destaque: campos.destaque ?? perfil.destaque,
       disponibilidade: campos.disponibilidade ?? perfil.disponibilidade,
+      conselho_profissional: campos.conselhoProfissional ?? perfil.conselhoProfissional,
+      registro_profissional: campos.registroProfissional ?? perfil.registroProfissional,
       atualizado_em: new Date().toISOString(),
     }).eq("id", terapeutaCtx.id)
     setPerfil(prev => ({ ...prev, ...campos }))
@@ -202,7 +213,7 @@ export default function TerapeutaPerfilPage() {
   }
 
   async function salvarDisponibilidade() {
-  await salvarPerfil({ disponibilidade: perfil.disponibilidade })
+    await salvarPerfil({ disponibilidade: perfil.disponibilidade })
   }
 
   const notaMedia = useMemo(() => {
@@ -262,9 +273,15 @@ export default function TerapeutaPerfilPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
               <h1 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#e8f0f8", margin: 0 }}>{perfil.nome} {perfil.sobrenome}</h1>
               <span style={{ fontSize: ".65rem", color: nc.cor, background: nc.bg, borderRadius: 20, padding: "3px 10px", fontWeight: 700 }}>{nc.label}</span>
-              {perfil.destaque && <span style={{ fontSize: ".62rem", color: "#8B7FE8", background: "rgba(139,127,232,.1)", border: "1px solid rgba(139,127,232,.2)", borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>⭐ Destaque</span>}
+              {perfil.destaque && <span style={{ fontSize: ".62rem", color: "#8B7FE8", background: "rgba(139,127,232,.1)", border: "1px solid rgba(139,127,232,.2)", borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>Destaque</span>}
             </div>
-            <div style={{ fontSize: ".82rem", color: "rgba(160,200,235,.92)", marginBottom: 8 }}>{perfil.titulo}</div>
+            <div style={{ fontSize: ".82rem", color: "rgba(160,200,235,.92)", marginBottom: 4 }}>{perfil.titulo}</div>
+            {/* Registro profissional no header quando preenchido */}
+            {perfil.conselhoProfissional && perfil.registroProfissional && (
+              <div style={{ fontSize: ".72rem", color: "rgba(170,210,245,.7)", marginBottom: 4 }}>
+                {perfil.conselhoProfissional} {perfil.registroProfissional}
+              </div>
+            )}
             <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.84)" }}>
               {perfil.cidade}, {perfil.estado} · {perfil.anosExperiencia} anos de experiência
             </div>
@@ -485,7 +502,7 @@ export default function TerapeutaPerfilPage() {
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                           <span style={{ fontSize: ".85rem", fontWeight: 600, color: "#e8f0f8" }}>{c.titulo}</span>
                           {c.verificada && (
-                            <span style={{ fontSize: ".58rem", color: "#1D9E75", background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 20, padding: "1px 6px", fontWeight: 700 }}>✓ Verificado</span>
+                            <span style={{ fontSize: ".58rem", color: "#1D9E75", background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 20, padding: "1px 6px", fontWeight: 700 }}>Verificado</span>
                           )}
                         </div>
                         <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.90)" }}>{c.instituicao} · {c.ano}</div>
@@ -502,7 +519,6 @@ export default function TerapeutaPerfilPage() {
 
           {/* Link para Education */}
           <div style={{ ...card, padding: 18, border: "1px solid rgba(55,138,221,.2)", background: "rgba(55,138,221,.04)", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ fontSize: 24 }}>📚</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: ".82rem", fontWeight: 600, color: "#e8f0f8", marginBottom: 4 }}>FractaClinic Education</div>
               <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.90)" }}>Complete trilhas de formação e adicione certificações automaticamente ao seu perfil</div>
@@ -561,13 +577,12 @@ export default function TerapeutaPerfilPage() {
               <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>Indisponível</span>
             </div>
           </div>
+
+          <button onClick={salvarDisponibilidade} style={{ padding: "12px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".85rem", cursor: "pointer" }}>
+            {salvando ? "Salvando..." : "Salvar disponibilidade"}
+          </button>
         </div>
       )}
-
-      <button onClick={salvarDisponibilidade}
-        style={{ padding: "12px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".85rem", cursor: "pointer" }}>
-        {salvando ? "Salvando..." : "Salvar disponibilidade"}
-        </button>
 
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* TAB: AVALIAÇÕES */}
@@ -608,7 +623,7 @@ export default function TerapeutaPerfilPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#378ADD,#8B7FE8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".55rem", fontWeight: 800, color: "#fff" }}>{av.pacienteIniciais}</div>
                     <span style={{ fontSize: ".82rem", fontWeight: 600, color: "#e8f0f8" }}>{av.familiaNome}</span>
-                    {av.verificada && <span style={{ fontSize: ".58rem", color: "#1D9E75", background: "rgba(29,158,117,.1)", borderRadius: 20, padding: "1px 6px", fontWeight: 600 }}>✓ Verificada</span>}
+                    {av.verificada && <span style={{ fontSize: ".58rem", color: "#1D9E75", background: "rgba(29,158,117,.1)", borderRadius: 20, padding: "1px 6px", fontWeight: 600 }}>Verificada</span>}
                   </div>
                   <Stars nota={av.nota} size={12} />
                 </div>
@@ -626,6 +641,7 @@ export default function TerapeutaPerfilPage() {
       {tab === "configuracoes" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
+          {/* Visibilidade */}
           <div style={{ ...card, padding: 20 }}>
             <div style={{ ...lbl }}>Visibilidade no FractaCare</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -647,6 +663,55 @@ export default function TerapeutaPerfilPage() {
             </div>
           </div>
 
+          {/* ── REGISTRO PROFISSIONAL ── */}
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ ...lbl }}>Registro profissional</div>
+            <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.7)", marginBottom: 14, lineHeight: 1.55 }}>
+              Usado na assinatura de relatórios e documentos clínicos exportados pela plataforma.
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 12 }}>
+              <div>
+                <label style={{ ...lbl }}>Conselho</label>
+                <select
+                  value={perfil.conselhoProfissional}
+                  onChange={e => setPerfil(p => ({ ...p, conselhoProfissional: e.target.value }))}
+                  style={{ ...inp, appearance: "none" as const, cursor: "pointer" }}
+                >
+                  <option value="">Selecionar</option>
+                  {CONSELHOS.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ ...lbl }}>Número de registro</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 06/12345-SP"
+                  value={perfil.registroProfissional}
+                  onChange={e => setPerfil(p => ({ ...p, registroProfissional: e.target.value }))}
+                  style={inp}
+                />
+              </div>
+            </div>
+            {/* Preview da assinatura */}
+            {(perfil.conselhoProfissional || perfil.registroProfissional) && (
+              <div style={{ marginTop: 14, padding: "10px 14px", background: "rgba(26,58,92,.2)", borderRadius: 8, border: "1px solid rgba(70,120,180,.2)" }}>
+                <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.7)", fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 4 }}>Prévia da assinatura nos relatórios</div>
+                <div style={{ fontSize: ".82rem", color: "#e8f0f8", fontWeight: 600 }}>
+                  {perfil.nome} {perfil.sobrenome}
+                  {perfil.conselhoProfissional && perfil.registroProfissional && (
+                    <span style={{ fontWeight: 400, color: "rgba(160,200,235,.84)" }}> · {perfil.conselhoProfissional} {perfil.registroProfissional}</span>
+                  )}
+                </div>
+                {perfil.titulo && (
+                  <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.7)", marginTop: 2 }}>{perfil.titulo}</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Valor e modalidades */}
           <div style={{ ...card, padding: 20 }}>
             <div style={{ ...lbl }}>Valor e modalidades</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -661,15 +726,14 @@ export default function TerapeutaPerfilPage() {
             </div>
           </div>
 
+          {/* Nível de senioridade */}
           <div style={{ ...card, padding: 20 }}>
             <div style={{ ...lbl }}>Nível de senioridade</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {(Object.entries(NIVEL_CONFIG) as [Nivel, typeof NIVEL_CONFIG[Nivel]][]).map(([key, nc]) => (
                 <div key={key} style={{ padding: "12px 14px", background: perfil.nivel === key ? nc.bg : "rgba(26,58,92,.2)", border: `1px solid ${perfil.nivel === key ? nc.cor + "55" : "rgba(26,58,92,.4)"}`, borderRadius: 10 }}>
                   <div style={{ fontSize: ".75rem", fontWeight: 700, color: perfil.nivel === key ? nc.cor : "rgba(160,200,235,.84)" }}>{nc.label}</div>
-                  <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 2 }}>
-                    {nc.modo}
-                  </div>
+                  <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 2 }}>{nc.modo}</div>
                 </div>
               ))}
             </div>
@@ -679,7 +743,7 @@ export default function TerapeutaPerfilPage() {
           </div>
 
           <button onClick={() => salvarPerfil(perfil)} style={{ padding: 14, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".9rem", cursor: "pointer" }}>
-          {salvando ? "Salvando..." : "Salvar configurações"}
+            {salvando ? "Salvando..." : "Salvar configurações"}
           </button>
         </div>
       )}
