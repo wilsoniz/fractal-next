@@ -1,10 +1,12 @@
 'use client'
+import { abrirRelatorioPDF, dadosDoSummary } from "@/lib/relatorio-pdf";
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
 interface SessaoHistorico {
   id: string
+  sessao_id: string
   inicio: string
   tipo: string
   duracao_segundos: number
@@ -136,7 +138,7 @@ async function gerarSlots(
 }
 
 // ─── HISTÓRICO DE SESSÕES ─────────────────────────────────────────────────────
-export function HistoricoSessoes({ criancaId }: { criancaId: string }) {
+export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string; criancaNome: string }) {
   const [sessoes, setSessoes] = useState<SessaoHistorico[]>([])
   const [loading, setLoading] = useState(true)
   const [aberta,  setAberta]  = useState<string | null>(null)
@@ -177,6 +179,7 @@ export function HistoricoSessoes({ criancaId }: { criancaId: string }) {
         const sv = sessMap.get(sm.sessao_id)
         return {
           id:                sm.id,
+          sessao_id:         sm.sessao_id,
           inicio:            sv?.inicio ?? sm.criado_em,
           tipo:              sv?.tipo ?? 'atendimento',
           duracao_segundos:  sv?.duracao_segundos ?? 0,
@@ -291,6 +294,16 @@ export function HistoricoSessoes({ criancaId }: { criancaId: string }) {
 
             {estaAberta && (
               <div style={{ borderTop: '1px solid rgba(26,58,92,.3)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+    <button onClick={() => abrirRelatorioPDF(dadosDoSummary(
+      s,
+      { inicio: s.inicio, tipo: s.tipo, duracao_segundos: s.duracao_segundos },
+      { nome: s.terapeuta_nome },
+      criancaNome ?? '—'
+    ))} style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid rgba(29,158,117,.3)', background: 'rgba(29,158,117,.08)', color: '#1D9E75', fontSize: '.68rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+      Ver relatório
+    </button>
+  </div>
 
                 {progInterv.length > 0 && (
                   <div>
