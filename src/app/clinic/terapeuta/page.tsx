@@ -748,24 +748,7 @@ export default function TerapeutaPerfilPage() {
         </div>
       )}
 
-      <style>{`
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        @media print {
-          body { background: #fff !important; color: #000 !important; }
-          nav, button, [data-print-hide] { display: none !important; }
-          pre { 
-            font-size: 11px !important; 
-            color: #000 !important; 
-            background: #f8f8f8 !important;
-            border: 1px solid #ddd !important;
-            padding: 16px !important;
-            white-space: pre-wrap !important;
-            font-family: 'Courier New', monospace !important;
-            line-height: 1.7 !important;
-          }
-          .fracta-print-hide { display: none !important; }
-        }
-      `}</style>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
     </div>
   );
 }

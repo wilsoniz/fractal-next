@@ -14,6 +14,8 @@ interface TerapeutaAtivo {
   nome: string
   nivel: SenioridadeNivel
   iniciais: string
+  conselho_profissional?: string
+  registro_profissional?: string
 }
 
 interface ClinicContextType {
@@ -335,7 +337,6 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
   segundos: number 
 } | null>(null)
 
-
   // Monitora localStorage para detectar sessão ativa
 useEffect(() => {
   function checarSessao() {
@@ -384,7 +385,7 @@ useEffect(() => {
       // Busca perfil do terapeuta na tabela de profiles
       const { data } = await supabase
         .from('profiles')
-        .select('id, nome, nivel_senioridade')
+        .select('id, nome, nivel_senioridade, conselho_profissional, registro_profissional')
         .eq('id', user.id)
         .single()
 
@@ -405,6 +406,8 @@ useEffect(() => {
           nome: data.nome ?? 'Terapeuta',
           nivel: (data.nivel_senioridade as SenioridadeNivel) ?? 'coordenador',
           iniciais,
+          conselho_profissional: data.conselho_profissional ?? '',
+          registro_profissional: data.registro_profissional ?? '',
         })
       } else {
         router.replace('/clinic/login')

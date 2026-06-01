@@ -189,6 +189,25 @@ const CHECKLIST_GUIADO: Record<string, { item: string; obrigatorio: boolean }[]>
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2,9) }
+
+function nivelPredominante(operantes: Operante[]): string {
+  if (operantes.length === 0) return "—"
+  const contagem: Record<string, number> = {}
+  for (const op of operantes) {
+    contagem[op.promptLevel] = (contagem[op.promptLevel] ?? 0) + 1
+  }
+  return Object.entries(contagem).sort((a, b) => b[1] - a[1])[0][0]
+}
+
+function labelNivel(nivel: string): string {
+  const map: Record<string, string> = {
+    independente: "Independente", gestual: "Gestual", modelo: "Modelo",
+    fisico_parcial: "Física parcial", fisico_total: "Física total",
+    verbal: "Verbal", ecoica: "Ecóica", mov_oral: "Mov. oral",
+    erro: "Erro", independente_: "Independente",
+  }
+  return map[nivel] ?? nivel
+}
 function fmt(s: number) { return `${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}` }
 function iniciais(nome: string) {
   const p = nome.trim().split(" ")
@@ -290,6 +309,9 @@ function SessaoInner() {
   const [novoEnc,         setNovoEnc]         = useState({ programaNome: "", acao: "", prioridade: "media" as "alta"|"media"|"baixa" })
   const [assinaturaSup,   setAssinaturaSup]   = useState(false)
   const [assinaturaSupv,  setAssinaturaSupv]  = useState(false)
+  const [analiseClinica,  setAnaliseClinica]  = useState("")
+  const [decisaoProxima,  setDecisaoProxima]  = useState<string[]>([])
+  const [notaDecisao,     setNotaDecisao]     = useState("")
 
 
   // ── Timer ─────────────────────────────────────────────────────────────────────
@@ -1912,12 +1934,17 @@ if (acao.tipo_registro === "matching") {
   // ══════════════════════════════════════════════════════════════════════════
   // ENCERRAMENTO — relatório longitudinal completo
   // ══════════════════════════════════════════════════════════════════════════
-  const relatorio = `RELATÓRIO DE SESSÃO — ${new Date().toLocaleDateString("pt-BR")}
+  const registroProfStr = (terapeuta as any)?.conselho_profissional && (terapeuta as any)?.registro_profissional
+    ? ` · ${(terapeuta as any).conselho_profissional} ${(terapeuta as any).registro_profissional}`
+    : ""
+
+  const relatorio = `RELATÓRIO DE EVOLUÇÃO DE SESSÃO ABA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Paciente: ${paciente?.nome ?? "—"}
-Tipo: ${tipoSessao}
+Data: ${new Date().toLocaleDateString("pt-BR")}   Horário: ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
 Duração: ${fmt(segundos)} (contratado: ${duracaoMin}min)
-Terapeuta: ${terapeuta?.nome ?? "—"}
-Local: ${localSessao}
+Tipo: ${tipoSessao}   Local: ${localSessao}
+Terapeuta: ${terapeuta?.nome ?? "—"}${registroProfStr}
 Família comunicada: ${familiaComunic ? "Sim" : "Não"}
 
 PROGRAMAS APLICADOS (${acoes.filter(a=>a.area==="intervencao").length}):
@@ -1927,7 +1954,8 @@ ${acoes.filter(a=>a.area==="intervencao").map(ac => {
   const tx = t > 0 ? Math.round(c/t*100) : 0
   const ind= t > 0 ? Math.round(ac.operantes.filter(o=>o.promptLevel==="independente").length/t*100) : 0
   const seq= ac.operantes.map(o => o.correto ? "C" : "E").join(" ")
-  return `• ${ac.itemNome} — ${tx}% acerto, ${ind}% independência (${c}/${t})\n  Sequência: ${seq}`
+  const nivel = labelNivel(nivelPredominante(ac.operantes))
+  return `• ${ac.itemNome} — ${tx}% acerto, ${ind}% independência (${c}/${t})\n  Nível de ajuda predominante: ${nivel}\n  Sequência: ${seq}`
 }).join("\n") || "Nenhum programa aplicado"}
 
 AVALIAÇÕES (${acoes.filter(a=>a.area==="avaliacao").length}):
@@ -1938,8 +1966,20 @@ ${eventos.map(e => EVENT_CFG[e.tipo].label).join(", ") || "Nenhum evento registr
 
 ${tipoSessao === "supervisao" && encaminhamentos.length > 0 ? `ENCAMINHAMENTOS (${encaminhamentos.length}):\n${encaminhamentos.map(e => `• [${e.prioridade.toUpperCase()}] ${e.programaNome ? e.programaNome + ": " : ""}${e.acao}`).join("\n")}` : ""}
 
-OBSERVAÇÕES:
-${notaEncerr || "—"}`
+ANÁLISE CLÍNICA:
+${analiseClinica || "—"}
+
+PLANO PARA PRÓXIMA SESSÃO:
+${decisaoProxima.length > 0 ? decisaoProxima.map(d => `• ${d}`).join("\n") : "—"}
+${notaDecisao ? `\n${notaDecisao}` : ""}
+
+OBSERVAÇÕES DE ENCERRAMENTO:
+${notaEncerr || "—"}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${terapeuta?.nome ?? "—"}${registroProfStr}
+Documento gerado por FractaBehavior · fractabehavior.com
+ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
 
 
   return (
@@ -2056,17 +2096,85 @@ ${notaEncerr || "—"}`
           </div>
         )}
 
+        {/* Análise clínica */}
+        <div style={{ ...card, padding: 16 }}>
+          <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".08em", marginBottom: 10 }}>Análise clínica</div>
+          <textarea
+            value={analiseClinica}
+            onChange={e => setAnaliseClinica(e.target.value)}
+            placeholder="O paciente apresentou... Os dados sugerem... Observou-se..."
+            rows={4}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".78rem", fontFamily: "var(--font-sans)", resize: "vertical" as const, outline: "none", boxSizing: "border-box" as const }}
+          />
+        </div>
+
+        {/* Plano para próxima sessão */}
+        <div style={{ ...card, padding: 16 }}>
+          <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".08em", marginBottom: 12 }}>Plano para próxima sessão</div>
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, marginBottom: 12 }}>
+            {[
+              "Manter programas atuais",
+              "Aumentar critério de maestria",
+              "Reduzir nível de ajuda",
+              "Introduzir generalização",
+              "Revisão de programa",
+              "Incluir novos objetivos",
+              "Necessidade de supervisão clínica",
+            ].map(opcao => {
+              const selecionado = decisaoProxima.includes(opcao)
+              return (
+                <div key={opcao} onClick={() => setDecisaoProxima(prev => selecionado ? prev.filter(d => d !== opcao) : [...prev, opcao])}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: selecionado ? "rgba(29,158,117,.08)" : "rgba(26,58,92,.15)", border: `1px solid ${selecionado ? "rgba(29,158,117,.3)" : "rgba(26,58,92,.3)"}`, cursor: "pointer" }}>
+                  <div style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: `1.5px solid ${selecionado ? "#1D9E75" : "rgba(160,200,235,.25)"}`, background: selecionado ? "#1D9E75" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {selecionado && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#07111f" strokeWidth="1.5" strokeLinecap="round"/></svg>}
+                  </div>
+                  <span style={{ fontSize: ".78rem", color: selecionado ? "#e8f0f8" : "rgba(160,200,235,.6)" }}>{opcao}</span>
+                </div>
+              )
+            })}
+          </div>
+          <textarea
+            value={notaDecisao}
+            onChange={e => setNotaDecisao(e.target.value)}
+            placeholder="Detalhes do plano para a próxima sessão..."
+            rows={2}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".78rem", fontFamily: "var(--font-sans)", resize: "vertical" as const, outline: "none", boxSizing: "border-box" as const }}
+          />
+        </div>
+
         {/* Relatório */}
         <div style={{ ...card, padding: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ fontSize: ".75rem", fontWeight: 700, color: "rgba(170,210,245,.88)" }}>Relatório de sessão</div>
-            <button onClick={() => navigator.clipboard.writeText(relatorio)} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(55,138,221,.3)", background: "rgba(55,138,221,.08)", color: "#378ADD", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-              Copiar
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => navigator.clipboard.writeText(relatorio)} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(55,138,221,.3)", background: "rgba(55,138,221,.08)", color: "#378ADD", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                Copiar
+              </button>
+              <button onClick={() => window.print()} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                Exportar PDF
+              </button>
+            </div>
           </div>
-          <pre style={{ fontSize: ".7rem", color: "rgba(160,200,235,.65)", lineHeight: 1.65, whiteSpace: "pre-wrap", margin: 0, background: "rgba(13,32,53,.5)", padding: 12, borderRadius: 9, border: "1px solid rgba(26,58,92,.3)" }}>
+          <pre style={{ fontSize: ".7rem", color: "rgba(160,200,235,.65)", lineHeight: 1.65, whiteSpace: "pre-wrap" as const, margin: 0, background: "rgba(13,32,53,.5)", padding: 12, borderRadius: 9, border: "1px solid rgba(26,58,92,.3)" }}>
             {relatorio}
           </pre>
+
+          <style>{`
+  @media print {
+    body { background: #fff !important; color: #000 !important; }
+    nav, button { display: none !important; }
+    pre {
+      font-size: 11px !important;
+      color: #000 !important;
+      background: #f8f8f8 !important;
+      border: 1px solid #ddd !important;
+      padding: 16px !important;
+      white-space: pre-wrap !important;
+      font-family: 'Courier New', monospace !important;
+      line-height: 1.7 !important;
+    }
+  }
+`}</style>
         </div>
 
         <div style={{ display: "flex", gap: 10, paddingBottom: 20 }}>
