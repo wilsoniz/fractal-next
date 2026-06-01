@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useRef, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { abrirRelatorioPDF } from "@/lib/relatorio-pdf";
+//import { abrirRelatorioPDF, type DadosRelatorio } from "@/lib/relatorio-pdf";
 import { supabase } from "@/lib/supabase";
 import { useClinicContext } from "../layout";
 import { LineChart, Line, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
@@ -2142,7 +2144,7 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
           />
         </div>
 
-        {/* Relatório */}
+{/* Relatório */}
         <div style={{ ...card, padding: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ fontSize: ".75rem", fontWeight: 700, color: "rgba(170,210,245,.88)" }}>Relatório de sessão</div>
@@ -2150,15 +2152,49 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
               <button onClick={() => navigator.clipboard.writeText(relatorio)} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(55,138,221,.3)", background: "rgba(55,138,221,.08)", color: "#378ADD", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                 Copiar
               </button>
-
-
-
+              <button onClick={() => abrirRelatorioPDF({
+                sessaoId:          sessaoDbId ?? '',
+                pacienteNome:      paciente?.nome ?? '—',
+                data:              new Date().toLocaleDateString('pt-BR'),
+                horario:           new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                duracao:           fmt(segundos),
+                duracaoContratada: duracaoMin,
+                tipo:              tipoSessao,
+                local:             localSessao,
+                terapeutaNome:     terapeuta?.nome ?? '—',
+                conselhoProfissional: (terapeuta as any)?.conselho_profissional,
+                registroProfissional: (terapeuta as any)?.registro_profissional,
+                familiaComunicada: familiaComunic ?? false,
+                taxaGeral,
+                totalOperantes:    totalOps,
+                programas: acoes.filter(a => a.area === 'intervencao').map(ac => {
+                  const t = ac.operantes.length
+                  const c = ac.operantes.filter(o => o.correto).length
+                  const tx = t > 0 ? Math.round(c/t*100) : 0
+                  const ind = t > 0 ? Math.round(ac.operantes.filter(o => o.promptLevel === 'independente').length/t*100) : 0
+                  return {
+                    nome: ac.itemNome, dominio: ac.itemDominio,
+                    taxa: tx, total: t, acertos: c, independencia: ind,
+                    criterio: tx >= 80,
+                    seq: ac.operantes.map(o => o.correto ? 'C' : 'E').join(''),
+                    nivelPredominante: labelNivel(nivelPredominante(ac.operantes)),
+                  }
+                }),
+                avaliacoes: acoes.filter(a => a.area === 'avaliacao').map(ac => ({ nome: ac.itemNome, registros: ac.operantes.length })),
+                eventos: eventos.map(e => ({ label: EVENT_CFG[e.tipo].label, tipo: e.tipo, timestamp: e.timestamp })),
+                analiseClinica,
+                decisaoProxima,
+                notaDecisao,
+                notaEncerramento: notaEncerr || undefined,
+              })} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                Exportar PDF
+              </button>
             </div>
           </div>
           <pre style={{ fontSize: ".7rem", color: "rgba(160,200,235,.65)", lineHeight: 1.65, whiteSpace: "pre-wrap" as const, margin: 0, background: "rgba(13,32,53,.5)", padding: 12, borderRadius: 9, border: "1px solid rgba(26,58,92,.3)" }}>
             {relatorio}
           </pre>
-
+        </div>
           <style>{`
   @media print {
     body { background: #fff !important; color: #000 !important; }
@@ -2186,9 +2222,7 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
           </button>
         </div>
       </div>
-    </div>
-  )
-}
+)}
 
 
 function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontuacoesAuto }: {
