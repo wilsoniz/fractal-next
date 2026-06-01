@@ -2150,9 +2150,9 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
               <button onClick={() => navigator.clipboard.writeText(relatorio)} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(55,138,221,.3)", background: "rgba(55,138,221,.08)", color: "#378ADD", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                 Copiar
               </button>
-              <button onClick={() => window.print()} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                Exportar PDF
-              </button>
+
+
+
             </div>
           </div>
           <pre style={{ fontSize: ".7rem", color: "rgba(160,200,235,.65)", lineHeight: 1.65, whiteSpace: "pre-wrap" as const, margin: 0, background: "rgba(13,32,53,.5)", padding: 12, borderRadius: 9, border: "1px solid rgba(26,58,92,.3)" }}>
