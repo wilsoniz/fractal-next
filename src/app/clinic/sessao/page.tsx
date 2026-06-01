@@ -266,6 +266,7 @@ function SessaoInner() {
   const [duracaoMin, setDuracaoMin] = useState(duracaoParam)
   const [paciente,   setPaciente]   = useState<{id:string;nome:string;iniciais:string;gradient:string;diagnostico:string}|null>(null)
   const [sessaoDbId, setSessaoDbId] = useState<string|null>(null)
+  const [faseJornada, setFaseJornada] = useState<string|null>(null)
   const [loading,    setLoading]    = useState(true)
   
   const [estadoAssentimento, setEstadoAssentimento] = useState<"ativo"|"revogado"|"pendente">("pendente")
@@ -561,6 +562,16 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
         if (!confirmar) return
       }
     }
+    
+    const { data: jornadaAtiva } = await supabase
+      .from("jornada_clinica")
+      .select("fase_atual")
+      .eq("paciente_id", paciente.id)
+      .eq("status", "ativo")
+      .maybeSingle()
+    const faseJornada = jornadaAtiva?.fase_atual ?? null
+    setFaseJornada(faseJornada)
+
     const { data } = await supabase.from("sessoes_v2").insert({
       crianca_id:           paciente.id,
       terapeuta_id:         terapeuta.id,
@@ -570,6 +581,7 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
       tipo:                 tipoSessao,
       local:                localSessao,
       concluida:            false,
+      fase_jornada:         faseJornada,
     }).select("id").single()
 
     if (data) {
@@ -1023,6 +1035,7 @@ const independencia = total > 0
         eventos_json:       eventosJson,
         familia_comunicada: familiaComunic ?? false,
         nota_encerramento:  notaEncerr || null,
+        fase_jornada:       faseJornada ?? null,
       })
 
       // 7. Para supervisão: registrar encaminhamentos
