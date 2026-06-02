@@ -456,7 +456,7 @@ useEffect(() => {
           {/* Topbar */}
           <header style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '16px 28px',
+            padding: isMobile ? '12px 16px' : '16px 28px',
             borderBottom: '1px solid rgba(26,58,92,.3)',
             background: 'rgba(7,17,31,.6)',
             backdropFilter: 'blur(10px)',
@@ -464,12 +464,14 @@ useEffect(() => {
             gap: 16,
           }}>
             <div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#e8f0f8', letterSpacing: '-.01em' }}>
+              <div style={{ fontSize: isMobile ? 15 : 17, fontWeight: 700, color: '#e8f0f8', letterSpacing: '-.01em' }}>
                 {getPageTitle(pathname)}
               </div>
-              <div style={{ fontSize: 12, color: '#9ec8e8', marginTop: 2 }}>
-                {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </div>
+              {!isMobile && (
+                <div style={{ fontSize: 12, color: '#9ec8e8', marginTop: 2 }}>
+                  {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10 }}>
@@ -502,7 +504,7 @@ useEffect(() => {
                 Buscar paciente
               </button>}
 
-<div style={{ position: 'relative' }}>
+<div style={{ position: 'relative', display: isMobile ? 'none' : 'block' }}>
   <button onClick={() => setSeletorPaciente(v => !v)} style={{
     display: 'flex', alignItems: 'center', gap: 6,
     padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
@@ -646,8 +648,6 @@ useEffect(() => {
             {[
               { href: '/clinic/dashboard', label: 'Início',    icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H9z' },
               { href: '/clinic/pacientes', label: 'Pacientes', icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM2 18c0-3 2.7-5 6-5s6 2 6 5' },
-              { href: '/clinic/sessao',    label: 'Sessão',    icon: 'M8 2a6 6 0 100 12A6 6 0 008 2zM8 5v3l2 1.5' },
-              { href: '/clinic/agenda',    label: 'Agenda',    icon: 'M2 3h12a1 1 0 011 1v10a1 1 0 01-1 1H2a1 1 0 01-1-1V4a1 1 0 011-1zM5 3V1M11 3V1M1 7h14' },
             ].map(item => {
               const active = pathname === item.href || (item.href !== '/clinic/dashboard' && pathname.startsWith(item.href))
               return (
@@ -665,6 +665,60 @@ useEffect(() => {
                 </Link>
               )
             })}
+            {/* Botão central — Nova sessão */}
+            <div style={{ position: 'relative', flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <button onClick={() => setSeletorPaciente(v => !v)} style={{
+                width: 48, height: 48, borderRadius: '50%', border: 'none',
+                background: 'linear-gradient(135deg,#1D9E75,#0f8f7a)',
+                color: '#07111f', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 12px rgba(29,158,117,.5)',
+                marginBottom: 8,
+              }}>
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M8 3v10M3 8h10"/>
+                </svg>
+              </button>
+              <span style={{ position: 'absolute', bottom: 0, fontSize: 10, color: 'rgba(160,200,235,.5)', fontFamily: 'var(--font-sans)' }}>Sessão</span>
+              {seletorPaciente && (
+                <div style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 12, background: 'rgba(10,24,40,.98)', border: '1px solid rgba(26,58,92,.6)', borderRadius: 12, padding: 12, minWidth: 220, zIndex: 50, boxShadow: '0 8px 32px rgba(0,0,0,.4)' }}>
+                  <div style={{ fontSize: 11, color: 'rgba(160,200,235,.4)', marginBottom: 8, textTransform: 'uppercase' as const, letterSpacing: '.06em' }}>Selecionar paciente</div>
+                  {pacientesNav.length === 0
+                    ? <div style={{ fontSize: 12, color: 'rgba(160,200,235,.3)', padding: '8px 0' }}>Nenhum paciente vinculado</div>
+                    : pacientesNav.map((p: any) => (
+                      <Link key={p.id} href={`/clinic/sessao?pacienteId=${p.id}`} onClick={() => setSeletorPaciente(false)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, textDecoration: 'none', color: '#e8f0f8', fontSize: 13 }}>
+                        <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#1D9E75,#378ADD)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                          {p.nome.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase()}
+                        </div>
+                        {p.nome}
+                      </Link>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* Agenda e Mais */}
+            {[
+              { href: '/clinic/agenda', label: 'Agenda', icon: 'M2 3h12a1 1 0 011 1v10a1 1 0 01-1 1H2a1 1 0 01-1-1V4a1 1 0 011-1zM5 3V1M11 3V1M1 7h14' },
+            ].map(item => {
+              const active = pathname === item.href || (item.href !== '/clinic/dashboard' && pathname.startsWith(item.href))
+              return (
+                <Link key={item.href} href={item.href} style={{
+                  flex: 1, display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  padding: '10px 4px 8px', textDecoration: 'none',
+                  color: active ? '#23c48f' : 'rgba(160,200,235,.65)', gap: 4, position: 'relative',
+                }}>
+                  {active && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: '#23c48f', borderRadius: '0 0 2px 2px' }} />}
+                  <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={item.icon} />
+                  </svg>
+                  <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{item.label}</span>
+                </Link>
+              )
+            })}
+
             {/* Botão MAIS */}
             <button onClick={() => setMenuMaisAberto(v => !v)} style={{
               flex: 1, display: 'flex', flexDirection: 'column',
