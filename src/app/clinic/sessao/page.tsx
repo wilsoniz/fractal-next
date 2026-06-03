@@ -267,6 +267,7 @@ function SessaoInner() {
   const [paciente,   setPaciente]   = useState<{id:string;nome:string;iniciais:string;gradient:string;diagnostico:string}|null>(null)
   const [sessaoDbId, setSessaoDbId] = useState<string|null>(null)
   const [faseJornada, setFaseJornada] = useState<string|null>(null)
+  const [valorSessao, setValorSessao] = useState<number>(200)
   const [loading,    setLoading]    = useState(true)
   
   const [estadoAssentimento, setEstadoAssentimento] = useState<"ativo"|"revogado"|"pendente">("pendente")
@@ -376,6 +377,11 @@ item_id: string; codigo: string; descricao: string; dominio: string; valor_crite
 // ── Carregar dados ─────────────────────────────────────────────────────────────
 useEffect(() => {
     if (!pacienteId) { setLoading(false); return }
+    // Carrega valor da sessão do perfil do terapeuta
+    if (terapeuta?.id) {
+      supabase.from("profiles").select("valor_sessao").eq("id", terapeuta.id).single()
+        .then(({ data }) => { if (data?.valor_sessao) setValorSessao(data.valor_sessao) })
+    }
  async function carregar() {
   setLoading(true)
 
@@ -875,7 +881,7 @@ function registrarTally(chave: string, label: string) {
         observacoes:     notaEncerr || null,
         concluida:       true,
         taxa_id:         taxaGeral,
-        valor_sessao:    duracaoMin * 4, // R$4/min como base; ajustar quando tiver contrato real
+        valor_sessao:    valorSessao,
       })
 
       // 3. Atualizar score_atual dos planos com base na taxa de cada programa
@@ -982,7 +988,7 @@ const independencia = total > 0
 
       // 5. Gerar movimentação financeira
       const comissaoPct   = COMISSAO[nivel] ?? 0.10
-      const valorBruto    = duracaoMin * 4 // base simples; substituir por valor do contrato
+      const valorBruto    = valorSessao
       const valorComissao = Math.round(valorBruto * comissaoPct * 100) / 100
       const valorRepasse  = valorBruto - valorComissao
 

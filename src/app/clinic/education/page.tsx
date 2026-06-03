@@ -236,7 +236,7 @@ const CERTIFICACOES: Certificacao[] = [
   {
     id: "cert1",
     titulo: "Fundamentos da ABA",
-    emissor: "Fracta Academy",
+    emissor: "Fracta Education",
     dataEmissao: "15 Mar 2025",
     cursoId: "c1",
     codigo: "FRACTA-ABA-2025-0847",
@@ -391,7 +391,7 @@ export default function EducationPage() {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <h1 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#e8f0f8", margin: 0 }}>Fracta Academy</h1>
+            <h1 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#e8f0f8", margin: 0 }}>Fracta Education</h1>
             <span style={{ fontSize: ".65rem", color: "#8B7FE8", background: "rgba(139,127,232,.1)", border: "1px solid rgba(139,127,232,.2)", borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>Beta</span>
           </div>
           <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.84)" }}>Formação contínua em ABA · Certificações que vão direto ao seu perfil</div>
