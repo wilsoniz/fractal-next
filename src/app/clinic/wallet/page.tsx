@@ -370,7 +370,7 @@ export default function ClinicWalletPage() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10 }}>
         {[
           { l: "Receita bruta",     v: fmtK(metricas.receitaRealizada), c: "#1D9E75", sub: "sessões realizadas"       },
           { l: "Receita líquida",   v: fmtK(metricas.receitaLiquida),   c: "#378ADD", sub: "após custo plataforma"    },
@@ -400,7 +400,7 @@ export default function ClinicWalletPage() {
 
       {/* ═══ TAB: VISÃO GERAL ═══════════════════════════════════════════════ */}
       {tab === "visao-geral" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ ...card, padding: 20 }}>
             <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>Receita por paciente</div>
             <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)", marginBottom: 16 }}>Bruta vs custo plataforma este mês</div>
@@ -680,7 +680,8 @@ export default function ClinicWalletPage() {
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as any, marginBottom: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 560 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1.5fr 80px 100px 80px 80px 80px 32px", gap: 8, padding: "0 4px" }}>
                 {["Paciente","Sessões/mês","Valor/sessão","Modelo","Custo","Líquido",""].map(h => (
                   <div key={h} style={{ fontSize: ".58rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em" }}>{h}</div>
@@ -714,7 +715,8 @@ export default function ClinicWalletPage() {
             </div>
 
             <div style={{ borderTop: "1px solid rgba(26,58,92,.4)", paddingTop: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+              </div> 
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10 }}>
                 {[
                   { l: "Receita bruta total", v: fmtBRL(simResultado.totalBruto),   c: "#e8f0f8" },
                   { l: "Custo plataforma",    v: fmtBRL(simResultado.totalEfetivo),  c: "#EF9F27" },
