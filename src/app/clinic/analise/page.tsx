@@ -314,7 +314,7 @@ export default function AnalisePage() {
 
       {/* Filtros */}
       <div style={{ ...card, padding: 20 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 14, alignItems: "flex-end" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "flex-end" }}>
 
           <div>
             <label style={lbl}>Paciente</label>
@@ -380,7 +380,7 @@ export default function AnalisePage() {
       {carregado && (
         <>
           {/* KPIs */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
             {[
               { l: "Sessões",          v: kpis.totalSessoes,       c: "#e8f0f8" },
               { l: "Taxa média",       v: `${kpis.taxaMedia}%`,    c: kpis.taxaMedia >= 80 ? "#1D9E75" : kpis.taxaMedia >= 50 ? "#EF9F27" : "#E05A4B" },
@@ -535,7 +535,8 @@ export default function AnalisePage() {
 
               {/* Tabela */}
               <div style={{ ...card, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 1fr", gap: 0 }}>
+                <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as any }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(160px,2fr) minmax(80px,1fr) minmax(70px,1fr) minmax(70px,1fr) minmax(70px,1fr) minmax(60px,1fr) minmax(90px,1fr)", gap: 0, minWidth: 560 }}>
                   {/* Header */}
                   {["Programa","Domínio","Taxa média","Última","Independ.","Sessões","Status"].map(h => (
                     <div key={h} style={{ padding: "10px 14px", fontSize: ".6rem", fontWeight: 700, color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".07em", borderBottom: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.5)" }}>
@@ -589,6 +590,7 @@ export default function AnalisePage() {
                     Nenhum programa no recorte selecionado
                   </div>
                 )}
+              </div>
               </div>
             </div>
           )}
