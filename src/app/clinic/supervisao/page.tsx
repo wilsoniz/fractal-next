@@ -84,25 +84,25 @@ function Badge({ label, cor }: { label: string; cor: string }) {
 
 function KPI({ label, value, cor, sub }: { label: string; value: string | number; cor: string; sub?: string }) {
   return (
-    <Card style={{ padding: '18px 20px' }}>
-      <div style={{ fontSize: 11, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: cor, lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: c.sub, marginTop: 4 }}>{sub}</div>}
+    <Card style={{ padding: '12px 10px' }}>
+      <div style={{ fontSize: 9, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: '.06em', marginBottom: 4, lineHeight: 1.3 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: cor, lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 9, color: c.sub, marginTop: 3, lineHeight: 1.3 }}>{sub}</div>}
     </Card>
   )
 }
 
 function TabBar({ tabs, active, onChange }: { tabs: { id: string; label: string; badge?: number }[]; active: string; onChange: (id: string) => void }) {
   return (
-    <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(255,255,255,.04)', borderRadius: 10, padding: 4 }}>
+    <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(255,255,255,.04)', borderRadius: 10, padding: 4, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => onChange(t.id)} style={{
-          flex: 1, padding: '9px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          flex: '0 0 auto', padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           background: active === t.id ? 'rgba(139,127,232,.2)' : 'transparent',
           border: active === t.id ? '1px solid rgba(139,127,232,.35)' : '1px solid transparent',
           borderRadius: 8, color: active === t.id ? c.purple : c.muted,
-          fontSize: 13, fontWeight: active === t.id ? 600 : 400,
-          cursor: 'pointer', fontFamily: 'var(--font-sans)',
+          fontSize: 12, fontWeight: active === t.id ? 600 : 400,
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' as const,
         }}>
           {t.label}
           {t.badge !== undefined && t.badge > 0 && (
@@ -128,7 +128,7 @@ function MinhaSupervisaoTab({ casos, loading }: { casos: CasoRecebendo[]; loadin
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
         <KPI label="Casos com supervisor" value={ativos}   cor={c.teal}   sub="ativos agora" />
         <KPI label="Aguardando resposta"  value={pendentes} cor={c.amber}  sub="solicitações enviadas" />
         <KPI label="Total de vínculos"    value={casos.length} cor={c.purple} sub="histórico completo" />
@@ -308,7 +308,7 @@ function PainelSupervisorTab({ requests, loading, onAcao }: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
         <KPI label="Aguardando ação"  value={pendentes.length}   cor={c.coral}  sub="novas solicitações" />
         <KPI label="Em andamento"     value={emAndamento.length} cor={c.amber}  sub="casos ativos" />
         <KPI label="Total recebidos"  value={requests.length}    cor={c.purple} sub="histórico" />
@@ -515,7 +515,7 @@ function MinhaEquipeTab({ supervisorId, nivel }: { supervisorId: string; nivel: 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
         <KPI label="Membros ativos"   value={membros.filter(m => m.status === 'ativo').length}   cor={c.teal}   sub={`de ${limiteEquipe === 999 ? 'ilimitados' : limiteEquipe}`} />
         <KPI label="Convidados"       value={membros.filter(m => m.status === 'convidado').length} cor={c.amber}  sub="aguardando aceite" />
         <KPI label="Notificações"     value={notificacoes.length}                                  cor={c.coral}  sub="não lidas" />
