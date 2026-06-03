@@ -368,7 +368,7 @@ const lbl: React.CSSProperties = {
             {programa.tipoComportamento === "verbal" && (
               <>
                 <label style={lbl}>Operante verbal *</label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8 }}>
                   {OPERANTES.filter(o => !["imitacao", "ouvinte"].includes(o.id)).map(o => (
                     <button key={o.id} onClick={() => upd("operante", o.id)} style={{
                       padding: "10px 12px", borderRadius: 9,
@@ -394,7 +394,7 @@ const lbl: React.CSSProperties = {
           {/* Domínio */}
           <div style={{ ...card, padding: 20 }}>
             <label style={lbl}>Domínio de desenvolvimento *</label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8 }}>
               {([
                 { id: "comunicacao",   label: "Comunicação",   cor: "#1D9E75" },
                 { id: "social",        label: "Social",        cor: "#378ADD" },
