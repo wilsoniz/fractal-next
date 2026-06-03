@@ -481,9 +481,9 @@ for (const av of (avulsasExtras ?? [])) {
           <h1 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#e8f0f8", margin: 0, marginBottom: 4 }}>Agenda</h1>
           <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>Sessões · Controle de confirmações</div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" as const }}>
           {/* Nova recorrência */}
-          <button onClick={() => { setModalRecorr(true); setErroRecorr(null); }} style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+          <button onClick={() => { setModalRecorr(true); setErroRecorr(null); }} style={{ padding: "7px 12px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".72rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" as const }}>
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
             Novo agendamento
           </button>
@@ -500,7 +500,7 @@ for (const av of (avulsasExtras ?? [])) {
             <button onClick={() => navegar(-1)} style={{ background: "none", border: "none", color: "rgba(160,200,235,.84)", cursor: "pointer", padding: 2 }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5"/></svg>
             </button>
-            <span style={{ fontSize: ".78rem", color: "#e8f0f8", fontWeight: 600, minWidth: 160, textAlign: "center" }}>{tituloNav()}</span>
+            <span style={{ fontSize: ".72rem", color: "#e8f0f8", fontWeight: 600, minWidth: 80, textAlign: "center" as const }}>{tituloNav()}</span>
             <button onClick={() => navegar(1)} style={{ background: "none", border: "none", color: "rgba(160,200,235,.84)", cursor: "pointer", padding: 2 }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5"/></svg>
             </button>
@@ -510,7 +510,7 @@ for (const av of (avulsasExtras ?? [])) {
       </div>
 
       {/* ── STATS ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
         {[
           { l: "Confirmadas",  v: stats.confirmadas,    c: "#1D9E75" },
           { l: "Pendentes",    v: stats.pendentes,      c: "#EF9F27" },
