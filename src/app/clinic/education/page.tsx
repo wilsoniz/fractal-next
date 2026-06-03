@@ -399,7 +399,7 @@ export default function EducationPage() {
       </div>
 
       {/* ── KPIs ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10 }}>
         {[
           { l: "Cursos concluídos", v: stats.cursosFeitos,                       c: "#1D9E75" },
           { l: "Em andamento",      v: stats.emAndamento,                         c: "#EF9F27" },
@@ -414,14 +414,14 @@ export default function EducationPage() {
       </div>
 
       {/* ── TABS ── */}
-      <div style={{ display: "flex", borderBottom: "1px solid rgba(26,58,92,.4)" }}>
+      <div style={{ display: "flex", borderBottom: "1px solid rgba(26,58,92,.4)", overflowX: "auto", WebkitOverflowScrolling: "touch" as any, scrollbarWidth: "none" as any }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
-            padding: "10px 18px", background: "none", border: "none",
+            padding: "10px 14px", background: "none", border: "none",
             borderBottom: `2px solid ${tab === t.id ? "#1D9E75" : "transparent"}`,
             color: tab === t.id ? "#1D9E75" : "rgba(160,200,235,.84)",
             fontFamily: "var(--font-sans)", fontWeight: tab === t.id ? 600 : 400,
-            fontSize: ".82rem", cursor: "pointer", marginBottom: -1,
+            fontSize: ".78rem", cursor: "pointer", marginBottom: -1, whiteSpace: "nowrap" as const, flexShrink: 0,
           }}>{t.label}</button>
         ))}
       </div>
