@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useClinicContext } from "../layout";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
-type TabWallet = "visao-geral" | "contratos" | "historico" | "projecao" | "simulador";
+type TabWallet = "visao-geral" | "contratos" | "historico" | "projecao" | "simulador" | "meu-plano";
 
 interface PacienteFinanceiro {
   id: string
@@ -79,6 +79,193 @@ function iniciais(nome: string): string {
 
 const tooltipStyle = {
   contentStyle: { background: "#0d2035", border: "1px solid rgba(26,58,92,.7)", borderRadius: 10, color: "#e8f0f8", fontSize: 11 },
+}
+
+// ─── MEU PLANO ───────────────────────────────────────────────────────────────
+function MeuPlanoTab({ terapeutaId }: { terapeutaId: string }) {
+  const [assinatura, setAssinatura] = useState<any>(null)
+  const [plano,      setPlano]      = useState<any>(null)
+  const [fatura,     setFatura]     = useState<any>(null)
+  const [loading,    setLoading]    = useState(true)
+
+  const card: React.CSSProperties = { background: "rgba(13,32,53,.75)", border: "1px solid rgba(26,58,92,.5)", borderRadius: 14 }
+
+  useEffect(() => {
+    if (!terapeutaId) return
+    async function carregar() {
+      setLoading(true)
+
+      const { data: ass } = await supabase
+        .from("terapeuta_assinaturas")
+        .select("*, fracta_planos(*)")
+        .eq("terapeuta_id", terapeutaId)
+        .eq("status", "ativo")
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .single()
+
+      if (ass) {
+        setAssinatura(ass)
+        setPlano(ass.fracta_planos)
+      }
+
+      const mesAtual = new Date()
+      mesAtual.setDate(1)
+      const mesStr = mesAtual.toISOString().slice(0, 10)
+
+      const { data: fat } = await supabase
+        .from("fracta_faturas")
+        .select("*")
+        .eq("terapeuta_id", terapeutaId)
+        .eq("mes_referencia", mesStr)
+        .maybeSingle()
+
+      setFatura(fat)
+      setLoading(false)
+    }
+    carregar()
+  }, [terapeutaId])
+
+  async function calcularFatura() {
+    await supabase.rpc("calcular_fatura_mensal", { p_terapeuta_id: terapeutaId })
+    const mesAtual = new Date()
+    mesAtual.setDate(1)
+    const mesStr = mesAtual.toISOString().slice(0, 10)
+    const { data: fat } = await supabase
+      .from("fracta_faturas")
+      .select("*")
+      .eq("terapeuta_id", terapeutaId)
+      .eq("mes_referencia", mesStr)
+      .maybeSingle()
+    setFatura(fat)
+  }
+
+  if (loading) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
+      <div style={{ fontSize: 13, color: "rgba(160,200,235,.4)" }}>Carregando plano...</div>
+    </div>
+  )
+
+  const PLANOS_INFO: Record<string, { cor: string; desc: string }> = {
+    por_paciente: { cor: "#1D9E75", desc: "R$ 12/paciente FFS · R$ 8/paciente Care" },
+    starter:      { cor: "#378ADD", desc: "Até 5 pacientes · R$ 49/mês" },
+    pro:          { cor: "#8B7FE8", desc: "Até 15 pacientes · R$ 119/mês" },
+    clinic:       { cor: "#EF9F27", desc: "Até 30 pacientes · R$ 199/mês" },
+    enterprise:   { cor: "#E05A4B", desc: "Ilimitado · valor negociado" },
+  }
+
+  const info = PLANOS_INFO[plano?.id ?? "por_paciente"] ?? PLANOS_INFO.por_paciente
+  const mesAtual = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+      {/* Plano ativo */}
+      <div style={{ ...card, padding: 24, border: `1px solid ${info.cor}33` }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".08em", marginBottom: 6 }}>Plano ativo</div>
+            <div style={{ fontSize: "1.4rem", fontWeight: 800, color: info.cor }}>{plano?.nome ?? "—"}</div>
+            <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.6)", marginTop: 4 }}>{info.desc}</div>
+          </div>
+          <div style={{ padding: "6px 14px", borderRadius: 20, background: `${info.cor}15`, border: `1px solid ${info.cor}33`, fontSize: ".7rem", fontWeight: 700, color: info.cor }}>
+            {assinatura?.status === "ativo" ? "Ativo" : "Inativo"}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ background: "rgba(26,58,92,.25)", borderRadius: 9, padding: "10px 12px" }}>
+            <div style={{ fontSize: ".58rem", color: "rgba(170,210,245,.5)", marginBottom: 3 }}>Por paciente FFS</div>
+            <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8" }}>R$ {plano?.valor_por_paciente_ffs ?? 12}/mês</div>
+          </div>
+          <div style={{ background: "rgba(26,58,92,.25)", borderRadius: 9, padding: "10px 12px" }}>
+            <div style={{ fontSize: ".58rem", color: "rgba(170,210,245,.5)", marginBottom: 3 }}>Por paciente Care</div>
+            <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8" }}>R$ {plano?.valor_por_paciente_care ?? 8}/mês</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Fatura do mês */}
+      <div style={{ ...card, padding: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".08em", marginBottom: 4 }}>Fatura</div>
+            <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8" }}>{mesAtual}</div>
+          </div>
+          <button onClick={calcularFatura} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(55,138,221,.3)", background: "rgba(55,138,221,.08)", color: "#378ADD", fontSize: ".7rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            Recalcular
+          </button>
+        </div>
+
+        {fatura ? (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+              {[
+                { l: "Pacientes FFS",  v: fatura.pacientes_ffs,          c: "#1D9E75" },
+                { l: "Pacientes Care", v: fatura.pacientes_care,         c: "#8B7FE8" },
+                { l: "Total pacientes",v: fatura.pacientes_ffs + fatura.pacientes_care, c: "#e8f0f8" },
+              ].map(k => (
+                <div key={k.l} style={{ background: "rgba(26,58,92,.25)", borderRadius: 9, padding: "10px 12px" }}>
+                  <div style={{ fontSize: ".58rem", color: "rgba(170,210,245,.5)", marginBottom: 3 }}>{k.l}</div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: 800, color: k.c }}>{k.v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ borderTop: "1px solid rgba(26,58,92,.3)", paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)", marginBottom: 2 }}>
+                  FFS: {fmtBRL(fatura.valor_ffs)} · Care: {fmtBRL(fatura.valor_care)}
+                </div>
+                <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.5)" }}>
+                  Status: <span style={{ color: fatura.status === "pago" ? "#1D9E75" : fatura.status === "vencido" ? "#E05A4B" : "#EF9F27", fontWeight: 600 }}>{fatura.status}</span>
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.5)", marginBottom: 2 }}>Total a pagar</div>
+                <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "#1D9E75" }}>{fmtBRL(fatura.valor_total)}</div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ textAlign: "center", padding: "24px 0" }}>
+            <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.3)", marginBottom: 12 }}>
+              Fatura ainda não calculada para este mês
+            </div>
+            <button onClick={calcularFatura} style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+              Calcular fatura do mês
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Upgrade de plano */}
+      <div style={{ ...card, padding: 20, border: "1px solid rgba(139,127,232,.2)", background: "rgba(139,127,232,.04)" }}>
+        <div style={{ fontSize: ".72rem", fontWeight: 600, color: "#8B7FE8", marginBottom: 12 }}>Comparativo de planos</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[
+            { id: "por_paciente", nome: "Pay-per-patient", desc: "R$ 12 FFS · R$ 8 Care", cor: "#1D9E75" },
+            { id: "starter",      nome: "Starter",         desc: "Até 5 pac. · R$ 49/mês", cor: "#378ADD" },
+            { id: "pro",          nome: "Pro",             desc: "Até 15 pac. · R$ 119/mês", cor: "#8B7FE8" },
+            { id: "clinic",       nome: "Clinic",          desc: "Até 30 pac. · R$ 199/mês", cor: "#EF9F27" },
+          ].map(p => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: plano?.id === p.id ? `${p.cor}10` : "rgba(26,58,92,.15)", borderRadius: 9, border: `1px solid ${plano?.id === p.id ? p.cor + "33" : "rgba(26,58,92,.3)"}` }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: p.cor, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: ".78rem", fontWeight: 600, color: plano?.id === p.id ? p.cor : "#e8f0f8" }}>{p.nome}</div>
+                <div style={{ fontSize: ".65rem", color: "rgba(160,200,235,.5)" }}>{p.desc}</div>
+              </div>
+              {plano?.id === p.id && (
+                <span style={{ fontSize: ".62rem", color: p.cor, fontWeight: 700 }}>Atual</span>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 12, fontSize: ".68rem", color: "rgba(160,200,235,.35)", textAlign: "center" }}>
+          Integração com pagamento em breve
+        </div>
+      </div>
+
+    </div>
+  )
 }
 
 // ─── PAGE ────────────────────────────────────────────────────────────────────
@@ -323,6 +510,7 @@ export default function ClinicWalletPage() {
     { id: "historico",   label: "Histórico"         },
     { id: "projecao",    label: "Projeção"           },
     { id: "simulador",   label: "Simulador FFS/Care" },
+    { id: "meu-plano",   label: "Meu Plano"           },
   ]
 
   // ── Loading / Erro / Sem terapeuta ───────────────────────────────────────
@@ -755,6 +943,11 @@ export default function ClinicWalletPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ═══ TAB: MEU PLANO ═══════════════════════════════════════════════ */}
+      {tab === "meu-plano" && (
+        <MeuPlanoTab terapeutaId={terapeuta?.id ?? ''} />
       )}
 
       {/* Modal detalhes paciente */}
