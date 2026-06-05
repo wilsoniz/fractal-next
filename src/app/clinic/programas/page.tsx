@@ -729,7 +729,7 @@ const lbl: React.CSSProperties = {
               ))}
             </div>
           </div>
-
+//para acontecer commit que falhou 
           {/* Comportamento-alvo */}
           <div style={{ ...card, padding: 18 }}>
             <div style={{ fontSize: ".62rem", color: "rgba(170,210,245,.88)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>Comportamento-alvo</div>
