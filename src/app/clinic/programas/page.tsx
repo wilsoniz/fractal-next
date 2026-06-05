@@ -185,9 +185,7 @@ const handleSalvar = async () => {
       nivel: programa.nivelTreino === 'basico' ? 'iniciante' : programa.nivelTreino,
       ativo: true,
     }
-    console.log('payload:', JSON.stringify(payload, null, 2))
     const { error } = await supabase.from('programas').insert(payload)
-    console.log('error:', JSON.stringify(error, null, 2))
     if (!error) {
       setSalvo(true)
     } else {
@@ -238,7 +236,7 @@ const lbl: React.CSSProperties = {
       <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(29,158,117,.15)", border: "1px solid rgba(29,158,117,.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 28 }}>✓</div>
       <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "#e8f0f8", marginBottom: 8 }}>Programa criado</div>
       <div style={{ fontSize: ".85rem", color: "rgba(160,200,235,.90)", marginBottom: 28 }}>
-        <strong style={{ color: "#1D9E75" }}>{programa.nome}</strong> foi adicionado ao plano terapêutico do paciente.
+        <strong style={{ color: "#1D9E75" }}>{programa.nome}</strong> foi adicionado à biblioteca de programas e está disponível para uso nas sessões.
       </div>
       <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
         <button onClick={() => { setPrograma(PROGRAMA_INICIAL); setEtapa(1); setSalvo(false); }} style={{ padding: "10px 20px", borderRadius: 9, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.92)", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".82rem", cursor: "pointer" }}>
@@ -645,7 +643,7 @@ const lbl: React.CSSProperties = {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {[
                 { l: "Nome",            v: programa.nome },
-                { l: "Paciente",        v: pacientes.find(p => p.id === programa.pacienteId)?.nome ?? "—" },
+                { l: "Disponibilidade", v: "Biblioteca global" },
                 { l: "Operante",        v: OPERANTES.find(o => o.id === programa.operante)?.label ?? "—" },
                 { l: "Nível de treino", v: NIVEIS_TREINO.find(n => n.id === programa.nivelTreino)?.label ?? "—" },
                 { l: "Estímulos",       v: `${programa.estimulos.length} pares` },
