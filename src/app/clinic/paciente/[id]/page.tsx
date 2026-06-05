@@ -334,7 +334,7 @@ function JornadaClinica({ jornada, jornadaAnterior, dominios, paciente, criancaI
           })}
         </div>
 
-        {/* Forecast */}
+        {/* Previsão */}
         <div style={{ padding: "10px 14px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 9, fontSize: 13, color: "#EF9F27" }}>
           Fase atual: <strong>{FASES[faseAtualIdx]?.label ?? "—"}</strong>
           {jornada.previsao_proxima_fase && (
