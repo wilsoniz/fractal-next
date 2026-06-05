@@ -174,16 +174,21 @@ export default function GoalBuilderPage() {
 const handleSalvar = async () => {
     if (!terapeuta) return
     const payload = {
-      nome: programa.nome,
-      operante: programa.operante,
-      dominio: programa.dominio, 
-      objetivo: programa.comportamentoAlvo,
-      materiais: programa.material,
-      dica: programa.instrucoes,
-      total_tentativas: programa.totalTentativas,
+      nome:              programa.nome,
+      operante:          programa.operante,
+      dominio:           programa.dominio,
+      objetivo:          programa.comportamentoAlvo,
+      comportamento_alvo: programa.comportamentoAlvo,
+      sd:                programa.sd,
+      materiais:         programa.material,
+      dica:              programa.instrucoes,
+      total_tentativas:  programa.totalTentativas,
       criterio_maestria: programa.criterioMaestria,
-      nivel: programa.nivelTreino === 'basico' ? 'iniciante' : programa.nivelTreino,
-      ativo: true,
+      nivel:             programa.nivelTreino === 'basico' ? 'iniciante' : programa.nivelTreino,
+      estimulos:         programa.estimulos,
+      relacoes:          programa.relacoes,
+      hierarquia_dicas:  ["independente", "gestual", "modelo", "física parcial", "física total"],
+      ativo:             true,
     }
     const { error } = await supabase.from('programas').insert(payload)
     if (!error) {
