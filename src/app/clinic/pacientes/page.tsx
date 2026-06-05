@@ -26,6 +26,7 @@ interface Paciente {
   radarMini: { label: string; val: number }[];
   semSupervisor: boolean;
   cuidadorAtivo: boolean;
+  planoId: string;
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -71,8 +72,22 @@ export default function PacientesPage() {
   const { terapeuta } = useClinicContext();
   const [busca,     setBusca]     = useState("");
   const [filtro,    setFiltro]    = useState<FiltroAtivo>("todos");
-  const [pacientes, setPacientes] = useState<Paciente[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  const [pacientes,      setPacientes]      = useState<Paciente[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [encerrando,     setEncerrando]     = useState<string | null>(null);
+  const [confirmEncerrar,setConfirmEncerrar]= useState<Paciente | null>(null);
+
+  async function encerrarVinculo(p: Paciente) {
+    if (!p.planoId) return
+    setEncerrando(p.id)
+    await supabase.from("planos").update({
+      status: "encerrado",
+      atualizado_em: new Date().toISOString(),
+    }).eq("id", p.planoId)
+    setPacientes(prev => prev.filter(x => x.id !== p.id))
+    setEncerrando(null)
+    setConfirmEncerrar(null)
+  }
   const [modalFFS,      setModalFFS]      = useState(false);
   const [modalVinculo,  setModalVinculo]  = useState(false);
   const [salvando,      setSalvando]      = useState(false);
@@ -209,6 +224,7 @@ const { data: criancas } = await supabase
             radarMini:       RADAR_KEYS.map(k => ({ label: k.label, val: radar?.[k.key] ?? 0 })),
             semSupervisor:   false,
             cuidadorAtivo:   true,
+            planoId:         cPlanos.find(pl => pl.status === "ativo")?.id ?? "",
           };
         });
 
@@ -336,7 +352,8 @@ const { data: criancas } = await supabase
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {pacientesFiltrados.map(p => (
-            <Link key={p.id} href={`/clinic/paciente/${p.id}`} style={{ textDecoration: "none" }}>
+            <div key={p.id} style={{ position: "relative" }}>
+            <Link href={`/clinic/paciente/${p.id}`} style={{ textDecoration: "none", display: "block" }}>
               <div
                 style={{ ...card, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s" }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(55,138,221,.5)")}
@@ -418,7 +435,50 @@ const { data: criancas } = await supabase
                 </div>
               </div>
             </Link>
+            <button
+              onClick={e => { e.stopPropagation(); setConfirmEncerrar(p); }}
+              style={{
+                position: "absolute", top: 10, right: 10,
+                padding: "4px 10px", borderRadius: 6,
+                border: "1px solid rgba(224,90,75,.25)",
+                background: "rgba(13,32,53,.9)",
+                color: "rgba(224,90,75,.6)",
+                fontSize: ".62rem", fontWeight: 600,
+                cursor: "pointer", fontFamily: "var(--font-sans)",
+              }}
+            >
+              Encerrar
+            </button>
+            </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Modal confirmar encerramento ── */}
+      {confirmEncerrar && (
+        <div onClick={() => setConfirmEncerrar(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "rgba(13,32,53,.97)", border: "1px solid rgba(224,90,75,.3)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 400 }}>
+            <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 8 }}>Encerrar vínculo</div>
+            <div style={{ fontSize: ".82rem", color: "rgba(160,200,235,.6)", marginBottom: 6, lineHeight: 1.6 }}>
+              Tem certeza que deseja encerrar o vínculo com <strong style={{ color: "#e8f0f8" }}>{confirmEncerrar.nome}</strong>?
+            </div>
+            <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.4)", marginBottom: 24, lineHeight: 1.6 }}>
+              O paciente será removido da sua lista ativa e não contará no faturamento do próximo mês. O histórico clínico e todas as sessões ficam preservados.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmEncerrar(null)}
+                style={{ flex: 1, padding: "10px", borderRadius: 9, border: "1px solid rgba(70,120,180,.4)", background: "transparent", color: "rgba(160,200,235,.6)", fontSize: ".8rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                Cancelar
+              </button>
+              <button onClick={() => encerrarVinculo(confirmEncerrar)}
+                disabled={encerrando === confirmEncerrar.id}
+                style={{ flex: 1, padding: "10px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#E05A4B,#c04030)", color: "#fff", fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                {encerrando === confirmEncerrar.id ? "Encerrando..." : "Encerrar vínculo"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
