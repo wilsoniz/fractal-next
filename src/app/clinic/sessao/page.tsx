@@ -858,206 +858,57 @@ function registrarTally(chave: string, label: string) {
     const totalAcertos   = acoes.reduce((a,ac) => a + ac.operantes.filter(o => o.correto).length, 0)
     const taxaGeral      = totalOps > 0 ? Math.round(totalAcertos / totalOps * 100) : 0
 
-    try {
-      // 1. Finalizar sessão em sessoes_v2
-      await supabase.from("sessoes_v2").update({
-        status:           "finalizada",
-        fim:              new Date().toISOString(),
-        duracao_segundos: segundos,
-        observacao_geral: notaEncerr || null,
-        concluida:        true,
-        acrescimo_min:    acrescimo,
-        humor_crianca:    taxaGeral > 70 ? 3 : taxaGeral > 40 ? 2 : 1,
-      }).eq("id", sessaoDbId)
-
-      // 2. Registrar também em sessoes_clinicas (financeiro e histórico)
-      await supabase.from("sessoes_clinicas").insert({
-        crianca_id:      paciente.id,
-        terapeuta_id:    terapeuta.id,
-        responsavel_id:  terapeuta.id,
-        agendado_para:   new Date().toISOString(),
-        status:          "realizada",
-        timer_segundos:  segundos,
-        observacoes:     notaEncerr || null,
-        concluida:       true,
-        taxa_id:         taxaGeral,
-        valor_sessao:    valorSessao,
-      })
-
-      // 3. Atualizar score_atual dos planos com base na taxa de cada programa
-      const acoesIntervencao = acoes.filter(a => a.tipo === "intervention" && a.planoId)
-      for (const acao of acoesIntervencao) {
-        const ops     = acao.operantes
-        const taxa    = ops.length > 0 ? Math.round(ops.filter(o => o.correto).length / ops.length * 100) : null
-        if (taxa !== null && acao.planoId) {
-          await supabase.from("planos").update({ score_atual: taxa, atualizado_em: new Date().toISOString() }).eq("id", acao.planoId)
-        }
-      }
-
-      // 3.5 Atualizar repertorio_habilidades com base nas ações da sessão
-for (const acao of acoes.filter(a => a.tipo === "intervention" && a.operantes.length > 0)) {
-  const ops = acao.operantes
-  const total = ops.length
-  const acertos = ops.filter(o => o.correto).length
-  const taxa = Math.round(acertos / total * 100)
-  const PESO_PROMPT: Record<string, number> = {
-  "independente": 1.0,
-  "gestual": 0.8,
-  "visual": 0.7,
-  "ecoica_parcial": 0.5,
-  "ecoico": 0.5,
-  "modelo": 0.4,
-  "ecoica_total": 0.3,
-  "física parcial": 0.2,
-  "fisico_parcial": 0.2,
-  "física total": 0.1,
-  "fisico_total": 0.1,
-  "erro": 0.0,
-}
-const independencia = total > 0
-  ? Math.round(ops.reduce((acc, o) => acc + (PESO_PROMPT[o.promptLevel] ?? 0.5), 0) / total * 100)
-  : 0
-
-  const status =
-    taxa === 0 ? "ausente" :
-    taxa <= 40 ? "emergente" :
-    taxa <= 79 ? "em_aquisicao" : "dominada"
-
-  // Verifica se já existe no repertório
-  const { data: existente } = await supabase
-    .from("repertorio_habilidades")
-    .select("id, score, independencia")
-    .eq("crianca_id", paciente.id)
-    .eq("habilidade", acao.itemNome)
-    .maybeSingle()
-
-  if (existente) {
-    await supabase
-      .from("repertorio_habilidades")
-      .update({
-        score: taxa,
-        status,
-        independencia,
-        ultimo_registro: new Date().toISOString(),
-        plano_programa_id: acao.planoProgramaId ?? null,
-      })
-      .eq("id", existente.id)
-  } else {
-    await supabase
-      .from("repertorio_habilidades")
-      .insert({
-        crianca_id: paciente.id,
-        dominio: acao.itemDominio.toLowerCase(),
-        habilidade: acao.itemNome,
-        status,
-        score: taxa,
-        independencia,
-        generalizacao: 0,
-        manutencao: 0,
-        plano_programa_id: acao.planoProgramaId ?? null,
-        ultimo_registro: new Date().toISOString(),
-      })
-  }
-}
-
-      // 4. Inserir radar_snapshot para alimentar o Forecast
-      // Calcula score por domínio a partir das ações da sessão
-      const dominioScores: Record<string, number[]> = {}
-      for (const acao of acoes) {
-        const dom = acao.itemDominio.toLowerCase()
-        const ops = acao.operantes
-        if (ops.length === 0) continue
-        const taxa = Math.round(ops.filter(o => o.correto).length / ops.length * 100)
-        if (!dominioScores[dom]) dominioScores[dom] = []
-        dominioScores[dom].push(taxa)
-      }
-      const media = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a,b) => a+b,0) / arr.length) : 50
-
-      await supabase.from("radar_snapshots").insert({
-        crianca_id:           paciente.id,
-        score_comunicacao:    media(dominioScores["comunicação"] ?? dominioScores["comunicacao"] ?? []),
-        score_social:         media(dominioScores["social"] ?? []),
-        score_atencao:        media(dominioScores["atenção"] ?? dominioScores["atencao"] ?? []),
-        score_regulacao:      media(dominioScores["regulação"] ?? dominioScores["regulacao"] ?? []),
-        score_brincadeira:    media(dominioScores["brincadeira"] ?? []),
-        score_flexibilidade:  media(dominioScores["flexibilidade"] ?? []),
-        score_autonomia:      media(dominioScores["autonomia"] ?? []),
-        score_motivacao:      media(dominioScores["motivação"] ?? dominioScores["motivacao"] ?? []),
-        criado_em:            new Date().toISOString(),
-      })
-
-      // 5. Gerar movimentação financeira
-      const comissaoPct   = COMISSAO[nivel] ?? 0.10
-      const valorBruto    = valorSessao
-      const valorComissao = Math.round(valorBruto * comissaoPct * 100) / 100
-      const valorRepasse  = valorBruto - valorComissao
-
-      await supabase.from("financial_transactions").insert({
-        sessao_id:     sessaoDbId,
-        terapeuta_id:  terapeuta.id,
-        crianca_id:    paciente.id,
-        tipo_origem:   "care",
-        valor_bruto:   valorBruto,
-        comissao_pct:  comissaoPct * 100,
-        valor_comissao: valorComissao,
-        valor_repasse:  valorRepasse,
-        duracao_min:   duracaoMin,
-        acrescimo_min: acrescimo,
-        status:        "pendente",
-      })
-
-      // 6. Gerar session_summary para histórico e FractaCare
+try {
       const programasJson = acoes.map(ac => {
         const ops   = ac.operantes
         const total = ops.length
         const acert = ops.filter(o => o.correto).length
         const taxa  = total > 0 ? Math.round(acert / total * 100) : 0
         return {
-          nome:     ac.itemNome,
-          dominio:  ac.itemDominio,
-          tipo:     ac.tipo,
-          area:     ac.area,
-          taxa,
-          total,
-          acertos:  acert,
+          nome: ac.itemNome, dominio: ac.itemDominio,
+          tipo: ac.tipo, area: ac.area,
+          taxa, total, acertos: acert,
           criterio: taxa >= 80,
-          seq:      ops.map(o => o.correto ? "C" : "E").join(""),
-          // Independência: % de tentativas independentes (sem dica)
+          seq: ops.map(o => o.correto ? "C" : "E").join(""),
           independencia: total > 0
             ? Math.round(ops.filter(o => o.promptLevel === "independente").length / total * 100)
             : 0,
         }
       })
 
-      const eventosJson = eventos.map(e => ({ tipo: e.tipo, label: EVENT_CFG[e.tipo].label, timestamp: e.timestamp }))
+      const eventosJson = eventos.map(e => ({
+        tipo: e.tipo, label: EVENT_CFG[e.tipo].label, timestamp: e.timestamp
+      }))
 
-      await supabase.from("session_summary").insert({
-        sessao_id:          sessaoDbId,
-        crianca_id:         paciente.id,
-        terapeuta_id:       terapeuta.id,
-        taxa_geral:         taxaGeral,
-        total_operantes:    totalOps,
-        programas_json:     programasJson,
-        eventos_json:       eventosJson,
-        familia_comunicada: familiaComunic ?? false,
-        nota_encerramento:  notaEncerr || null,
-        fase_jornada:       faseJornada ?? null,
+      const { error: rpcError } = await supabase.rpc("finalizar_sessao", {
+        p_sessao_id:          sessaoDbId,
+        p_segundos:           segundos,
+        p_duracao_min:        duracaoMin,
+        p_nota_encerr:        notaEncerr || null,
+        p_familia_comunicada: familiaComunic ?? false,
+        p_fase_jornada:       faseJornada ?? null,
+        p_tipo_sessao:        tipoSessao,
+        p_valor_sessao:       valorSessao,
+        p_terapeuta_id:       terapeuta!.id,
+        p_crianca_id:         paciente!.id,
+        p_taxa_geral:         taxaGeral,
+        p_total_operantes:    totalOps,
+        p_programas_json:     programasJson,
+        p_eventos_json:       eventosJson,
+        p_encaminhamentos:    tipoSessao === "supervisao" && encaminhamentos.length > 0
+                                ? encaminhamentos : null,
+        p_assinatura_sup:     assinaturaSup,
+        p_assinatura_supv:    assinaturaSupv,
+        p_analise_clinica:    analiseClinica || null,
+        p_decisao_proxima:    decisaoProxima.length > 0 ? decisaoProxima : null,
+        p_nota_decisao:       notaDecisao || null,
       })
 
-      // 7. Para supervisão: registrar encaminhamentos
-      if (tipoSessao === "supervisao" && encaminhamentos.length > 0) {
-        await supabase.from("sessoes_v2").update({
-          encaminhamentos: encaminhamentos,
-          assinatura_supervisor:      assinaturaSup,
-          assinatura_supervisionado:  assinaturaSupv,
-          horas_supervisao_validas:   assinaturaSup && assinaturaSupv,
-        }).eq("id", sessaoDbId)
-      }
+      if (rpcError) throw rpcError
 
     } catch (err) {
       console.error("Erro no encerramento:", err)
     }
-
     setSalvandoEnc(false)
     setShowEncModal(false)
     // Atualizar slot da agenda para realizado
