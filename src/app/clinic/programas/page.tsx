@@ -58,6 +58,9 @@ interface Programa {
   sessoesParaMaestria: number;
   reforcoGeral: string;
   nivelDicas: string[];
+  tipoRegistro: "dtt" | "frequencia" | "duracao" | "latencia" | "encadeamento" | "matching";
+  passosEncadeamento: string[];
+  direcaoEncadeamento: "frente" | "tras" | "total";
 }
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
@@ -112,6 +115,9 @@ const PROGRAMA_INICIAL: Programa = {
   sessoesParaMaestria: 3,
   reforcoGeral: "",
   nivelDicas: DICAS_DEFAULT,
+  tipoRegistro: "dtt",
+  passosEncadeamento: [],
+  direcaoEncadeamento: "frente",
 };
 
 // ─── PACIENTES — carregados do Supabase ──────────────────────────────────────
@@ -187,8 +193,11 @@ const handleSalvar = async () => {
       nivel:             programa.nivelTreino === 'basico' ? 'iniciante' : programa.nivelTreino,
       estimulos:         programa.estimulos,
       relacoes:          programa.relacoes,
-      hierarquia_dicas:  ["independente", "gestual", "modelo", "física parcial", "física total"],
-      ativo:             true,
+      hierarquia_dicas:        programa.nivelDicas.filter(d => d.trim()),
+      tipo_registro:           programa.tipoRegistro,
+      passos_encadeamento:     programa.tipoRegistro === "encadeamento" ? programa.passosEncadeamento.filter(p => p.trim()) : null,
+      direcao_encadeamento:    programa.tipoRegistro === "encadeamento" ? programa.direcaoEncadeamento : null,
+      ativo:                   true,
     }
     const { error } = await supabase.from('programas').insert(payload)
     if (!error) {
@@ -627,6 +636,62 @@ const lbl: React.CSSProperties = {
             </div>
           </div>
 
+          {/* Tipo de registro */}
+          <div style={{ ...card, padding: 20 }}>
+            <label style={lbl}>Tipo de registro</label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+              {([
+                ["dtt",          "DTT",          "Tentativa discreta"],
+                ["frequencia",   "Frequência",   "Contagem livre"],
+                ["duracao",      "Duração",      "Tempo de resposta"],
+                ["latencia",     "Latência",     "SD → resposta"],
+                ["encadeamento", "Encadeamento", "Task analysis"],
+                ["matching",     "Matching",     "Estímulo/comparação"],
+              ] as const).map(([id, label, desc]) => (
+                <button key={id} onClick={() => upd("tipoRegistro", id)}
+                  style={{ padding: "8px 6px", borderRadius: 8, border: `1px solid ${programa.tipoRegistro === id ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: programa.tipoRegistro === id ? "rgba(55,138,221,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
+                  <div style={{ fontSize: ".72rem", fontWeight: programa.tipoRegistro === id ? 700 : 400, color: programa.tipoRegistro === id ? "#378ADD" : "rgba(160,200,235,.5)" }}>{label}</div>
+                  <div style={{ fontSize: ".58rem", color: "rgba(160,200,235,.3)", marginTop: 2 }}>{desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Editor de passos — só aparece para encadeamento */}
+          {programa.tipoRegistro === "encadeamento" && (
+            <div style={{ ...card, padding: 20 }}>
+              <label style={lbl}>Passos da tarefa (task analysis)</label>
+
+              {/* Direção */}
+              <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                {([["frente","Encadeamento à frente"],["tras","Encadeamento atrás"],["total","Cadeia total"]] as const).map(([id, label]) => (
+                  <button key={id} onClick={() => upd("direcaoEncadeamento", id)}
+                    style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${programa.direcaoEncadeamento === id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: programa.direcaoEncadeamento === id ? "rgba(139,127,232,.1)" : "transparent", color: programa.direcaoEncadeamento === id ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: programa.direcaoEncadeamento === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Lista de passos */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                {programa.passosEncadeamento.map((passo, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(26,58,92,.2)", borderRadius: 8, border: "1px solid rgba(26,58,92,.3)" }}>
+                    <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20, flexShrink: 0 }}>{idx + 1}.</span>
+                    <input value={passo}
+                      onChange={e => upd("passosEncadeamento", programa.passosEncadeamento.map((p, i) => i === idx ? e.target.value : p))}
+                      style={{ ...inp, flex: 1, padding: "5px 8px", fontSize: ".75rem" }} />
+                    <button onClick={() => upd("passosEncadeamento", programa.passosEncadeamento.filter((_, i) => i !== idx))}
+                      style={{ background: "none", border: "none", color: "rgba(224,90,75,.5)", cursor: "pointer", fontSize: ".85rem", flexShrink: 0 }}>×</button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => upd("passosEncadeamento", [...programa.passosEncadeamento, ""])}
+                style={{ padding: "7px 14px", borderRadius: 8, border: "1px dashed rgba(139,127,232,.3)", background: "transparent", color: "#8B7FE8", fontSize: ".72rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                + Adicionar passo
+              </button>
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => setEtapa(2)} style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: ".85rem", cursor: "pointer" }}>← Voltar</button>
             <button onClick={() => setEtapa(4)} disabled={!etapa3Valida} style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: etapa3Valida ? "linear-gradient(135deg,#1D9E75,#0f8f7a)" : "rgba(26,58,92,.4)", color: etapa3Valida ? "#07111f" : "rgba(165,208,242,.85)", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".88rem", cursor: etapa3Valida ? "pointer" : "not-allowed" }}>
@@ -654,6 +719,7 @@ const lbl: React.CSSProperties = {
                 { l: "Estímulos",       v: `${programa.estimulos.length} pares` },
                 { l: "Tentativas/sessão", v: programa.totalTentativas },
                 { l: "Critério",        v: `${programa.criterioMaestria} em ${programa.sessoesParaMaestria} sessões` },
+                { l: "Tipo de registro",v: programa.tipoRegistro },
                 { l: "Reforçador",      v: programa.reforcoGeral },
               ].map(r => (
                 <div key={r.l}>
