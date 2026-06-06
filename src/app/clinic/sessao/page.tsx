@@ -8,15 +8,15 @@ import { useClinicContext } from "../layout";
 import { LineChart, Line, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
-type Senioridade  = "terapeuta" | "coordenador" | "supervisor" | "abat" | "qasp_s" | "qba";
-type TipoSessao   = "atendimento" | "acompanhamento_terapeutico" | "supervisao";
-type StageKey     = "warmup_pairing" | "assent_checklist" | "preference_assessment" | "clinical_actions" | "break" | "closing_preparation";
-type StageStatus  = "pending" | "active" | "completed" | "skipped";
-type PromptLevel  = "independente" | "gestual" | "modelo" | "fisico_parcial" | "fisico_total";
-type EventType    = "assent_given" | "assent_revoked" | "assent_recovered" | "avoidance_signal" | "distress_signal" | "break_requested" | "session_paused" | "session_resumed";
-type AreaAtiva    = "intervencao" | "avaliacao";
+type Senioridade = "terapeuta" | "coordenador" | "supervisor" | "abat" | "qasp_s" | "qba";
+type TipoSessao = "atendimento" | "acompanhamento_terapeutico" | "supervisao";
+type StageKey = "warmup_pairing" | "assent_checklist" | "preference_assessment" | "clinical_actions" | "break" | "closing_preparation";
+type StageStatus = "pending" | "active" | "completed" | "skipped";
+type PromptLevel = "independente" | "gestual" | "modelo" | "fisico_parcial" | "fisico_total";
+type EventType = "assent_given" | "assent_revoked" | "assent_recovered" | "avoidance_signal" | "distress_signal" | "break_requested" | "session_paused" | "session_resumed";
+type AreaAtiva = "intervencao" | "avaliacao";
 
-interface Stage    { key: StageKey; status: StageStatus; dbId?: string; concluido_em?: number }
+interface Stage { key: StageKey; status: StageStatus; dbId?: string; concluido_em?: number }
 interface Operante { id: string; sd: string; correto: boolean; promptLevel: PromptLevel; ts: number }
 interface EventoSessao { id: string; tipo: EventType; timestamp: number }
 
@@ -72,8 +72,8 @@ interface Encaminhamento {
 }
 
 // ─── HIERARQUIAS ─────────────────────────────────────────────────────────────
-const OPERANTES_VERBAIS = ["tato","mando","intraverbal","echoico","textual","transcricao"]
-const OPERANTES_MOTORES = ["imitacao","ouvinte"]
+const OPERANTES_VERBAIS = ["tato", "mando", "intraverbal", "echoico", "textual", "transcricao"]
+const OPERANTES_MOTORES = ["imitacao", "ouvinte"]
 
 function deriveHierarquia(op?: string): "motora" | "verbal" | "generica" {
   if (!op) return "generica"
@@ -86,50 +86,50 @@ interface HItem { key: string; label: string; cor: string; correto: boolean; niv
 
 function getHierarquia(tipo: "motora" | "verbal" | "generica"): HItem[] {
   if (tipo === "verbal") return [
-    { key: "independente", label: "Independente", cor: "#1D9E75", correto: true,  nivel: 5 },
-    { key: "mov_oral",     label: "Mov. Oral",    cor: "#23c48f", correto: true,  nivel: 4 },
-    { key: "intraverbal",  label: "Intraverbal",  cor: "#378ADD", correto: true,  nivel: 3 },
-    { key: "ecoica",       label: "Ecóica",       cor: "#EF9F27", correto: true,  nivel: 2 },
-    { key: "erro",         label: "Erro",         cor: "#E05A4B", correto: false, nivel: 0 },
+    { key: "independente", label: "Independente", cor: "#1D9E75", correto: true, nivel: 5 },
+    { key: "mov_oral", label: "Mov. Oral", cor: "#23c48f", correto: true, nivel: 4 },
+    { key: "intraverbal", label: "Intraverbal", cor: "#378ADD", correto: true, nivel: 3 },
+    { key: "ecoica", label: "Ecóica", cor: "#EF9F27", correto: true, nivel: 2 },
+    { key: "erro", label: "Erro", cor: "#E05A4B", correto: false, nivel: 0 },
   ]
   if (tipo === "motora") return [
-    { key: "independente",   label: "Independente",  cor: "#1D9E75", correto: true,  nivel: 5 },
-    { key: "gestual",        label: "Gestual",       cor: "#23c48f", correto: true,  nivel: 4 },
-    { key: "fisico_parcial", label: "Fís. Parcial",  cor: "#EF9F27", correto: true,  nivel: 2 },
-    { key: "fisico_total",   label: "Fís. Total",    cor: "#E05A4B", correto: true,  nivel: 1 },
-    { key: "erro",           label: "Erro",          cor: "#E05A4B", correto: false, nivel: 0 },
+    { key: "independente", label: "Independente", cor: "#1D9E75", correto: true, nivel: 5 },
+    { key: "gestual", label: "Gestual", cor: "#23c48f", correto: true, nivel: 4 },
+    { key: "fisico_parcial", label: "Fís. Parcial", cor: "#EF9F27", correto: true, nivel: 2 },
+    { key: "fisico_total", label: "Fís. Total", cor: "#E05A4B", correto: true, nivel: 1 },
+    { key: "erro", label: "Erro", cor: "#E05A4B", correto: false, nivel: 0 },
   ]
   return [
-    { key: "independente",   label: "Independente",  cor: "#1D9E75", correto: true,  nivel: 5 },
-    { key: "verbal",         label: "Verbal",        cor: "#23c48f", correto: true,  nivel: 4 },
-    { key: "gestual",        label: "Gestual",       cor: "#378ADD", correto: true,  nivel: 3 },
-    { key: "fisico_parcial", label: "Fís. Parcial",  cor: "#EF9F27", correto: true,  nivel: 2 },
-    { key: "fisico_total",   label: "Fís. Total",    cor: "#8B7FE8", correto: true,  nivel: 1 },
-    { key: "erro",           label: "Erro",          cor: "#E05A4B", correto: false, nivel: 0 },
+    { key: "independente", label: "Independente", cor: "#1D9E75", correto: true, nivel: 5 },
+    { key: "verbal", label: "Verbal", cor: "#23c48f", correto: true, nivel: 4 },
+    { key: "gestual", label: "Gestual", cor: "#378ADD", correto: true, nivel: 3 },
+    { key: "fisico_parcial", label: "Fís. Parcial", cor: "#EF9F27", correto: true, nivel: 2 },
+    { key: "fisico_total", label: "Fís. Total", cor: "#8B7FE8", correto: true, nivel: 1 },
+    { key: "erro", label: "Erro", cor: "#E05A4B", correto: false, nivel: 0 },
   ]
 }
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
-const STAGE_KEYS: StageKey[] = ["warmup_pairing","assent_checklist","preference_assessment","clinical_actions","break","closing_preparation"]
+const STAGE_KEYS: StageKey[] = ["warmup_pairing", "assent_checklist", "preference_assessment", "clinical_actions", "break", "closing_preparation"]
 
 const STAGES_CFG: Record<StageKey, { label: string; icone: string; cor: string; descricao: string }> = {
-  warmup_pairing:        { label: "Vínculo",      icone: "🤝", cor: "#1D9E75", descricao: "Reduza exigências e estabeleça vínculo"    },
-  assent_checklist:      { label: "Assentimento", icone: "✅", cor: "#378ADD", descricao: "Verifique aceitação da criança"             },
-  preference_assessment: { label: "Preferências", icone: "⭐", cor: "#EF9F27", descricao: "Identifique reforçadores efetivos"          },
-  clinical_actions:      { label: "Ações",        icone: "🎯", cor: "#23c48f", descricao: "Avaliações e programas de intervenção"      },
-  break:                 { label: "Pausa",         icone: "⏸", cor: "#4d6d8a", descricao: "Intervalo e observação passiva"             },
-  closing_preparation:   { label: "Encerrament.", icone: "🏁", cor: "#E05A4B", descricao: "Finalize e comunique à família"             },
+  warmup_pairing: { label: "Vínculo", icone: "🤝", cor: "#1D9E75", descricao: "Reduza exigências e estabeleça vínculo" },
+  assent_checklist: { label: "Assentimento", icone: "✅", cor: "#378ADD", descricao: "Verifique aceitação da criança" },
+  preference_assessment: { label: "Preferências", icone: "⭐", cor: "#EF9F27", descricao: "Identifique reforçadores efetivos" },
+  clinical_actions: { label: "Ações", icone: "🎯", cor: "#23c48f", descricao: "Avaliações e programas de intervenção" },
+  break: { label: "Pausa", icone: "⏸", cor: "#4d6d8a", descricao: "Intervalo e observação passiva" },
+  closing_preparation: { label: "Encerrament.", icone: "🏁", cor: "#E05A4B", descricao: "Finalize e comunique à família" },
 }
 
 const EVENT_CFG: Record<EventType, { label: string; cor: string; icone: string }> = {
-  assent_given:     { label: "Assentimento",   cor: "#1D9E75", icone: "✓" },
-  assent_revoked:   { label: "Revogado",       cor: "#E05A4B", icone: "✗" },
-  assent_recovered: { label: "Recuperado",     cor: "#1D9E75", icone: "↺" },
-  avoidance_signal: { label: "Esquiva",        cor: "#EF9F27", icone: "!" },
-  distress_signal:  { label: "Desconforto",    cor: "#E05A4B", icone: "⚠" },
-  break_requested:  { label: "Pausa",          cor: "#4d6d8a", icone: "⏸" },
-  session_paused:   { label: "Pausada",        cor: "#4d6d8a", icone: "⏸" },
-  session_resumed:  { label: "Retomada",       cor: "#1D9E75", icone: "▶" },
+  assent_given: { label: "Assentimento", cor: "#1D9E75", icone: "✓" },
+  assent_revoked: { label: "Revogado", cor: "#E05A4B", icone: "✗" },
+  assent_recovered: { label: "Recuperado", cor: "#1D9E75", icone: "↺" },
+  avoidance_signal: { label: "Esquiva", cor: "#EF9F27", icone: "!" },
+  distress_signal: { label: "Desconforto", cor: "#E05A4B", icone: "⚠" },
+  break_requested: { label: "Pausa", cor: "#4d6d8a", icone: "⏸" },
+  session_paused: { label: "Pausada", cor: "#4d6d8a", icone: "⏸" },
+  session_resumed: { label: "Retomada", cor: "#1D9E75", icone: "▶" },
 }
 
 const COMISSAO: Record<string, number> = {
@@ -139,58 +139,68 @@ const COMISSAO: Record<string, number> = {
 }
 
 const AVALIACOES_CAT = [
-  { id: "vbmapp", nome: "VB-MAPP",   dominio: "Comportamento verbal",
-    tallyDominios: ["Mando", "Tato", "Ouvinte", "Intraverbal", "Imitação motora", "Social/Brincar"] },
-  { id: "peak",   nome: "PEAK",      dominio: "Equivalência de estímulos",
-    tallyDominios: ["Discriminação", "Matching", "Intraverbal", "Equivalência"] },
-  { id: "ablls",  nome: "ABLLS-R",   dominio: "Linguagem e aprendizagem",
-    tallyDominios: ["Linguagem receptiva", "Imitação", "Linguagem expressiva", "Habilidades sociais"] },
-  { id: "af_exp", nome: "AF Experimental", dominio: "Análise Funcional",
-    tallyDominios: ["Atenção", "Fuga", "Tangível", "Controle"] },
-  { id: "af_ind", nome: "AF Indireta",     dominio: "Análise Funcional",
-    tallyDominios: ["Atenção", "Fuga", "Tangível", "Automático"] },
+  {
+    id: "vbmapp", nome: "VB-MAPP", dominio: "Comportamento verbal",
+    tallyDominios: ["Mando", "Tato", "Ouvinte", "Intraverbal", "Imitação motora", "Social/Brincar"]
+  },
+  {
+    id: "peak", nome: "PEAK", dominio: "Equivalência de estímulos",
+    tallyDominios: ["Discriminação", "Matching", "Intraverbal", "Equivalência"]
+  },
+  {
+    id: "ablls", nome: "ABLLS-R", dominio: "Linguagem e aprendizagem",
+    tallyDominios: ["Linguagem receptiva", "Imitação", "Linguagem expressiva", "Habilidades sociais"]
+  },
+  {
+    id: "af_exp", nome: "AF Experimental", dominio: "Análise Funcional",
+    tallyDominios: ["Atenção", "Fuga", "Tangível", "Controle"]
+  },
+  {
+    id: "af_ind", nome: "AF Indireta", dominio: "Análise Funcional",
+    tallyDominios: ["Atenção", "Fuga", "Tangível", "Automático"]
+  },
 ]
 
 const CHECKLIST_GUIADO: Record<string, { item: string; obrigatorio: boolean }[]> = {
-  warmup_pairing:        [
-    { item: "Cumprimentar a criança pelo nome",           obrigatorio: true  },
-    { item: "Oferecer item preferido sem exigências",     obrigatorio: true  },
-    { item: "Seguir a liderança da criança por 2 min",   obrigatorio: true  },
-    { item: "Verificar estado emocional e disposição",   obrigatorio: false },
+  warmup_pairing: [
+    { item: "Cumprimentar a criança pelo nome", obrigatorio: true },
+    { item: "Oferecer item preferido sem exigências", obrigatorio: true },
+    { item: "Seguir a liderança da criança por 2 min", obrigatorio: true },
+    { item: "Verificar estado emocional e disposição", obrigatorio: false },
   ],
-  assent_checklist:      [
-    { item: "Explicar a atividade de forma acessível",               obrigatorio: true  },
-    { item: "Verificar sinais de aceitação (verbal ou não-verbal)",  obrigatorio: true  },
-    { item: "Confirmar que pode encerrar quando quiser",             obrigatorio: true  },
-    { item: "Registrar forma de assentimento obtida",                obrigatorio: false },
+  assent_checklist: [
+    { item: "Explicar a atividade de forma acessível", obrigatorio: true },
+    { item: "Verificar sinais de aceitação (verbal ou não-verbal)", obrigatorio: true },
+    { item: "Confirmar que pode encerrar quando quiser", obrigatorio: true },
+    { item: "Registrar forma de assentimento obtida", obrigatorio: false },
   ],
   preference_assessment: [
-    { item: "Apresentar 3 a 5 itens preferidos",          obrigatorio: true  },
-    { item: "Observar hierarquia de escolha",             obrigatorio: true  },
-    { item: "Selecionar reforçador primário da sessão",   obrigatorio: true  },
-    { item: "Verificar saciação de sessões anteriores",   obrigatorio: false },
+    { item: "Apresentar 3 a 5 itens preferidos", obrigatorio: true },
+    { item: "Observar hierarquia de escolha", obrigatorio: true },
+    { item: "Selecionar reforçador primário da sessão", obrigatorio: true },
+    { item: "Verificar saciação de sessões anteriores", obrigatorio: false },
   ],
-  clinical_actions:      [
-    { item: "Revisar programa antes de iniciar",          obrigatorio: true  },
-    { item: "Posicionar materiais fora do alcance",       obrigatorio: false },
-    { item: "Aplicar SD com clareza e volume adequado",   obrigatorio: true  },
-    { item: "Registrar cada tentativa imediatamente",     obrigatorio: true  },
+  clinical_actions: [
+    { item: "Revisar programa antes de iniciar", obrigatorio: true },
+    { item: "Posicionar materiais fora do alcance", obrigatorio: false },
+    { item: "Aplicar SD com clareza e volume adequado", obrigatorio: true },
+    { item: "Registrar cada tentativa imediatamente", obrigatorio: true },
   ],
-  break:                 [
-    { item: "Sinalizar pausa de forma clara",             obrigatorio: true  },
-    { item: "Remover exigências completamente",           obrigatorio: true  },
-    { item: "Observar comportamento passivamente",        obrigatorio: false },
+  break: [
+    { item: "Sinalizar pausa de forma clara", obrigatorio: true },
+    { item: "Remover exigências completamente", obrigatorio: true },
+    { item: "Observar comportamento passivamente", obrigatorio: false },
   ],
-  closing_preparation:   [
-    { item: "Encerrar com atividade preferida",           obrigatorio: true  },
-    { item: "Registrar observações da sessão",            obrigatorio: true  },
-    { item: "Comunicar evolução ao responsável",          obrigatorio: false },
-    { item: "Planejar próxima sessão",                    obrigatorio: false },
+  closing_preparation: [
+    { item: "Encerrar com atividade preferida", obrigatorio: true },
+    { item: "Registrar observações da sessão", obrigatorio: true },
+    { item: "Comunicar evolução ao responsável", obrigatorio: false },
+    { item: "Planejar próxima sessão", obrigatorio: false },
   ],
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
-function uid() { return Math.random().toString(36).slice(2,9) }
+function uid() { return Math.random().toString(36).slice(2, 9) }
 
 function nivelPredominante(operantes: Operante[]): string {
   if (operantes.length === 0) return "—"
@@ -210,10 +220,10 @@ function labelNivel(nivel: string): string {
   }
   return map[nivel] ?? nivel
 }
-function fmt(s: number) { return `${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}` }
+function fmt(s: number) { return `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}` }
 function iniciais(nome: string) {
   const p = nome.trim().split(" ")
-  return p.length >= 2 ? `${p[0][0]}${p[p.length-1][0]}`.toUpperCase() : nome.slice(0,2).toUpperCase()
+  return p.length >= 2 ? `${p[0][0]}${p[p.length - 1][0]}`.toUpperCase() : nome.slice(0, 2).toUpperCase()
 }
 
 // ─── CHECKLIST COMPONENT ──────────────────────────────────────────────────────
@@ -221,9 +231,9 @@ function ChecklistGuiado({ stageKey, nivel }: { stageKey: string; nivel: string 
   const itens = CHECKLIST_GUIADO[stageKey] ?? []
   const [checks, setChecks] = useState<boolean[]>(itens.map(() => false))
   const obrigatorios = itens.filter(i => i.obrigatorio).length
-  const marcados     = itens.filter((i, idx) => i.obrigatorio && checks[idx]).length
-  const completo     = marcados === obrigatorios
-  const isGuiado     = nivel === "abat" || nivel === "terapeuta"
+  const marcados = itens.filter((i, idx) => i.obrigatorio && checks[idx]).length
+  const completo = marcados === obrigatorios
+  const isGuiado = nivel === "abat" || nivel === "terapeuta"
   if (itens.length === 0) return null
   return (
     <div style={{ marginBottom: 14, padding: "12px 14px", background: "rgba(0,0,0,.2)", borderRadius: 10, border: `1px solid ${completo ? "rgba(29,158,117,.25)" : "rgba(239,159,39,.2)"}` }}>
@@ -233,10 +243,10 @@ function ChecklistGuiado({ stageKey, nivel }: { stageKey: string; nivel: string 
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {itens.map((item, idx) => (
-          <div key={idx} onClick={() => setChecks(prev => prev.map((v,i) => i===idx ? !v : v))}
+          <div key={idx} onClick={() => setChecks(prev => prev.map((v, i) => i === idx ? !v : v))}
             style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "6px 8px", borderRadius: 7, background: checks[idx] ? "rgba(29,158,117,.06)" : "transparent" }}>
             <div style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: `1.5px solid ${checks[idx] ? "#1D9E75" : item.obrigatorio ? "rgba(239,159,39,.5)" : "rgba(160,200,235,.2)"}`, background: checks[idx] ? "#1D9E75" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {checks[idx] && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/></svg>}
+              {checks[idx] && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>}
             </div>
             <span style={{ fontSize: 12, color: checks[idx] ? "rgba(232,238,244,.8)" : "rgba(160,200,235,.6)", flex: 1 }}>{item.item}</span>
             {item.obrigatorio && !checks[idx] && <span style={{ fontSize: 9, color: "#EF9F27", textTransform: "uppercase" }}>req</span>}
@@ -249,90 +259,90 @@ function ChecklistGuiado({ stageKey, nivel }: { stageKey: string; nivel: string 
 
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 function SessaoInner() {
-  const { terapeuta }  = useClinicContext()
-  const searchParams   = useSearchParams()
-  const router         = useRouter()
-  const pacienteId     = searchParams.get("pacienteId")
-  const agendaId       = searchParams.get("agendaId")
-  const tipoParam      = (searchParams.get("tipo") ?? "atendimento") as TipoSessao
-  const duracaoParam   = parseInt(searchParams.get("duracao") ?? "60")
-  const localParam     = searchParams.get("local") ?? "presencial"
+  const { terapeuta } = useClinicContext()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pacienteId = searchParams.get("pacienteId")
+  const agendaId = searchParams.get("agendaId")
+  const tipoParam = (searchParams.get("tipo") ?? "atendimento") as TipoSessao
+  const duracaoParam = parseInt(searchParams.get("duracao") ?? "60")
+  const localParam = searchParams.get("local") ?? "presencial"
   const nivel: Senioridade = (terapeuta?.nivel as Senioridade) ?? "coordenador"
 
   // ── Estado geral ────────────────────────────────────────────────────────────
-  const [fase,       setFase]       = useState<"preparacao"|"sessao"|"encerramento">("preparacao")
+  const [fase, setFase] = useState<"preparacao" | "sessao" | "encerramento">("preparacao")
   const [tipoSessao, setTipoSessao] = useState<TipoSessao>(tipoParam)
-  const [localSessao,setLocalSessao]= useState(localParam)
+  const [localSessao, setLocalSessao] = useState(localParam)
   const [duracaoMin, setDuracaoMin] = useState(duracaoParam)
-  const [paciente,   setPaciente]   = useState<{id:string;nome:string;iniciais:string;gradient:string;diagnostico:string}|null>(null)
-  const [sessaoDbId, setSessaoDbId] = useState<string|null>(null)
-  const [faseJornada, setFaseJornada] = useState<string|null>(null)
+  const [paciente, setPaciente] = useState<{ id: string; nome: string; iniciais: string; gradient: string; diagnostico: string } | null>(null)
+  const [sessaoDbId, setSessaoDbId] = useState<string | null>(null)
+  const [faseJornada, setFaseJornada] = useState<string | null>(null)
   const [valorSessao, setValorSessao] = useState<number>(200)
-  const [loading,    setLoading]    = useState(true)
-  
-  const [estadoAssentimento, setEstadoAssentimento] = useState<"ativo"|"revogado"|"pendente">("pendente")
+  const [loading, setLoading] = useState(true)
+
+  const [estadoAssentimento, setEstadoAssentimento] = useState<"ativo" | "revogado" | "pendente">("pendente")
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-  const check = () => setIsMobile(window.innerWidth < 1024)
-  check()
-  window.addEventListener("resize", check)
-  return () => window.removeEventListener("resize", check)
-}, [])
+    const check = () => setIsMobile(window.innerWidth < 1024)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
   // ── Estágios (só para atendimento e AT) ─────────────────────────────────────
   const [stages, setStages] = useState<Stage[]>(STAGE_KEYS.map(key => ({ key, status: "pending" as StageStatus })))
 
   // ── Ações — duas áreas ───────────────────────────────────────────────────────
-  const [areaAtiva,  setAreaAtiva]  = useState<AreaAtiva>("intervencao")
-  const [acoes,      setAcoes]      = useState<Acao[]>([])
-  const [acaoAtiva,  setAcaoAtiva]  = useState<Acao|null>(null)
-  const [opForm,     setOpForm]     = useState<{sd:string}>({sd:""})
+  const [areaAtiva, setAreaAtiva] = useState<AreaAtiva>("intervencao")
+  const [acoes, setAcoes] = useState<Acao[]>([])
+  const [acaoAtiva, setAcaoAtiva] = useState<Acao | null>(null)
+  const [opForm, setOpForm] = useState<{ sd: string }>({ sd: "" })
 
   // ── Eventos clínicos ─────────────────────────────────────────────────────────
   const [eventos, setEventos] = useState<EventoSessao[]>([])
 
   // ── Biblioteca ───────────────────────────────────────────────────────────────
   const [biblioteca, setBiblioteca] = useState<LibItem[]>([])
-  const [libAberta,  setLibAberta]  = useState(false)
-  const [libTab,     setLibTab]     = useState<"planejado"|"programas"|"avaliacoes">("planejado")
-  const [libBusca,   setLibBusca]   = useState("")
- 
+  const [libAberta, setLibAberta] = useState(false)
+  const [libTab, setLibTab] = useState<"planejado" | "programas" | "avaliacoes">("planejado")
+  const [libBusca, setLibBusca] = useState("")
+
   // ── Modal avaliação formal ────────────────────────────────────────────────────
   const [modalAvaliacao, setModalAvaliacao] = useState<LibItem | null>(null)
   const [modalConfigurarPrograma, setModalConfigurarPrograma] = useState<LibItem | null>(null)
   const [tallyPontuacoesAuto, setTallyPontuacoesAuto] = useState<Record<string, number>>({})
-// ── Encerramento ──────────────────────────────────────────────────────────────
-  const [showEncModal,    setShowEncModal]    = useState(false)
-  const [familiaComunic,  setFamiliaComunic]  = useState<boolean|null>(null)
-  const [notaEncerr,      setNotaEncerr]      = useState("")
-  const [salvandoEnc,     setSalvandoEnc]     = useState(false)
-  const [dragOver,        setDragOver]        = useState(false)
+  // ── Encerramento ──────────────────────────────────────────────────────────────
+  const [showEncModal, setShowEncModal] = useState(false)
+  const [familiaComunic, setFamiliaComunic] = useState<boolean | null>(null)
+  const [notaEncerr, setNotaEncerr] = useState("")
+  const [salvandoEnc, setSalvandoEnc] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
 
   // ── Supervisão ────────────────────────────────────────────────────────────────
   const [encaminhamentos, setEncaminhamentos] = useState<Encaminhamento[]>([])
-  const [novoEnc,         setNovoEnc]         = useState({ programaNome: "", acao: "", prioridade: "media" as "alta"|"media"|"baixa" })
-  const [assinaturaSup,   setAssinaturaSup]   = useState(false)
-  const [assinaturaSupv,  setAssinaturaSupv]  = useState(false)
-  const [analiseClinica,  setAnaliseClinica]  = useState("")
-  const [decisaoProxima,  setDecisaoProxima]  = useState<string[]>([])
-  const [notaDecisao,     setNotaDecisao]     = useState("")
+  const [novoEnc, setNovoEnc] = useState({ programaNome: "", acao: "", prioridade: "media" as "alta" | "media" | "baixa" })
+  const [assinaturaSup, setAssinaturaSup] = useState(false)
+  const [assinaturaSupv, setAssinaturaSupv] = useState(false)
+  const [analiseClinica, setAnaliseClinica] = useState("")
+  const [decisaoProxima, setDecisaoProxima] = useState<string[]>([])
+  const [notaDecisao, setNotaDecisao] = useState("")
 
 
   // ── Timer ─────────────────────────────────────────────────────────────────────
-  const [segundos,           setSegundos]           = useState(0)
-  const [emPausa,            setEmPausa]            = useState(false)
-  const [avisoTempoExibido,  setAvisoTempoExibido]  = useState(false)
-  const [showAvisoTempo,     setShowAvisoTempo]     = useState(false)
-  const timerRef = useRef<ReturnType<typeof setInterval>|null>(null)
+  const [segundos, setSegundos] = useState(0)
+  const [emPausa, setEmPausa] = useState(false)
+  const [avisoTempoExibido, setAvisoTempoExibido] = useState(false)
+  const [showAvisoTempo, setShowAvisoTempo] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const duracaoContratadaSeg = duracaoMin * 60
 
-// ── Tally ────────────────────────────────────────────────────────────────────
-const [tallyContadores, setTallyContadores] = useState<Record<string, number>>({})
-const [tallyRegistros, setTallyRegistros] = useState<{chave: string; label: string; ts: number}[]>([])
+  // ── Tally ────────────────────────────────────────────────────────────────────
+  const [tallyContadores, setTallyContadores] = useState<Record<string, number>>({})
+  const [tallyRegistros, setTallyRegistros] = useState<{ chave: string; label: string; ts: number }[]>([])
 
-const [tallyCriterios, setTallyCriterios] = useState<{
-item_id: string; codigo: string; descricao: string; dominio: string; valor_criterio: number; pontuacao_max: number
-}[]>([])
+  const [tallyCriterios, setTallyCriterios] = useState<{
+    item_id: string; codigo: string; descricao: string; dominio: string; valor_criterio: number; pontuacao_max: number
+  }[]>([])
 
 
   // ── Persistência localStorage ─────────────────────────────────────────────────
@@ -373,49 +383,49 @@ item_id: string; codigo: string; descricao: string; dominio: string; valor_crite
     } catch { /* ignora erro de parse */ }
   }, [])
 
-  
-// ── Carregar dados ─────────────────────────────────────────────────────────────
-useEffect(() => {
+
+  // ── Carregar dados ─────────────────────────────────────────────────────────────
+  useEffect(() => {
     if (!pacienteId) { setLoading(false); return }
     // Carrega valor da sessão do perfil do terapeuta
     if (terapeuta?.id) {
       supabase.from("profiles").select("valor_sessao").eq("id", terapeuta.id).single()
         .then(({ data }) => { if (data?.valor_sessao) setValorSessao(data.valor_sessao) })
     }
- async function carregar() {
-  setLoading(true)
+    async function carregar() {
+      setLoading(true)
 
-  // 1. Dados do paciente
-  const { data: c } = await supabase
-    .from("criancas")
-    .select("id,nome,diagnostico")
-    .eq("id", pacienteId)
-    .single()
+      // 1. Dados do paciente
+      const { data: c } = await supabase
+        .from("criancas")
+        .select("id,nome,diagnostico")
+        .eq("id", pacienteId)
+        .single()
 
-  if (c) setPaciente({
-    id: c.id,
-    nome: c.nome,
-    iniciais: iniciais(c.nome),
-    gradient: "linear-gradient(135deg,#1D9E75,#378ADD)",
-    diagnostico: c.diagnostico ?? "Não informado"
-  })
+      if (c) setPaciente({
+        id: c.id,
+        nome: c.nome,
+        iniciais: iniciais(c.nome),
+        gradient: "linear-gradient(135deg,#1D9E75,#378ADD)",
+        diagnostico: c.diagnostico ?? "Não informado"
+      })
 
-  // 2. Busca planos ativos do paciente PRIMEIRO
-  const { data: planosAtivos } = await supabase
-    .from("planos")
-    .select("id")
-    .eq("crianca_id", pacienteId)
-    .eq("status", "ativo")
+      // 2. Busca planos ativos do paciente PRIMEIRO
+      const { data: planosAtivos } = await supabase
+        .from("planos")
+        .select("id")
+        .eq("crianca_id", pacienteId)
+        .eq("status", "ativo")
 
-  const planoIds = (planosAtivos ?? []).map((p: any) => p.id)
+      const planoIds = (planosAtivos ?? []).map((p: any) => p.id)
 
-  // 3. Busca programas do plano (só se houver planos)
-  const planejados: LibItem[] = []
+      // 3. Busca programas do plano (só se houver planos)
+      const planejados: LibItem[] = []
 
-  if (planoIds.length > 0) {
-    const { data: planoPrograms } = await supabase
-      .from("plano_programas")
-      .select(`
+      if (planoIds.length > 0) {
+        const { data: planoPrograms } = await supabase
+          .from("plano_programas")
+          .select(`
         id,
         status,
         ordem,
@@ -434,98 +444,101 @@ useEffect(() => {
           id, codigo, descricao, area, status
         )
       `)
-      .eq("status", "ativo")
-      .in("plano_id", planoIds)
-      .order("ordem")
+          .eq("status", "ativo")
+          .in("plano_id", planoIds)
+          .order("ordem")
 
-    for (const pp of (planoPrograms ?? [])) {
-      const prog = (pp as any).programas
-      const alvo = (pp as any).alvos_comportamentais
-      if (!prog) continue
+        for (const pp of (planoPrograms ?? [])) {
+          const prog = (pp as any).programas
+          const alvo = (pp as any).alvos_comportamentais
+          if (!prog) continue
 
-      const hierarquia = prog.hierarquia_dicas?.length > 0
-        ? prog.hierarquia_dicas
-        : prog.nivel_dicas
-          ? Object.keys(prog.nivel_dicas)
-          : ["independente", "gestual", "modelo", "física parcial", "física total"]
+          const hierarquia = prog.hierarquia_dicas?.length > 0
+            ? prog.hierarquia_dicas
+            : prog.nivel_dicas
+              ? Object.keys(prog.nivel_dicas)
+              : ["independente", "gestual", "modelo", "física parcial", "física total"]
 
-      planejados.push({
-        id: prog.id,
-        nome: prog.nome,
-        dominio: alvo?.descricao ?? prog.dominio ?? "—",
+          planejados.push({
+            id: prog.id,
+            nome: prog.nome,
+            dominio: alvo?.descricao ?? prog.dominio ?? "—",
+            tipo: "programa" as const,
+            planejado: true,
+            planoId: pp.plano_id,
+            planoProgramaId: pp.id,
+            alvoId: pp.alvo_id,
+            taxaHistorica: pp.percentual_atual ?? undefined,
+            operante: prog.operante,
+            totalTentativas: prog.total_tentativas ?? 10,
+            hierarquiaDicas: hierarquia,
+            estrategiaDica: prog.estrategia_dica ?? "least_to_most",
+            sd: prog.sd,
+            estimulos: prog.estimulos ?? [],
+          })
+        }
+      }
+
+      // 4. Biblioteca geral
+      const planejadosIds = planejados.map(p => p.id)
+      const { data: todos } = await supabase
+        .from("programas")
+        .select("id,nome,dominio,operante,total_tentativas,hierarquia_dicas,nivel_dicas,sd,tipo_registro,passos_encadeamento,direcao_encadeamento,estimulos,relacoes,criterio_maestria,objetivo")
+        .eq("ativo", true)
+        .limit(50)
+
+      const libGeral: LibItem[] = (todos ?? [])
+        .filter((p: any) => !planejadosIds.includes(p.id))
+        .map((p: any) => ({
+          id: p.id,
+          nome: p.nome,
+          dominio: p.dominio ?? "—",
+          tipo: "programa" as const,
+          planejado: false,
+          operante: p.operante,
+          totalTentativas: p.total_tentativas ?? 10,
+          hierarquiaDicas: p.hierarquia_dicas?.length > 0
+            ? p.hierarquia_dicas
+            : ["independente", "gestual", "modelo", "física parcial", "física total"],
+          estrategiaDica: "least_to_most",
+          sd: p.sd,
+          tipo_registro: p.tipo_registro ?? "dtt",
+          passosEncadeamento: p.passos_encadeamento ?? [],
+          direcaoEncadeamento: p.direcao_encadeamento ?? "frente",
+        }))
+
+      // 5. Avaliações
+      const libAvals: LibItem[] = AVALIACOES_CAT.map(a => ({
+        ...a,
+        tipo: "avaliacao" as const,
+        planejado: false,
+      }))
+
+      // Sugestões pendentes
+      const { data: sugestoesPendentes } = await supabase
+        .from("plano_sugestoes")
+        .select("*")
+        .eq("crianca_id", pacienteId)
+        .eq("status", "pendente")
+
+      const libSugestoes: LibItem[] = (sugestoesPendentes ?? []).map((s: any) => ({
+        id: s.id,
+        nome: `💡 ${s.nome_programa}`,
+        dominio: s.dominio ?? "comunicacao",
         tipo: "programa" as const,
         planejado: true,
-        planoId: pp.plano_id,
-        planoProgramaId: pp.id,
-        alvoId: pp.alvo_id,
-        taxaHistorica: pp.percentual_atual ?? undefined,
-        operante: prog.operante,
-        totalTentativas: prog.total_tentativas ?? 10,
-        hierarquiaDicas: hierarquia,
-        estrategiaDica: prog.estrategia_dica ?? "least_to_most",
-        sd: prog.sd,
-        estimulos: prog.estimulos ?? [],
-      })
+        operante: s.operante,
+        totalTentativas: 10,
+        hierarquiaDicas: ["independente", "gestual", "modelo", "física parcial", "física total"],
+        estrategiaDica: "least_to_most",
+      }))
+
+      setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
+
+      setLoading(false)
     }
-  }
 
-  // 4. Biblioteca geral
-  const planejadosIds = planejados.map(p => p.id)
-  const { data: todos } = await supabase
-    .from("programas")
-    .select("id,nome,dominio,operante,total_tentativas,hierarquia_dicas,nivel_dicas,sd")
-    .eq("ativo", true)
-    .limit(50)
-
-  const libGeral: LibItem[] = (todos ?? [])
-    .filter((p: any) => !planejadosIds.includes(p.id))
-    .map((p: any) => ({
-      id: p.id,
-      nome: p.nome,
-      dominio: p.dominio ?? "—",
-      tipo: "programa" as const,
-      planejado: false,
-      operante: p.operante,
-      totalTentativas: p.total_tentativas ?? 10,
-      hierarquiaDicas: p.hierarquia_dicas?.length > 0
-        ? p.hierarquia_dicas
-        : ["independente", "gestual", "modelo", "física parcial", "física total"],
-      estrategiaDica: "least_to_most",
-      sd: p.sd,
-    }))
-
-  // 5. Avaliações
-  const libAvals: LibItem[] = AVALIACOES_CAT.map(a => ({
-    ...a,
-    tipo: "avaliacao" as const,
-    planejado: false,
-  }))
-
-  // Sugestões pendentes
-const { data: sugestoesPendentes } = await supabase
-  .from("plano_sugestoes")
-  .select("*")
-  .eq("crianca_id", pacienteId)
-  .eq("status", "pendente")
-
-const libSugestoes: LibItem[] = (sugestoesPendentes ?? []).map((s: any) => ({
-  id: s.id,
-  nome: `💡 ${s.nome_programa}`,
-  dominio: s.dominio ?? "comunicacao",
-  tipo: "programa" as const,
-  planejado: true,
-  operante: s.operante,
-  totalTentativas: 10,
-  hierarquiaDicas: ["independente", "gestual", "modelo", "física parcial", "física total"],
-  estrategiaDica: "least_to_most",
-}))
-
-setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
-
-  setLoading(false)
-}
-
-//acaba aqui
+    //acaba aqui
     carregar()
   }, [pacienteId])
 
@@ -549,10 +562,10 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
 
     // Validação de horário — verifica se existe agendamento para hoje ±30min
     if (!agendaId) {
-      const agora       = new Date()
-      const trintaMin   = 30 * 60 * 1000
-      const inicioJan   = new Date(agora.getTime() - trintaMin).toISOString()
-      const fimJan      = new Date(agora.getTime() + trintaMin).toISOString()
+      const agora = new Date()
+      const trintaMin = 30 * 60 * 1000
+      const inicioJan = new Date(agora.getTime() - trintaMin).toISOString()
+      const fimJan = new Date(agora.getTime() + trintaMin).toISOString()
       const { data: eventosHoje } = await supabase
         .from("agenda_eventos")
         .select("id, data_hora, status")
@@ -568,7 +581,7 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
         if (!confirmar) return
       }
     }
-    
+
     const { data: jornadaAtiva } = await supabase
       .from("jornada_clinica")
       .select("fase_atual")
@@ -579,15 +592,15 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
     setFaseJornada(faseJornada)
 
     const { data } = await supabase.from("sessoes_v2").insert({
-      crianca_id:           paciente.id,
-      terapeuta_id:         terapeuta.id,
-      status:               "ativa",
-      inicio:               new Date().toISOString(),
+      crianca_id: paciente.id,
+      terapeuta_id: terapeuta.id,
+      status: "ativa",
+      inicio: new Date().toISOString(),
       duracao_contratada_min: duracaoMin,
-      tipo:                 tipoSessao,
-      local:                localSessao,
-      concluida:            false,
-      fase_jornada:         faseJornada,
+      tipo: tipoSessao,
+      local: localSessao,
+      concluida: false,
+      fase_jornada: faseJornada,
     }).select("id").single()
 
     if (data) {
@@ -599,29 +612,29 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
             .insert({ sessao_id: data.id, stage: st.key, status: "pending" }).select("id").single()
           if (stDb) setStages(prev => prev.map(s => s.key === st.key ? { ...s, dbId: stDb.id } : s))
         }
-        setStages(prev => prev.map((s,i) => i === 0 ? { ...s, status: "active" } : s))
+        setStages(prev => prev.map((s, i) => i === 0 ? { ...s, status: "active" } : s))
       }
     }
 
     // Salva na agenda se for sessão avulsa
 
     if (!agendaId && data && paciente && terapeuta) {
-  const { data: agendaData, error: agendaError } = await supabase.from("agenda_eventos").insert({
-    crianca_id:      paciente.id,
-    terapeuta_id:    terapeuta.id,
-    sessao_id:       data.id,
-    data_hora:       new Date().toISOString(),
-    duracao_minutos: duracaoMin,
-    tipo_sessao:     tipoSessao,
-    tipo:            "sessao_clinica",  // ← corrigido
-    titulo:          `Sessão avulsa — ${paciente.nome}`,
-    local:           localSessao,
-    status:          "em_andamento",
-    avulsa:          true,
-    origem:          "avulsa",
-  })
-  console.log("agenda insert:", agendaData, agendaError)
-}
+      const { data: agendaData, error: agendaError } = await supabase.from("agenda_eventos").insert({
+        crianca_id: paciente.id,
+        terapeuta_id: terapeuta.id,
+        sessao_id: data.id,
+        data_hora: new Date().toISOString(),
+        duracao_minutos: duracaoMin,
+        tipo_sessao: tipoSessao,
+        tipo: "sessao_clinica",  // ← corrigido
+        titulo: `Sessão avulsa — ${paciente.nome}`,
+        local: localSessao,
+        status: "em_andamento",
+        avulsa: true,
+        origem: "avulsa",
+      })
+      console.log("agenda insert:", agendaData, agendaError)
+    }
 
     // Atualizar slot da agenda para em_andamento
     if (agendaId) {
@@ -636,11 +649,11 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
   // ── Avançar estágio ─────────────────────────────────────────────────────────
   async function marcarStage(key: StageKey) {
     const idx = stages.findIndex(s => s.key === key)
-    const st  = stages[idx]
+    const st = stages[idx]
     if (st.status === "completed") return
-    setStages(prev => prev.map((s,i) => {
-      if (i === idx)   return { ...s, status: "completed", concluido_em: Date.now() }
-      if (i === idx+1) return { ...s, status: "active" }
+    setStages(prev => prev.map((s, i) => {
+      if (i === idx) return { ...s, status: "completed", concluido_em: Date.now() }
+      if (i === idx + 1) return { ...s, status: "active" }
       return s
     }))
     if (st.dbId) await supabase.from("session_stages").update({ status: "completed", concluido_em: new Date().toISOString() }).eq("id", st.dbId)
@@ -648,147 +661,147 @@ setBiblioteca([...planejados, ...libSugestoes, ...libGeral, ...libAvals])
   }
 
   // ── Adicionar ação ──────────────────────────────────────────────────────────
- async function adicionarAcao(item: LibItem) {
-  
-  const area: AreaAtiva = item.tipo === "avaliacao" ? "avaliacao" : areaAtiva
-  const hierTipo = deriveHierarquia(item.operante)
+  async function adicionarAcao(item: LibItem) {
 
-  const novaAcao: Acao = {
-    id: uid(),
-    tipo: item.tipo === "avaliacao" ? "assessment" : "intervention",
-    area,
-    itemId: item.id,
-    itemNome: item.nome,
-    itemDominio: item.dominio,
-    operantes: [],
-    taxaHistorica: item.taxaHistorica,
-    totalTentativas: item.totalTentativas ?? 10,
-    operanteVerbal: item.operante,
-    hierarquiaTipo: hierTipo,
-    hierarquiaDicas: item.hierarquiaDicas,      // ← novo
-    planoId: item.planoId,
-    planoProgramaId: item.planoProgramaId,      // ← novo
-    tipo_registro: item.tipo_registro ?? "dtt",  
-    passosEncadeamento: item.passosEncadeamento,
-    direcaoEncadeamento: item.direcaoEncadeamento,
-    matrizId: item.matrizId, // ← novo
-  }
+    const area: AreaAtiva = item.tipo === "avaliacao" ? "avaliacao" : areaAtiva
+    const hierTipo = deriveHierarquia(item.operante)
 
-  // Carrega critérios de contagem se for avaliação formal
-if (item.tipo === "avaliacao" && ["vbmapp", "peak", "ablls"].includes(item.id)) {
-  const SIGLA_MAP: Record<string, string> = {
-    vbmapp: "VB-MAPP", peak: "PEAK", ablls: "ABLLS-R"
-  }
-  const sigla = SIGLA_MAP[item.id]
-  const { data: prot } = await supabase
-    .from("avaliacao_protocolos")
-    .select("id")
-    .eq("sigla", sigla)
-    .single()
+    const novaAcao: Acao = {
+      id: uid(),
+      tipo: item.tipo === "avaliacao" ? "assessment" : "intervention",
+      area,
+      itemId: item.id,
+      itemNome: item.nome,
+      itemDominio: item.dominio,
+      operantes: [],
+      taxaHistorica: item.taxaHistorica,
+      totalTentativas: item.totalTentativas ?? 10,
+      operanteVerbal: item.operante,
+      hierarquiaTipo: hierTipo,
+      hierarquiaDicas: item.hierarquiaDicas,      // ← novo
+      planoId: item.planoId,
+      planoProgramaId: item.planoProgramaId,      // ← novo
+      tipo_registro: item.tipo_registro ?? "dtt",
+      passosEncadeamento: item.passosEncadeamento,
+      direcaoEncadeamento: item.direcaoEncadeamento,
+      matrizId: item.matrizId, // ← novo
+    }
 
-  if (prot) {
-    const { data: criterios } = await supabase
-      .from("avaliacao_itens")
-      .select(`
+    // Carrega critérios de contagem se for avaliação formal
+    if (item.tipo === "avaliacao" && ["vbmapp", "peak", "ablls"].includes(item.id)) {
+      const SIGLA_MAP: Record<string, string> = {
+        vbmapp: "VB-MAPP", peak: "PEAK", ablls: "ABLLS-R"
+      }
+      const sigla = SIGLA_MAP[item.id]
+      const { data: prot } = await supabase
+        .from("avaliacao_protocolos")
+        .select("id")
+        .eq("sigla", sigla)
+        .single()
+
+      if (prot) {
+        const { data: criterios } = await supabase
+          .from("avaliacao_itens")
+          .select(`
         id, codigo, descricao, valor_criterio, pontuacao_max,
         avaliacao_dominios ( nome, dominio_radar )
       `)
-      .eq("tipo_criterio", "contagem")
-      .not("valor_criterio", "is", null)
-      .order("codigo")
+          .eq("tipo_criterio", "contagem")
+          .not("valor_criterio", "is", null)
+          .order("codigo")
 
-    if (criterios) {
-      setTallyCriterios(criterios.map((c: any) => ({
-        item_id: c.id,
-        codigo: c.codigo,
-        descricao: c.descricao,
-        dominio: c.avaliacao_dominios?.dominio_radar ?? c.avaliacao_dominios?.nome ?? "",
-        valor_criterio: c.valor_criterio,
-        pontuacao_max: c.pontuacao_max,
-      })))
+        if (criterios) {
+          setTallyCriterios(criterios.map((c: any) => ({
+            item_id: c.id,
+            codigo: c.codigo,
+            descricao: c.descricao,
+            dominio: c.avaliacao_dominios?.dominio_radar ?? c.avaliacao_dominios?.nome ?? "",
+            valor_criterio: c.valor_criterio,
+            pontuacao_max: c.pontuacao_max,
+          })))
+        }
+      }
     }
-  }
-}
 
-  if (sessaoDbId) {
-    const stAtual = stages.find(s => s.status === "active")
-    const { data: acDb } = await supabase.from("session_actions").insert({
-      sessao_id:        sessaoDbId,
-      stage_id:         stAtual?.dbId ?? null,
-      tipo:             novaAcao.tipo,
-      programa_id:      item.tipo === "programa" ? item.id : null,
-      plano_id:         item.planoId ?? null,
-      plano_programa_id: item.planoProgramaId ?? null,  // ← novo
-      status:           "active",
-      iniciado_em:      new Date().toISOString(),
-    }).select("id").single()
-    if (acDb) novaAcao.dbId = acDb.id
-  }
+    if (sessaoDbId) {
+      const stAtual = stages.find(s => s.status === "active")
+      const { data: acDb } = await supabase.from("session_actions").insert({
+        sessao_id: sessaoDbId,
+        stage_id: stAtual?.dbId ?? null,
+        tipo: novaAcao.tipo,
+        programa_id: item.tipo === "programa" ? item.id : null,
+        plano_id: item.planoId ?? null,
+        plano_programa_id: item.planoProgramaId ?? null,  // ← novo
+        status: "active",
+        iniciado_em: new Date().toISOString(),
+      }).select("id").single()
+      if (acDb) novaAcao.dbId = acDb.id
+    }
 
-  setAcoes(prev => [...prev, novaAcao])
-  setAcaoAtiva(novaAcao)
-  setLibAberta(false)
-}
+    setAcoes(prev => [...prev, novaAcao])
+    setAcaoAtiva(novaAcao)
+    setLibAberta(false)
+  }
 
 
 
   // ── Registrar operante ──────────────────────────────────────────────────────
- async function registrarOperante(correto: boolean, nivelKey?: string) {
-  if (!acaoAtiva) return
+  async function registrarOperante(correto: boolean, nivelKey?: string) {
+    if (!acaoAtiva) return
 
-  const promptLevel = (nivelKey ?? "independente") as PromptLevel
-  const op: Operante = {
-    id: uid(),
-    sd: opForm.sd,
-    correto,
-    promptLevel,
-    ts: Date.now()
-  }
-
-  // Salva em sessao_tentativas (novo) + operants (legado, mantém por ora)
-  if (sessaoDbId && acaoAtiva.dbId) {
-    const hierarquia = acaoAtiva.hierarquiaDicas ?? []
-    const nivelIdx = hierarquia.indexOf(nivelKey ?? "independente")
-
-    await supabase.from("sessao_tentativas").insert({
-      sessao_id:          sessaoDbId,
-      action_id:          acaoAtiva.dbId,
-      plano_programa_id:  acaoAtiva.planoProgramaId ?? null,
-      sd:                 opForm.sd || null,
-      resultado:          correto ? "acerto" : "erro",
-      nivel_dica:         nivelKey ?? "independente",
-      nivel_dica_idx:     nivelIdx >= 0 ? nivelIdx : 0,
-      registrado_em:      new Date().toISOString(),
-    })
-
-    // Atualiza percentual em tempo real no plano_programas
-    if (acaoAtiva.planoProgramaId) {
-      const todasOps = [...acaoAtiva.operantes, op]
-      const totalAte = todasOps.length
-      const acertosAte = todasOps.filter(o => o.correto).length
-      const pct = totalAte > 0
-        ? Math.round(acertosAte / totalAte * 100 * 100) / 100
-        : 0
-
-      await supabase
-        .from("plano_programas")
-        .update({
-          percentual_atual: pct,
-          atualizado_em: new Date().toISOString(),
-        })
-        .eq("id", acaoAtiva.planoProgramaId)
+    const promptLevel = (nivelKey ?? "independente") as PromptLevel
+    const op: Operante = {
+      id: uid(),
+      sd: opForm.sd,
+      correto,
+      promptLevel,
+      ts: Date.now()
     }
-  }
 
-  const atualizada = { ...acaoAtiva, operantes: [...acaoAtiva.operantes, op] }
-  setAcaoAtiva(atualizada)
-  setAcoes(prev => prev.map(a => a.id === acaoAtiva.id ? atualizada : a))
-  setOpForm({ sd: "" })
-}
+    // Salva em sessao_tentativas (novo) + operants (legado, mantém por ora)
+    if (sessaoDbId && acaoAtiva.dbId) {
+      const hierarquia = acaoAtiva.hierarquiaDicas ?? []
+      const nivelIdx = hierarquia.indexOf(nivelKey ?? "independente")
+
+      await supabase.from("sessao_tentativas").insert({
+        sessao_id: sessaoDbId,
+        action_id: acaoAtiva.dbId,
+        plano_programa_id: acaoAtiva.planoProgramaId ?? null,
+        sd: opForm.sd || null,
+        resultado: correto ? "acerto" : "erro",
+        nivel_dica: nivelKey ?? "independente",
+        nivel_dica_idx: nivelIdx >= 0 ? nivelIdx : 0,
+        registrado_em: new Date().toISOString(),
+      })
+
+      // Atualiza percentual em tempo real no plano_programas
+      if (acaoAtiva.planoProgramaId) {
+        const todasOps = [...acaoAtiva.operantes, op]
+        const totalAte = todasOps.length
+        const acertosAte = todasOps.filter(o => o.correto).length
+        const pct = totalAte > 0
+          ? Math.round(acertosAte / totalAte * 100 * 100) / 100
+          : 0
+
+        await supabase
+          .from("plano_programas")
+          .update({
+            percentual_atual: pct,
+            atualizado_em: new Date().toISOString(),
+          })
+          .eq("id", acaoAtiva.planoProgramaId)
+      }
+    }
+
+    const atualizada = { ...acaoAtiva, operantes: [...acaoAtiva.operantes, op] }
+    setAcaoAtiva(atualizada)
+    setAcoes(prev => prev.map(a => a.id === acaoAtiva.id ? atualizada : a))
+    setOpForm({ sd: "" })
+  }
 
   // ── Registrar evento ────────────────────────────────────────────────────────
   async function registrarEvento(tipo: EventType) { await registrarEventoInterno(tipo, sessaoDbId) }
-  async function registrarEventoInterno(tipo: EventType, sid: string|null|undefined) {
+  async function registrarEventoInterno(tipo: EventType, sid: string | null | undefined) {
     const ev: EventoSessao = { id: uid(), tipo, timestamp: Date.now() }
     setEventos(prev => [ev, ...prev])
     if (sid) {
@@ -799,53 +812,53 @@ if (item.tipo === "avaliacao" && ["vbmapp", "peak", "ablls"].includes(item.id)) 
 
   function togglePausa() {
     if (emPausa) { setEmPausa(false); registrarEvento("session_resumed") }
-    else         { setEmPausa(true);  registrarEvento("session_paused")  }
+    else { setEmPausa(true); registrarEvento("session_paused") }
   }
 
 
-function registrarTally(chave: string, label: string) {
-  const ts = Date.now()
-  
-  setTallyContadores(prev => {
-    const novoCount = (prev[chave] ?? 0) + 1
-    const updated = { ...prev, [chave]: novoCount }
-    
-    // Cruza com critérios e pontua automaticamente
-    const novasPontuacoes: Record<string, number> = {}
-    for (const criterio of tallyCriterios) {
-      // Verifica se este critério é do mesmo domínio do tally
-      const dominioChave = `tally_${criterio.dominio.charAt(0).toUpperCase()}${criterio.dominio.slice(1)}`
-      const countDominio = updated[dominioChave] ?? updated[chave] ?? 0
-      
-      if (countDominio >= criterio.valor_criterio) {
-        novasPontuacoes[criterio.item_id] = criterio.pontuacao_max
+  function registrarTally(chave: string, label: string) {
+    const ts = Date.now()
+
+    setTallyContadores(prev => {
+      const novoCount = (prev[chave] ?? 0) + 1
+      const updated = { ...prev, [chave]: novoCount }
+
+      // Cruza com critérios e pontua automaticamente
+      const novasPontuacoes: Record<string, number> = {}
+      for (const criterio of tallyCriterios) {
+        // Verifica se este critério é do mesmo domínio do tally
+        const dominioChave = `tally_${criterio.dominio.charAt(0).toUpperCase()}${criterio.dominio.slice(1)}`
+        const countDominio = updated[dominioChave] ?? updated[chave] ?? 0
+
+        if (countDominio >= criterio.valor_criterio) {
+          novasPontuacoes[criterio.item_id] = criterio.pontuacao_max
+        }
       }
-    }
-    
-    if (Object.keys(novasPontuacoes).length > 0) {
-      setTallyPontuacoesAuto(prev => ({ ...prev, ...novasPontuacoes }))
-    }
-    
-    return updated
-  })
-  
-  setTallyRegistros(prev => [{ chave, label, ts }, ...prev])
-}
 
+      if (Object.keys(novasPontuacoes).length > 0) {
+        setTallyPontuacoesAuto(prev => ({ ...prev, ...novasPontuacoes }))
+      }
 
-  function alterarAssentimento(novoEstado: "ativo"|"revogado") {
-  if (novoEstado === "ativo" && estadoAssentimento === "ativo") return // já está ativo
-  if (novoEstado === "revogado" && estadoAssentimento === "revogado") return // já está revogado
-  
-  if (novoEstado === "ativo") {
-    const tipo = estadoAssentimento === "pendente" ? "assent_given" : "assent_recovered"
-    registrarEvento(tipo as EventType)
-    setEstadoAssentimento("ativo")
-  } else {
-    registrarEvento("assent_revoked")
-    setEstadoAssentimento("revogado")
+      return updated
+    })
+
+    setTallyRegistros(prev => [{ chave, label, ts }, ...prev])
   }
-}
+
+
+  function alterarAssentimento(novoEstado: "ativo" | "revogado") {
+    if (novoEstado === "ativo" && estadoAssentimento === "ativo") return // já está ativo
+    if (novoEstado === "revogado" && estadoAssentimento === "revogado") return // já está revogado
+
+    if (novoEstado === "ativo") {
+      const tipo = estadoAssentimento === "pendente" ? "assent_given" : "assent_recovered"
+      registrarEvento(tipo as EventType)
+      setEstadoAssentimento("ativo")
+    } else {
+      registrarEvento("assent_revoked")
+      setEstadoAssentimento("revogado")
+    }
+  }
 
   // ── CASCATA DE ENCERRAMENTO ─────────────────────────────────────────────────
   async function confirmarEncerramento() {
@@ -853,17 +866,17 @@ function registrarTally(chave: string, label: string) {
     setSalvandoEnc(true)
 
     const duracaoRealMin = Math.floor(segundos / 60)
-    const acrescimo      = Math.max(0, duracaoRealMin - duracaoMin)
-    const totalOps       = acoes.reduce((a,ac) => a + ac.operantes.length, 0)
-    const totalAcertos   = acoes.reduce((a,ac) => a + ac.operantes.filter(o => o.correto).length, 0)
-    const taxaGeral      = totalOps > 0 ? Math.round(totalAcertos / totalOps * 100) : 0
+    const acrescimo = Math.max(0, duracaoRealMin - duracaoMin)
+    const totalOps = acoes.reduce((a, ac) => a + ac.operantes.length, 0)
+    const totalAcertos = acoes.reduce((a, ac) => a + ac.operantes.filter(o => o.correto).length, 0)
+    const taxaGeral = totalOps > 0 ? Math.round(totalAcertos / totalOps * 100) : 0
 
-try {
+    try {
       const programasJson = acoes.map(ac => {
-        const ops   = ac.operantes
+        const ops = ac.operantes
         const total = ops.length
         const acert = ops.filter(o => o.correto).length
-        const taxa  = total > 0 ? Math.round(acert / total * 100) : 0
+        const taxa = total > 0 ? Math.round(acert / total * 100) : 0
         return {
           nome: ac.itemNome, dominio: ac.itemDominio,
           tipo: ac.tipo, area: ac.area,
@@ -881,27 +894,27 @@ try {
       }))
 
       const { error: rpcError } = await supabase.rpc("finalizar_sessao", {
-        p_sessao_id:          sessaoDbId,
-        p_segundos:           segundos,
-        p_duracao_min:        duracaoMin,
-        p_nota_encerr:        notaEncerr || null,
+        p_sessao_id: sessaoDbId,
+        p_segundos: segundos,
+        p_duracao_min: duracaoMin,
+        p_nota_encerr: notaEncerr || null,
         p_familia_comunicada: familiaComunic ?? false,
-        p_fase_jornada:       faseJornada ?? null,
-        p_tipo_sessao:        tipoSessao,
-        p_valor_sessao:       valorSessao,
-        p_terapeuta_id:       terapeuta!.id,
-        p_crianca_id:         paciente!.id,
-        p_taxa_geral:         taxaGeral,
-        p_total_operantes:    totalOps,
-        p_programas_json:     programasJson,
-        p_eventos_json:       eventosJson,
-        p_encaminhamentos:    tipoSessao === "supervisao" && encaminhamentos.length > 0
-                                ? encaminhamentos : null,
-        p_assinatura_sup:     assinaturaSup,
-        p_assinatura_supv:    assinaturaSupv,
-        p_analise_clinica:    analiseClinica || null,
-        p_decisao_proxima:    decisaoProxima.length > 0 ? decisaoProxima : null,
-        p_nota_decisao:       notaDecisao || null,
+        p_fase_jornada: faseJornada ?? null,
+        p_tipo_sessao: tipoSessao,
+        p_valor_sessao: valorSessao,
+        p_terapeuta_id: terapeuta!.id,
+        p_crianca_id: paciente!.id,
+        p_taxa_geral: taxaGeral,
+        p_total_operantes: totalOps,
+        p_programas_json: programasJson,
+        p_eventos_json: eventosJson,
+        p_encaminhamentos: tipoSessao === "supervisao" && encaminhamentos.length > 0
+          ? encaminhamentos : null,
+        p_assinatura_sup: assinaturaSup,
+        p_assinatura_supv: assinaturaSupv,
+        p_analise_clinica: analiseClinica || null,
+        p_decisao_proxima: decisaoProxima.length > 0 ? decisaoProxima : null,
+        p_nota_decisao: notaDecisao || null,
       })
 
       if (rpcError) throw rpcError
@@ -913,29 +926,29 @@ try {
     setShowEncModal(false)
     // Atualizar slot da agenda para realizado
     if (agendaId) {
-  await supabase.from("agenda_eventos")
-    .update({ status: "realizado" })
-    .eq("id", agendaId)
-} else if (sessaoDbId) {
-  // Sessão avulsa — atualiza pelo sessao_id
-  await supabase.from("agenda_eventos")
-    .update({ status: "realizado" })
-    .eq("sessao_id", sessaoDbId)
-}
+      await supabase.from("agenda_eventos")
+        .update({ status: "realizado" })
+        .eq("id", agendaId)
+    } else if (sessaoDbId) {
+      // Sessão avulsa — atualiza pelo sessao_id
+      await supabase.from("agenda_eventos")
+        .update({ status: "realizado" })
+        .eq("sessao_id", sessaoDbId)
+    }
     localStorage.removeItem(STORAGE_KEY)
     setFase("encerramento")
   }
 
   // ── Dados para relatório ────────────────────────────────────────────────────
-  const totalOps     = acoes.reduce((a,ac) => a + ac.operantes.length, 0)
-  const totalAcertos = acoes.reduce((a,ac) => a + ac.operantes.filter(o => o.correto).length, 0)
-  const taxaGeral    = totalOps > 0 ? Math.round(totalAcertos / totalOps * 100) : 0
+  const totalOps = acoes.reduce((a, ac) => a + ac.operantes.length, 0)
+  const totalAcertos = acoes.reduce((a, ac) => a + ac.operantes.filter(o => o.correto).length, 0)
+  const taxaGeral = totalOps > 0 ? Math.round(totalAcertos / totalOps * 100) : 0
 
   // ── Biblioteca filtrada ─────────────────────────────────────────────────────
   const libFiltrada = biblioteca.filter(b => {
-    if (libTab === "planejado")   return b.planejado
-    if (libTab === "programas")   return b.tipo === "programa"
-    if (libTab === "avaliacoes")  return b.tipo === "avaliacao"
+    if (libTab === "planejado") return b.planejado
+    if (libTab === "programas") return b.tipo === "programa"
+    if (libTab === "avaliacoes") return b.tipo === "avaliacao"
     return true
   }).filter(b => b.nome.toLowerCase().includes(libBusca.toLowerCase()))
 
@@ -953,13 +966,13 @@ try {
 
   if (fase === "preparacao") {
     const TIPO_LABELS: Record<TipoSessao, string> = {
-      atendimento:               "Atendimento",
-      acompanhamento_terapeutico:"Acomp. Terapêutico",
-      supervisao:                "Supervisão",
+      atendimento: "Atendimento",
+      acompanhamento_terapeutico: "Acomp. Terapêutico",
+      supervisao: "Supervisão",
     }
     const LOCAL_LABELS: Record<string, string> = {
-      presencial:       "Presencial",
-      remoto:           "Remoto",
+      presencial: "Presencial",
+      remoto: "Remoto",
       ambiente_natural: "Amb. Natural",
     }
     return (
@@ -983,7 +996,7 @@ try {
           <div style={{ ...card, padding: 16 }}>
             <div style={{ fontSize: ".65rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Tipo de sessão</div>
             <div style={{ display: "flex", gap: 6 }}>
-              {(["atendimento","acompanhamento_terapeutico"] as TipoSessao[]).map(t => (
+              {(["atendimento", "acompanhamento_terapeutico"] as TipoSessao[]).map(t => (
                 <button key={t} onClick={() => setTipoSessao(t)} style={{ flex: 1, padding: "9px 6px", borderRadius: 9, border: `1px solid ${tipoSessao === t ? "rgba(29,158,117,.5)" : "rgba(26,58,92,.4)"}`, background: tipoSessao === t ? "rgba(29,158,117,.15)" : "transparent", color: tipoSessao === t ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                   {TIPO_LABELS[t]}
                 </button>
@@ -996,7 +1009,7 @@ try {
             <div style={{ ...card, padding: 14 }}>
               <div style={{ fontSize: ".65rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Local</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {["presencial","remoto","ambiente_natural"].map(l => (
+                {["presencial", "remoto", "ambiente_natural"].map(l => (
                   <button key={l} onClick={() => setLocalSessao(l)} style={{ padding: "7px 10px", borderRadius: 7, border: `1px solid ${localSessao === l ? "rgba(55,138,221,.5)" : "rgba(26,58,92,.4)"}`, background: localSessao === l ? "rgba(55,138,221,.15)" : "transparent", color: localSessao === l ? "#378ADD" : "rgba(160,200,235,.4)", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }}>
                     {LOCAL_LABELS[l]}
                   </button>
@@ -1019,7 +1032,7 @@ try {
           {tipoSessao !== "supervisao" && (
             <div style={{ ...card, padding: 16 }}>
               <div style={{ fontSize: ".65rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Roteiro da sessão</div>
-              {STAGE_KEYS.map((key,i) => {
+              {STAGE_KEYS.map((key, i) => {
                 const cfg = STAGES_CFG[key]
                 return (
                   <div key={key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < 5 ? "1px solid rgba(26,58,92,.2)" : "none" }}>
@@ -1028,7 +1041,7 @@ try {
                       <div style={{ fontSize: ".78rem", fontWeight: 600, color: "#e8f0f8" }}>{cfg.label}</div>
                       <div style={{ fontSize: ".63rem", color: "rgba(160,200,235,.4)" }}>{cfg.descricao}</div>
                     </div>
-                    {["preference_assessment","break"].includes(key) && <span style={{ fontSize: ".58rem", color: "rgba(160,200,235,.3)", background: "rgba(26,58,92,.4)", borderRadius: 20, padding: "2px 7px" }}>opcional</span>}
+                    {["preference_assessment", "break"].includes(key) && <span style={{ fontSize: ".58rem", color: "rgba(160,200,235,.3)", background: "rgba(26,58,92,.4)", borderRadius: 20, padding: "2px 7px" }}>opcional</span>}
                   </div>
                 )
               })}
@@ -1210,12 +1223,12 @@ try {
 
         {/* Biblioteca */}
         {libAberta && <Biblioteca itens={libFiltrada} tab={libTab} setTab={setLibTab} busca={libBusca} setBusca={setLibBusca} onAdd={(item) => {
-  if (item.tipo === "avaliacao" || (item.planejado && !item.nome.startsWith("💡"))) {
-    adicionarAcao(item)
-  } else {
-    setModalConfigurarPrograma(item)
-  }
-}} onFechar={() => setLibAberta(false)} />}
+          if (item.tipo === "avaliacao" || (item.planejado && !item.nome.startsWith("💡"))) {
+            adicionarAcao(item)
+          } else {
+            setModalConfigurarPrograma(item)
+          }
+        }} onFechar={() => setLibAberta(false)} />}
       </div>
     )
   }
@@ -1231,46 +1244,46 @@ try {
   // ══════════════════════════════════════════════════════════════════════════
   if (fase === "sessao") {
     const stAtual = stages.find(s => s.status === "active")
-    const stCfg   = stAtual ? STAGES_CFG[stAtual.key] : null
+    const stCfg = stAtual ? STAGES_CFG[stAtual.key] : null
     const acoesArea = acoes.filter(a => a.area === areaAtiva)
 
-// 1. Avaliações ativas — usa tallyDominios do protocolo
+    // 1. Avaliações ativas — usa tallyDominios do protocolo
 
-for (const av of avaliacoesAtivas) {
-  const cat = AVALIACOES_CAT.find(c => c.id === av.itemId)
-  if (cat?.tallyDominios) {
-    for (const dom of cat.tallyDominios) {
-      if (!dominiosAdicionados.has(dom)) {
-        dominiosAdicionados.add(dom)
-        tallyItens.push({ chave: `tally_${dom}`, label: dom, cor: "#8B7FE8" })
+    for (const av of avaliacoesAtivas) {
+      const cat = AVALIACOES_CAT.find(c => c.id === av.itemId)
+      if (cat?.tallyDominios) {
+        for (const dom of cat.tallyDominios) {
+          if (!dominiosAdicionados.has(dom)) {
+            dominiosAdicionados.add(dom)
+            tallyItens.push({ chave: `tally_${dom}`, label: dom, cor: "#8B7FE8" })
+          }
+        }
       }
     }
-  }
-}
 
-// Mínimo padrão se não houver avaliação ativa
-if (tallyItens.length === 0) {
-  tallyItens.push({ chave: "mando_esp", label: "Mando esp.", cor: "#1D9E75" })
-  tallyItens.push({ chave: "comp_int",  label: "Comp. interf.", cor: "#E05A4B" })
-}
+    // Mínimo padrão se não houver avaliação ativa
+    if (tallyItens.length === 0) {
+      tallyItens.push({ chave: "mando_esp", label: "Mando esp.", cor: "#1D9E75" })
+      tallyItens.push({ chave: "comp_int", label: "Comp. interf.", cor: "#E05A4B" })
+    }
 
-for (const av of avaliacoesAtivas) {
-  const dominio = av.itemDominio
-  if (!dominiosAdicionados.has(dominio)) {
-    dominiosAdicionados.add(dominio)
-    tallyItens.push({ chave: `dom_${dominio}`, label: dominio, cor: "#8B7FE8" })
-  }
-  // Operante específico se disponível
-  if (av.operanteVerbal && !dominiosAdicionados.has(av.operanteVerbal)) {
-    dominiosAdicionados.add(av.operanteVerbal)
-    tallyItens.push({ chave: `op_${av.operanteVerbal}`, label: av.operanteVerbal, cor: "#378ADD" })
-  }
-}
+    for (const av of avaliacoesAtivas) {
+      const dominio = av.itemDominio
+      if (!dominiosAdicionados.has(dominio)) {
+        dominiosAdicionados.add(dominio)
+        tallyItens.push({ chave: `dom_${dominio}`, label: dominio, cor: "#8B7FE8" })
+      }
+      // Operante específico se disponível
+      if (av.operanteVerbal && !dominiosAdicionados.has(av.operanteVerbal)) {
+        dominiosAdicionados.add(av.operanteVerbal)
+        tallyItens.push({ chave: `op_${av.operanteVerbal}`, label: av.operanteVerbal, cor: "#378ADD" })
+      }
+    }
 
-// 2. Mínimo sempre disponível
-if (tallyItens.length === 0) {
-  tallyItens.push({ chave: "mando_esp", label: "Mando esp.", cor: "#1D9E75" })
-}
+    // 2. Mínimo sempre disponível
+    if (tallyItens.length === 0) {
+      tallyItens.push({ chave: "mando_esp", label: "Mando esp.", cor: "#1D9E75" })
+    }
 
     return (
       <div style={{ minHeight: "100vh", background: "#07111f", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column" }}>
@@ -1282,16 +1295,16 @@ if (tallyItens.length === 0) {
           {/* Estágios */}
           <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 0 }}>
             {stages.map((st, i) => {
-              const cfg  = STAGES_CFG[st.key]
+              const cfg = STAGES_CFG[st.key]
               const done = st.status === "completed" || st.status === "skipped"
-              const ativo= st.status === "active"
+              const ativo = st.status === "active"
               return (
                 <div key={st.key} style={{ display: "flex", alignItems: "center", flex: 1 }}>
                   <button onClick={() => marcarStage(st.key)} title={cfg.label}
                     style={{ width: 28, height: 28, borderRadius: "50%", border: `2px solid ${done ? cfg.cor : ativo ? cfg.cor : "rgba(26,58,92,.5)"}`, background: done ? cfg.cor : ativo ? `${cfg.cor}20` : "rgba(7,17,31,.8)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, fontSize: done ? ".65rem" : ".75rem", color: done ? "#fff" : ativo ? cfg.cor : "rgba(160,200,235,.3)" }}>
                     {done ? "✓" : cfg.icone}
                   </button>
-                  {i < stages.length-1 && <div style={{ flex: 1, height: 2, background: done ? `${cfg.cor}60` : "rgba(26,58,92,.4)" }} />}
+                  {i < stages.length - 1 && <div style={{ flex: 1, height: 2, background: done ? `${cfg.cor}60` : "rgba(26,58,92,.4)" }} />}
                 </div>
               )
             })}
@@ -1314,7 +1327,7 @@ if (tallyItens.length === 0) {
 
         {/* Seletor de área */}
         <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(26,58,92,.4)", background: "rgba(7,17,31,.7)" }}>
-          {([["intervencao","Intervenção","#1D9E75"],["avaliacao","Avaliação","#8B7FE8"]] as const).map(([area, label, cor]) => (
+          {([["intervencao", "Intervenção", "#1D9E75"], ["avaliacao", "Avaliação", "#8B7FE8"]] as const).map(([area, label, cor]) => (
             <button key={area} onClick={() => setAreaAtiva(area)} style={{ flex: 1, padding: "10px", background: "none", border: "none", borderBottom: `2px solid ${areaAtiva === area ? cor : "transparent"}`, color: areaAtiva === area ? cor : "rgba(160,200,235,.4)", fontFamily: "var(--font-sans)", fontWeight: areaAtiva === area ? 700 : 400, fontSize: ".82rem", cursor: "pointer", marginBottom: -1 }}>
               {label}
               {acoes.filter(a => a.area === area).length > 0 && (
@@ -1347,7 +1360,7 @@ if (tallyItens.length === 0) {
             )}
 
             {/* Checklist guiado */}
-            {stAtual && ["abat","terapeuta","qasp_s","coordenador"].includes(nivel) && (
+            {stAtual && ["abat", "terapeuta", "qasp_s", "coordenador"].includes(nivel) && (
               <ChecklistGuiado stageKey={stAtual.key} nivel={nivel} />
             )}
 
@@ -1365,10 +1378,10 @@ if (tallyItens.length === 0) {
             {/* Ações da área ativa */}
             {acoesArea.map(acao => {
               const isAtiva = acaoAtiva?.id === acao.id
-              const ops     = acao.operantes
+              const ops = acao.operantes
               const acertos = ops.filter(o => o.correto).length
-              const taxa    = ops.length > 0 ? Math.round(acertos / ops.length * 100) : null
-              const grafOps = ops.map((op,i) => ({ n: i+1, taxa: Math.round(ops.slice(0,i+1).filter(o=>o.correto).length/(i+1)*100) }))
+              const taxa = ops.length > 0 ? Math.round(acertos / ops.length * 100) : null
+              const grafOps = ops.map((op, i) => ({ n: i + 1, taxa: Math.round(ops.slice(0, i + 1).filter(o => o.correto).length / (i + 1) * 100) }))
               const criterio = taxa !== null && taxa >= 80
               const totalMax = acao.totalTentativas ?? 10
               const atingiuLimite = ops.length >= totalMax
@@ -1385,14 +1398,14 @@ if (tallyItens.length === 0) {
                         {acao.taxaHistorica !== undefined && <span style={{ fontSize: ".6rem", color: "#8B7FE8" }}>hist: {acao.taxaHistorica}%</span>}
                         <span style={{ fontSize: ".62rem", color: "rgba(160,200,235,.35)" }}>{ops.length}/{acao.totalTentativas ?? 10} tentativas</span>
                         {criterio && <span style={{ fontSize: ".62rem", color: "#1D9E75", background: "rgba(29,158,117,.1)", borderRadius: 20, padding: "1px 8px", fontWeight: 700 }}>✓ Critério</span>}
-                    {atingiuLimite && !criterio && <span style={{ fontSize: ".62rem", color: "#EF9F27", background: "rgba(239,159,39,.1)", borderRadius: 20, padding: "1px 8px", fontWeight: 700 }}>⚠ Limite atingido</span>}
+                        {atingiuLimite && !criterio && <span style={{ fontSize: ".62rem", color: "#EF9F27", background: "rgba(239,159,39,.1)", borderRadius: 20, padding: "1px 8px", fontWeight: 700 }}>⚠ Limite atingido</span>}
                       </div>
                     </div>
 
                     {/* Mini gráfico de tentativas */}
                     <div style={{ display: "flex", gap: 2, alignItems: "center", marginRight: 10 }}>
                       {ops.slice(-12).map((op, i) => {
-                        const hier  = getHierarquia(acao.hierarquiaTipo ?? "generica")
+                        const hier = getHierarquia(acao.hierarquiaTipo ?? "generica")
                         const hItem = hier.find(h => h.key === op.promptLevel) ?? hier[0]
                         return <div key={i} style={{ width: 7, height: 13, borderRadius: 2, background: op.correto ? hItem.cor : "#E05A4B", opacity: .85 }} />
                       })}
@@ -1416,7 +1429,7 @@ if (tallyItens.length === 0) {
                             <LineChart data={grafOps}>
                               <Line type="monotone" dataKey="taxa" stroke="#23c48f" strokeWidth={2} dot={false} />
                               <ReferenceLine y={80} stroke="rgba(29,158,117,.3)" strokeDasharray="3 3" />
-                              <Tooltip contentStyle={{ background: "#0d2035", border: "1px solid rgba(26,58,92,.7)", borderRadius: 8, color: "#e8f0f8", fontSize: 10 }} formatter={(v:unknown) => [`${v}%`, "taxa"]} />
+                              <Tooltip contentStyle={{ background: "#0d2035", border: "1px solid rgba(26,58,92,.7)", borderRadius: 8, color: "#e8f0f8", fontSize: 10 }} formatter={(v: unknown) => [`${v}%`, "taxa"]} />
                             </LineChart>
                           </ResponsiveContainer>
                         </div>
@@ -1428,210 +1441,210 @@ if (tallyItens.length === 0) {
                       />
 
                       {acao.tipo === "assessment" ? (
-  <RegistroAvaliacao
-  acao={acao}
-  pacienteId={paciente?.id ?? ""}
-  sessaoId={sessaoDbId ?? ""}
-  terapeutaId={terapeuta?.id ?? ""}
-  pontuacoesAuto={tallyPontuacoesAuto}  // ← novo
-/>
+                        <RegistroAvaliacao
+                          acao={acao}
+                          pacienteId={paciente?.id ?? ""}
+                          sessaoId={sessaoDbId ?? ""}
+                          terapeutaId={terapeuta?.id ?? ""}
+                          pontuacoesAuto={tallyPontuacoesAuto}  // ← novo
+                        />
 
-) : (() => {
-  // Folha de frequência
-if (acao.tipo_registro === "frequencia") {
-  return <FolhaFrequencia acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
-}
+                      ) : (() => {
+                        // Folha de frequência
+                        if (acao.tipo_registro === "frequencia") {
+                          return <FolhaFrequencia acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
+                        }
 
-if (acao.tipo_registro === "duracao") {
-  return <FolhaDuracao acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
-}
+                        if (acao.tipo_registro === "duracao") {
+                          return <FolhaDuracao acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
+                        }
 
-if (acao.tipo_registro === "latencia") {
-  return <FolhaLatencia acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
-}
+                        if (acao.tipo_registro === "latencia") {
+                          return <FolhaLatencia acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
+                        }
 
-if (acao.tipo_registro === "encadeamento") {
-  return <FolhaEncadeamento acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
-}
+                        if (acao.tipo_registro === "encadeamento") {
+                          return <FolhaEncadeamento acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
+                        }
 
-if (acao.tipo_registro === "matching") {
-  return <FolhaMatching acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
-}
+                        if (acao.tipo_registro === "matching") {
+                          return <FolhaMatching acao={acao} onRegistrar={registrarOperante} atingiuLimite={atingiuLimite} />
+                        }
 
-  // Usa hierarquia personalizada do programa se existir,
-  // senão cai na hierarquia derivada do operante (legado)
-  
-  const usaHierarquiaCustom =
-    acao.hierarquiaDicas && acao.hierarquiaDicas.length > 0
-  
-  if (usaHierarquiaCustom) {
-    const niveis = acao.hierarquiaDicas!
-    return (
-  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-    {atingiuLimite && (
-      <div style={{ padding: "12px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 10, textAlign: "center", marginBottom: 4 }}>
-        <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#EF9F27", marginBottom: 2 }}>Limite de tentativas atingido</div>
-        <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)" }}>Encerre ou continue se necessário clinicamente</div>
-      </div>
-    )}
-    <div style={{
-      fontSize: ".62rem",
-      color: "rgba(160,200,235,.35)",
-          textTransform: "uppercase",
-          letterSpacing: ".06em",
-          marginBottom: 2
-        }}>
-          Hierarquia personalizada
-          {acao.operanteVerbal && (
-            <span style={{ marginLeft: 6, color: "rgba(160,200,235,.25)" }}>
-              ({acao.operanteVerbal})
-            </span>
-          )}
-        </div>
+                        // Usa hierarquia personalizada do programa se existir,
+                        // senão cai na hierarquia derivada do operante (legado)
 
-        {/* Independente sempre primeiro e destacado */}
-        <button
-          onClick={() => registrarOperante(true, niveis[0])}
-          style={{
-            padding: "13px 14px",
-            borderRadius: 10,
-            border: "1px solid rgba(29,158,117,.44)",
-            background: "rgba(29,158,117,.12)",
-            color: "#1D9E75",
-            fontWeight: 700,
-            fontSize: ".85rem",
-            cursor: "pointer",
-            fontFamily: "var(--font-sans)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>✓ {niveis[0]}</span>
-          <span style={{ fontSize: ".62rem", opacity: .45 }}>sem dica</span>
-        </button>
+                        const usaHierarquiaCustom =
+                          acao.hierarquiaDicas && acao.hierarquiaDicas.length > 0
 
-        {/* Níveis intermediários */}
-        {niveis.slice(1).map((nivel, idx) => {
-          const isUltimo = idx === niveis.length - 2
-          // Último nível da hierarquia = mais apoio = cor laranja/vermelho
-          const cor = isUltimo ? "#EF9F27" : "#378ADD"
-          return (
-            <button
-              key={nivel}
-              onClick={() => registrarOperante(true, nivel)}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: `1px solid ${cor}44`,
-                background: `${cor}12`,
-                color: cor,
-                fontWeight: 600,
-                fontSize: ".8rem",
-                cursor: "pointer",
-                fontFamily: "var(--font-sans)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <span>✓ {nivel}</span>
-              <span style={{ fontSize: ".62rem", opacity: .45 }}>
-                nível {idx + 1}
-              </span>
-            </button>
-          )
-        })}
+                        if (usaHierarquiaCustom) {
+                          const niveis = acao.hierarquiaDicas!
+                          return (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              {atingiuLimite && (
+                                <div style={{ padding: "12px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 10, textAlign: "center", marginBottom: 4 }}>
+                                  <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#EF9F27", marginBottom: 2 }}>Limite de tentativas atingido</div>
+                                  <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)" }}>Encerre ou continue se necessário clinicamente</div>
+                                </div>
+                              )}
+                              <div style={{
+                                fontSize: ".62rem",
+                                color: "rgba(160,200,235,.35)",
+                                textTransform: "uppercase",
+                                letterSpacing: ".06em",
+                                marginBottom: 2
+                              }}>
+                                Hierarquia personalizada
+                                {acao.operanteVerbal && (
+                                  <span style={{ marginLeft: 6, color: "rgba(160,200,235,.25)" }}>
+                                    ({acao.operanteVerbal})
+                                  </span>
+                                )}
+                              </div>
 
-        {/* Erro — sempre separado e vermelho */}
-        <button
-          onClick={() => registrarOperante(false, "erro")}
-          style={{
-            marginTop: 4,
-            padding: "10px 14px",
-            borderRadius: 10,
-            border: "1px solid rgba(224,90,75,.44)",
-            background: "rgba(224,90,75,.12)",
-            color: "#E05A4B",
-            fontWeight: 700,
-            fontSize: ".78rem",
-            cursor: "pointer",
-            fontFamily: "var(--font-sans)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>✗ Erro / sem resposta</span>
-          <span style={{ fontSize: ".62rem", opacity: .45 }}>sem dica</span>
-        </button>
-      </div>
-    )
-  }
+                              {/* Independente sempre primeiro e destacado */}
+                              <button
+                                onClick={() => registrarOperante(true, niveis[0])}
+                                style={{
+                                  padding: "13px 14px",
+                                  borderRadius: 10,
+                                  border: "1px solid rgba(29,158,117,.44)",
+                                  background: "rgba(29,158,117,.12)",
+                                  color: "#1D9E75",
+                                  fontWeight: 700,
+                                  fontSize: ".85rem",
+                                  cursor: "pointer",
+                                  fontFamily: "var(--font-sans)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                }}
+                              >
+                                <span>✓ {niveis[0]}</span>
+                                <span style={{ fontSize: ".62rem", opacity: .45 }}>sem dica</span>
+                              </button>
 
-  // Fallback legado — hierarquia derivada do operante
-  const hier = getHierarquia(acao.hierarquiaTipo ?? "generica")
-  return (
-  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-    {atingiuLimite && (
-      <div style={{ padding: "12px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 10, textAlign: "center", marginBottom: 4 }}>
-        <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#EF9F27", marginBottom: 2 }}>Limite de tentativas atingido</div>
-        <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)" }}>Encerre ou continue se necessário clinicamente</div>
-      </div>
-    )}
-    <div style={{
-      fontSize: ".62rem",
-      color: "rgba(160,200,235,.35)",
-        textTransform: "uppercase",
-        letterSpacing: ".06em",
-        marginBottom: 2
-      }}>
-        Hierarquia {acao.hierarquiaTipo === "verbal"
-          ? "verbal"
-          : acao.hierarquiaTipo === "motora"
-          ? "motora"
-          : "genérica"}
-        {acao.operanteVerbal && (
-          <span style={{ marginLeft: 6, color: "rgba(160,200,235,.25)" }}>
-            ({acao.operanteVerbal})
-          </span>
-        )}
-      </div>
-      {hier.map((h, hi) => {
-        const isErro = !h.correto
-        return (
-          <button
-            key={h.key}
-            onClick={() => registrarOperante(h.correto, h.key)}
-            style={{
-              padding: isErro ? "10px 14px" : "13px 14px",
-              borderRadius: 10,
-              border: `1px solid ${h.cor}${isErro ? "" : "44"}`,
-              background: `${h.cor}12`,
-              color: isErro ? "#E05A4B" : h.cor,
-              fontWeight: 700,
-              fontSize: isErro ? ".78rem" : ".85rem",
-              cursor: "pointer",
-              fontFamily: "var(--font-sans)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginTop: isErro ? 4 : 0,
-            }}
-          >
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {isErro ? "✗" : "✓"}
-              <span>{h.label}</span>
-            </span>
-            <span style={{ fontSize: ".62rem", opacity: .45 }}>
-              {isErro ? "sem resposta" : hi === 0 ? "sem dica" : `nível ${hi}`}
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  )
-})()}
+                              {/* Níveis intermediários */}
+                              {niveis.slice(1).map((nivel, idx) => {
+                                const isUltimo = idx === niveis.length - 2
+                                // Último nível da hierarquia = mais apoio = cor laranja/vermelho
+                                const cor = isUltimo ? "#EF9F27" : "#378ADD"
+                                return (
+                                  <button
+                                    key={nivel}
+                                    onClick={() => registrarOperante(true, nivel)}
+                                    style={{
+                                      padding: "10px 14px",
+                                      borderRadius: 10,
+                                      border: `1px solid ${cor}44`,
+                                      background: `${cor}12`,
+                                      color: cor,
+                                      fontWeight: 600,
+                                      fontSize: ".8rem",
+                                      cursor: "pointer",
+                                      fontFamily: "var(--font-sans)",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                    }}
+                                  >
+                                    <span>✓ {nivel}</span>
+                                    <span style={{ fontSize: ".62rem", opacity: .45 }}>
+                                      nível {idx + 1}
+                                    </span>
+                                  </button>
+                                )
+                              })}
+
+                              {/* Erro — sempre separado e vermelho */}
+                              <button
+                                onClick={() => registrarOperante(false, "erro")}
+                                style={{
+                                  marginTop: 4,
+                                  padding: "10px 14px",
+                                  borderRadius: 10,
+                                  border: "1px solid rgba(224,90,75,.44)",
+                                  background: "rgba(224,90,75,.12)",
+                                  color: "#E05A4B",
+                                  fontWeight: 700,
+                                  fontSize: ".78rem",
+                                  cursor: "pointer",
+                                  fontFamily: "var(--font-sans)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                }}
+                              >
+                                <span>✗ Erro / sem resposta</span>
+                                <span style={{ fontSize: ".62rem", opacity: .45 }}>sem dica</span>
+                              </button>
+                            </div>
+                          )
+                        }
+
+                        // Fallback legado — hierarquia derivada do operante
+                        const hier = getHierarquia(acao.hierarquiaTipo ?? "generica")
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {atingiuLimite && (
+                              <div style={{ padding: "12px", background: "rgba(239,159,39,.08)", border: "1px solid rgba(239,159,39,.2)", borderRadius: 10, textAlign: "center", marginBottom: 4 }}>
+                                <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#EF9F27", marginBottom: 2 }}>Limite de tentativas atingido</div>
+                                <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)" }}>Encerre ou continue se necessário clinicamente</div>
+                              </div>
+                            )}
+                            <div style={{
+                              fontSize: ".62rem",
+                              color: "rgba(160,200,235,.35)",
+                              textTransform: "uppercase",
+                              letterSpacing: ".06em",
+                              marginBottom: 2
+                            }}>
+                              Hierarquia {acao.hierarquiaTipo === "verbal"
+                                ? "verbal"
+                                : acao.hierarquiaTipo === "motora"
+                                  ? "motora"
+                                  : "genérica"}
+                              {acao.operanteVerbal && (
+                                <span style={{ marginLeft: 6, color: "rgba(160,200,235,.25)" }}>
+                                  ({acao.operanteVerbal})
+                                </span>
+                              )}
+                            </div>
+                            {hier.map((h, hi) => {
+                              const isErro = !h.correto
+                              return (
+                                <button
+                                  key={h.key}
+                                  onClick={() => registrarOperante(h.correto, h.key)}
+                                  style={{
+                                    padding: isErro ? "10px 14px" : "13px 14px",
+                                    borderRadius: 10,
+                                    border: `1px solid ${h.cor}${isErro ? "" : "44"}`,
+                                    background: `${h.cor}12`,
+                                    color: isErro ? "#E05A4B" : h.cor,
+                                    fontWeight: 700,
+                                    fontSize: isErro ? ".78rem" : ".85rem",
+                                    cursor: "pointer",
+                                    fontFamily: "var(--font-sans)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    marginTop: isErro ? 4 : 0,
+                                  }}
+                                >
+                                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    {isErro ? "✗" : "✓"}
+                                    <span>{h.label}</span>
+                                  </span>
+                                  <span style={{ fontSize: ".62rem", opacity: .45 }}>
+                                    {isErro ? "sem resposta" : hi === 0 ? "sem dica" : `nível ${hi}`}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )
+                      })()}
                     </div>
                   )}
                 </div>
@@ -1640,152 +1653,152 @@ if (acao.tipo_registro === "matching") {
           </div>
 
           {/* ── PAINEL LATERAL DESKTOP ── */}
-{!isMobile && (
-  <div style={{ width: 110, borderLeft: "1px solid rgba(26,58,92,.35)", display: "flex", flexDirection: "column", padding: "10px 6px", gap: 4, background: "rgba(7,17,31,.5)", overflowY: "auto" }}>
+          {!isMobile && (
+            <div style={{ width: 110, borderLeft: "1px solid rgba(26,58,92,.35)", display: "flex", flexDirection: "column", padding: "10px 6px", gap: 4, background: "rgba(7,17,31,.5)", overflowY: "auto" }}>
 
-    {/* Assentimento */}
-    <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 2 }}>Assentimento</div>
-    {/* Estado atual */}
-<div style={{ padding: "6px 4px", borderRadius: 8, background: estadoAssentimento === "ativo" ? "rgba(29,158,117,.15)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.15)" : "rgba(26,58,92,.2)", border: `1px solid ${estadoAssentimento === "ativo" ? "rgba(29,158,117,.3)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.3)" : "rgba(26,58,92,.3)"}`, textAlign: "center", fontSize: ".55rem", color: estadoAssentimento === "ativo" ? "#1D9E75" : estadoAssentimento === "revogado" ? "#E05A4B" : "rgba(160,200,235,.3)", fontWeight: 600 }}>
-  {estadoAssentimento === "ativo" ? "✓ Ativo" : estadoAssentimento === "revogado" ? "✗ Revogado" : "— Pendente"}
-</div>
+              {/* Assentimento */}
+              <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 2 }}>Assentimento</div>
+              {/* Estado atual */}
+              <div style={{ padding: "6px 4px", borderRadius: 8, background: estadoAssentimento === "ativo" ? "rgba(29,158,117,.15)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.15)" : "rgba(26,58,92,.2)", border: `1px solid ${estadoAssentimento === "ativo" ? "rgba(29,158,117,.3)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.3)" : "rgba(26,58,92,.3)"}`, textAlign: "center", fontSize: ".55rem", color: estadoAssentimento === "ativo" ? "#1D9E75" : estadoAssentimento === "revogado" ? "#E05A4B" : "rgba(160,200,235,.3)", fontWeight: 600 }}>
+                {estadoAssentimento === "ativo" ? "✓ Ativo" : estadoAssentimento === "revogado" ? "✗ Revogado" : "— Pendente"}
+              </div>
 
-{/* Botão único baseado no estado */}
-{estadoAssentimento !== "ativo" && (
-  <button onClick={() => alterarAssentimento("ativo")}
-    style={{ padding: "7px 4px", borderRadius: 8, border: "1px solid rgba(29,158,117,.33)", background: "rgba(29,158,117,.0a)", color: "#1D9E75", fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
-    {estadoAssentimento === "pendente" ? "✓ Registrar" : "↺ Recuperar"}
-  </button>
-)}
+              {/* Botão único baseado no estado */}
+              {estadoAssentimento !== "ativo" && (
+                <button onClick={() => alterarAssentimento("ativo")}
+                  style={{ padding: "7px 4px", borderRadius: 8, border: "1px solid rgba(29,158,117,.33)", background: "rgba(29,158,117,.0a)", color: "#1D9E75", fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+                  {estadoAssentimento === "pendente" ? "✓ Registrar" : "↺ Recuperar"}
+                </button>
+              )}
 
-{estadoAssentimento === "ativo" && (
-  <button onClick={() => alterarAssentimento("revogado")}
-    style={{ padding: "7px 4px", borderRadius: 8, border: "1px solid rgba(224,90,75,.33)", background: "rgba(224,90,75,.0a)", color: "#E05A4B", fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
-    ✗ Revogar
-  </button>
-)}
+              {estadoAssentimento === "ativo" && (
+                <button onClick={() => alterarAssentimento("revogado")}
+                  style={{ padding: "7px 4px", borderRadius: 8, border: "1px solid rgba(224,90,75,.33)", background: "rgba(224,90,75,.0a)", color: "#E05A4B", fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+                  ✗ Revogar
+                </button>
+              )}
 
-    <div style={{ height: 1, background: "rgba(26,58,92,.3)", margin: "4px 0" }} />
+              <div style={{ height: 1, background: "rgba(26,58,92,.3)", margin: "4px 0" }} />
 
-    {/* Contexto clínico */}
-    <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 2 }}>Contexto</div>
-    {([
-      ["distress_signal",  "Desconforto",  "#EF9F27"],
-      ["avoidance_signal", "Esquiva",      "#E05A4B"],
-      ["break_requested",  "Pausa",        "#4d6d8a"],
-    ] as [EventType, string, string][]).map(([tipo, label, cor]) => (
-      <button key={tipo} onClick={() => registrarEvento(tipo)}
-        style={{ padding: "7px 4px", borderRadius: 8, border: `1px solid ${cor}33`, background: `${cor}0a`, color: cor, fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
-        {label}
-      </button>
-    ))}
+              {/* Contexto clínico */}
+              <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 2 }}>Contexto</div>
+              {([
+                ["distress_signal", "Desconforto", "#EF9F27"],
+                ["avoidance_signal", "Esquiva", "#E05A4B"],
+                ["break_requested", "Pausa", "#4d6d8a"],
+              ] as [EventType, string, string][]).map(([tipo, label, cor]) => (
+                <button key={tipo} onClick={() => registrarEvento(tipo)}
+                  style={{ padding: "7px 4px", borderRadius: 8, border: `1px solid ${cor}33`, background: `${cor}0a`, color: cor, fontSize: ".6rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+                  {label}
+                </button>
+              ))}
 
-    {/* Histórico de eventos */}
-    {eventos.length > 0 && (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 2, justifyContent: "center", marginTop: 2 }}>
-        {eventos.slice(0, 8).map(ev => {
-          const cfg = EVENT_CFG[ev.tipo]
-          return (
-            <div key={ev.id} title={cfg.label}
-              style={{ width: 16, height: 16, borderRadius: "50%", background: `${cfg.cor}20`, border: `1px solid ${cfg.cor}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".5rem", color: cfg.cor }}>
-              {ev.tipo === "assent_given" ? "✓" : ev.tipo === "assent_revoked" ? "✗" : ev.tipo === "assent_recovered" ? "↺" : ev.tipo === "distress_signal" ? "⚠" : ev.tipo === "avoidance_signal" ? "!" : "⏸"}
+              {/* Histórico de eventos */}
+              {eventos.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 2, justifyContent: "center", marginTop: 2 }}>
+                  {eventos.slice(0, 8).map(ev => {
+                    const cfg = EVENT_CFG[ev.tipo]
+                    return (
+                      <div key={ev.id} title={cfg.label}
+                        style={{ width: 16, height: 16, borderRadius: "50%", background: `${cfg.cor}20`, border: `1px solid ${cfg.cor}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".5rem", color: cfg.cor }}>
+                        {ev.tipo === "assent_given" ? "✓" : ev.tipo === "assent_revoked" ? "✗" : ev.tipo === "assent_recovered" ? "↺" : ev.tipo === "distress_signal" ? "⚠" : ev.tipo === "avoidance_signal" ? "!" : "⏸"}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              <div style={{ height: 1, background: "rgba(26,58,92,.3)", margin: "4px 0" }} />
+
+              {/* Tally */}
+              <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 2 }}>Tally</div>
+              {tallyItens.map(item => {
+                const count = tallyContadores[item.chave] ?? 0
+                return (
+                  <button key={item.chave} onClick={() => registrarTally(item.chave, item.label)}
+                    style={{ padding: "8px 4px", borderRadius: 8, border: `1px solid ${item.cor}33`, background: count > 0 ? `${item.cor}15` : `${item.cor}05`, color: item.cor, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                    <span style={{ fontSize: "1.1rem", fontWeight: 800 }}>{count}</span>
+                    <span style={{ fontSize: ".55rem", lineHeight: 1.2 }}>{item.label}</span>
+                  </button>
+                )
+              })}
+
+              {/* Log do tally */}
+              {tallyRegistros.slice(0, 3).map((r, i) => (
+                <div key={i} style={{ fontSize: ".48rem", color: "rgba(160,200,235,.25)", textAlign: "center" }}>
+                  {new Date(r.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </div>
+              ))}
             </div>
-          )
-        })}
-      </div>
-    )}
+          )}
 
-    <div style={{ height: 1, background: "rgba(26,58,92,.3)", margin: "4px 0" }} />
-
-    {/* Tally */}
-    <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 2 }}>Tally</div>
-    {tallyItens.map(item => {
-      const count = tallyContadores[item.chave] ?? 0
-      return (
-        <button key={item.chave} onClick={() => registrarTally(item.chave, item.label)}
-          style={{ padding: "8px 4px", borderRadius: 8, border: `1px solid ${item.cor}33`, background: count > 0 ? `${item.cor}15` : `${item.cor}05`, color: item.cor, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-          <span style={{ fontSize: "1.1rem", fontWeight: 800 }}>{count}</span>
-          <span style={{ fontSize: ".55rem", lineHeight: 1.2 }}>{item.label}</span>
-        </button>
-      )
-    })}
-
-    {/* Log do tally */}
-    {tallyRegistros.slice(0, 3).map((r, i) => (
-      <div key={i} style={{ fontSize: ".48rem", color: "rgba(160,200,235,.25)", textAlign: "center" }}>
-        {new Date(r.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-      </div>
-    ))}
-  </div>
-)}
-
-{/* ── FAB MOBILE ── */}
-{isMobile && <PainelMobile
-  eventos={eventos}
-  tallyItens={tallyItens}
-  tallyContadores={tallyContadores}
-  onEvento={registrarEvento}
-  onTally={registrarTally}
-  estadoAssentimento={estadoAssentimento}
-  onAlterarAssentimento={alterarAssentimento}
-/>}
+          {/* ── FAB MOBILE ── */}
+          {isMobile && <PainelMobile
+            eventos={eventos}
+            tallyItens={tallyItens}
+            tallyContadores={tallyContadores}
+            onEvento={registrarEvento}
+            onTally={registrarTally}
+            estadoAssentimento={estadoAssentimento}
+            onAlterarAssentimento={alterarAssentimento}
+          />}
 
         </div>
 
         {/* Biblioteca */}
         {libAberta && <Biblioteca itens={libFiltrada} tab={libTab} setTab={setLibTab} busca={libBusca} setBusca={setLibBusca} onAdd={(item) => {
-  if (item.tipo === "avaliacao" || (item.planejado && !item.nome.startsWith("💡"))) {
-    adicionarAcao(item)
-  } else {
-    setModalConfigurarPrograma(item)
-  }
-}} onFechar={() => setLibAberta(false)} />}
+          if (item.tipo === "avaliacao" || (item.planejado && !item.nome.startsWith("💡"))) {
+            adicionarAcao(item)
+          } else {
+            setModalConfigurarPrograma(item)
+          }
+        }} onFechar={() => setLibAberta(false)} />}
 
-{/* Marcos atingidos pelo tally */}
-{tallyCriterios.length > 0 && (
-  <div style={{ marginTop: 4 }}>
-    <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 4 }}>Marcos</div>
-    {tallyCriterios
-      .filter(c => {
-        // Encontra o tally item correspondente ao domínio
-        const tallyChave = `tally_${c.dominio.charAt(0).toUpperCase() + c.dominio.slice(1)}`
-        const count = tallyContadores[tallyChave] ?? 
-                      tallyContadores[`tally_Mando`] ?? 0
-        return count > 0
-      })
-      .map(c => {
-        const tallyChave = Object.keys(tallyContadores).find(k => 
-          k.toLowerCase().includes(c.dominio.toLowerCase()) ||
-          c.codigo.toLowerCase().startsWith(c.dominio.charAt(0).toLowerCase())
-        )
-        const count = tallyChave ? (tallyContadores[tallyChave] ?? 0) : 0
-        const atingido = count >= c.valor_criterio
-        return (
-          <div key={c.item_id} style={{ 
-            padding: "4px", borderRadius: 6, marginBottom: 3,
-            background: atingido ? "rgba(29,158,117,.15)" : "rgba(26,58,92,.15)",
-            border: `1px solid ${atingido ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.3)"}`,
-            fontSize: ".52rem", textAlign: "center",
-            color: atingido ? "#1D9E75" : "rgba(160,200,235,.4)"
-          }}>
-            <div style={{ fontWeight: 700 }}>{c.codigo} {atingido ? "✓" : `${count}/${c.valor_criterio}`}</div>
+        {/* Marcos atingidos pelo tally */}
+        {tallyCriterios.length > 0 && (
+          <div style={{ marginTop: 4 }}>
+            <div style={{ fontSize: ".5rem", color: "rgba(160,200,235,.25)", textTransform: "uppercase", letterSpacing: ".06em", textAlign: "center", marginBottom: 4 }}>Marcos</div>
+            {tallyCriterios
+              .filter(c => {
+                // Encontra o tally item correspondente ao domínio
+                const tallyChave = `tally_${c.dominio.charAt(0).toUpperCase() + c.dominio.slice(1)}`
+                const count = tallyContadores[tallyChave] ??
+                  tallyContadores[`tally_Mando`] ?? 0
+                return count > 0
+              })
+              .map(c => {
+                const tallyChave = Object.keys(tallyContadores).find(k =>
+                  k.toLowerCase().includes(c.dominio.toLowerCase()) ||
+                  c.codigo.toLowerCase().startsWith(c.dominio.charAt(0).toLowerCase())
+                )
+                const count = tallyChave ? (tallyContadores[tallyChave] ?? 0) : 0
+                const atingido = count >= c.valor_criterio
+                return (
+                  <div key={c.item_id} style={{
+                    padding: "4px", borderRadius: 6, marginBottom: 3,
+                    background: atingido ? "rgba(29,158,117,.15)" : "rgba(26,58,92,.15)",
+                    border: `1px solid ${atingido ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.3)"}`,
+                    fontSize: ".52rem", textAlign: "center",
+                    color: atingido ? "#1D9E75" : "rgba(160,200,235,.4)"
+                  }}>
+                    <div style={{ fontWeight: 700 }}>{c.codigo} {atingido ? "✓" : `${count}/${c.valor_criterio}`}</div>
+                  </div>
+                )
+              })
+            }
           </div>
-        )
-      })
-    }
-  </div>
-)}
-{/* Modal configurar programa */}
-{modalConfigurarPrograma && (
-  <ModalConfigurarPrograma
-    item={modalConfigurarPrograma}
-    onConfirmar={(itemConfigurado) => {
-      adicionarAcao(itemConfigurado)
-      setModalConfigurarPrograma(null)
-    }}
-    onCancelar={() => setModalConfigurarPrograma(null)}
-  />
-)}
+        )}
+        {/* Modal configurar programa */}
+        {modalConfigurarPrograma && (
+          <ModalConfigurarPrograma
+            item={modalConfigurarPrograma}
+            onConfirmar={(itemConfigurado) => {
+              adicionarAcao(itemConfigurado)
+              setModalConfigurarPrograma(null)
+            }}
+            onCancelar={() => setModalConfigurarPrograma(null)}
+          />
+        )}
         {/* Pop-ups */}
         {showAvisoTempo && <AvisoTempo onContinuar={() => setShowAvisoTempo(false)} onEncerrar={() => { setShowAvisoTempo(false); setShowEncModal(true) }} />}
         {showEncModal && (
@@ -1819,19 +1832,19 @@ Tipo: ${tipoSessao}   Local: ${localSessao}
 Terapeuta: ${terapeuta?.nome ?? "—"}${registroProfStr}
 Família comunicada: ${familiaComunic ? "Sim" : "Não"}
 
-PROGRAMAS APLICADOS (${acoes.filter(a=>a.area==="intervencao").length}):
-${acoes.filter(a=>a.area==="intervencao").map(ac => {
-  const t = ac.operantes.length
-  const c = ac.operantes.filter(o => o.correto).length
-  const tx = t > 0 ? Math.round(c/t*100) : 0
-  const ind= t > 0 ? Math.round(ac.operantes.filter(o=>o.promptLevel==="independente").length/t*100) : 0
-  const seq= ac.operantes.map(o => o.correto ? "C" : "E").join(" ")
-  const nivel = labelNivel(nivelPredominante(ac.operantes))
-  return `• ${ac.itemNome} — ${tx}% acerto, ${ind}% independência (${c}/${t})\n  Nível de ajuda predominante: ${nivel}\n  Sequência: ${seq}`
-}).join("\n") || "Nenhum programa aplicado"}
+PROGRAMAS APLICADOS (${acoes.filter(a => a.area === "intervencao").length}):
+${acoes.filter(a => a.area === "intervencao").map(ac => {
+    const t = ac.operantes.length
+    const c = ac.operantes.filter(o => o.correto).length
+    const tx = t > 0 ? Math.round(c / t * 100) : 0
+    const ind = t > 0 ? Math.round(ac.operantes.filter(o => o.promptLevel === "independente").length / t * 100) : 0
+    const seq = ac.operantes.map(o => o.correto ? "C" : "E").join(" ")
+    const nivel = labelNivel(nivelPredominante(ac.operantes))
+    return `• ${ac.itemNome} — ${tx}% acerto, ${ind}% independência (${c}/${t})\n  Nível de ajuda predominante: ${nivel}\n  Sequência: ${seq}`
+  }).join("\n") || "Nenhum programa aplicado"}
 
-AVALIAÇÕES (${acoes.filter(a=>a.area==="avaliacao").length}):
-${acoes.filter(a=>a.area==="avaliacao").map(ac => `• ${ac.itemNome} — ${ac.operantes.length} registros`).join("\n") || "Nenhuma avaliação aplicada"}
+AVALIAÇÕES (${acoes.filter(a => a.area === "avaliacao").length}):
+${acoes.filter(a => a.area === "avaliacao").map(ac => `• ${ac.itemNome} — ${ac.operantes.length} registros`).join("\n") || "Nenhuma avaliação aplicada"}
 
 EVENTOS CLÍNICOS (${eventos.length}):
 ${eventos.map(e => EVENT_CFG[e.tipo].label).join(", ") || "Nenhum evento registrado"}
@@ -1868,10 +1881,10 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
         {/* KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
           {[
-            { l: "Duração",    v: fmt(segundos),  c: "#e8f0f8" },
+            { l: "Duração", v: fmt(segundos), c: "#e8f0f8" },
             { l: "Taxa geral", v: `${taxaGeral}%`, c: taxaGeral >= 80 ? "#1D9E75" : taxaGeral >= 50 ? "#EF9F27" : "#E05A4B" },
-            { l: "Operantes",  v: totalOps,        c: "#378ADD" },
-            { l: "Eventos",    v: eventos.length,  c: "#8B7FE8" },
+            { l: "Operantes", v: totalOps, c: "#378ADD" },
+            { l: "Eventos", v: eventos.length, c: "#8B7FE8" },
           ].map(k => (
             <div key={k.l} style={{ ...card, padding: "12px 14px" }}>
               <div style={{ fontSize: ".58rem", color: "rgba(170,210,245,.5)", marginBottom: 3 }}>{k.l}</div>
@@ -1890,11 +1903,11 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
 
         {/* Intervenções */}
         {acoes.filter(a => a.area === "intervencao").map(ac => {
-          const t  = ac.operantes.length
-          const c  = ac.operantes.filter(o => o.correto).length
-          const tx = t > 0 ? Math.round(c/t*100) : 0
-          const ind= t > 0 ? Math.round(ac.operantes.filter(o=>o.promptLevel==="independente").length/t*100) : 0
-          const grafD = ac.operantes.map((op,i) => ({ n: i+1, taxa: Math.round(ac.operantes.slice(0,i+1).filter(o=>o.correto).length/(i+1)*100) }))
+          const t = ac.operantes.length
+          const c = ac.operantes.filter(o => o.correto).length
+          const tx = t > 0 ? Math.round(c / t * 100) : 0
+          const ind = t > 0 ? Math.round(ac.operantes.filter(o => o.promptLevel === "independente").length / t * 100) : 0
+          const grafD = ac.operantes.map((op, i) => ({ n: i + 1, taxa: Math.round(ac.operantes.slice(0, i + 1).filter(o => o.correto).length / (i + 1) * 100) }))
           return (
             <div key={ac.id} style={{ ...card, padding: 18 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
@@ -1917,13 +1930,13 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
                     <LineChart data={grafD}>
                       <Line type="monotone" dataKey="taxa" stroke="#23c48f" strokeWidth={2} dot={false} />
                       <ReferenceLine y={80} stroke="rgba(29,158,117,.3)" strokeDasharray="3 3" />
-                      <Tooltip contentStyle={{ background: "#0d2035", border: "1px solid rgba(26,58,92,.7)", borderRadius: 8, color: "#e8f0f8", fontSize: 10 }} formatter={(v:unknown) => [`${v}%`]} />
+                      <Tooltip contentStyle={{ background: "#0d2035", border: "1px solid rgba(26,58,92,.7)", borderRadius: 8, color: "#e8f0f8", fontSize: 10 }} formatter={(v: unknown) => [`${v}%`]} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               )}
               <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-                {ac.operantes.map((op,i) => (
+                {ac.operantes.map((op, i) => (
                   <div key={i} title={op.promptLevel} style={{ width: 20, height: 20, borderRadius: 4, background: op.correto ? "rgba(29,158,117,.2)" : "rgba(224,90,75,.2)", border: `1px solid ${op.correto ? "rgba(29,158,117,.4)" : "rgba(224,90,75,.4)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".6rem", color: op.correto ? "#1D9E75" : "#E05A4B" }}>
                     {op.correto ? "C" : "E"}
                   </div>
@@ -1998,7 +2011,7 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
                 <div key={opcao} onClick={() => setDecisaoProxima(prev => selecionado ? prev.filter(d => d !== opcao) : [...prev, opcao])}
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: selecionado ? "rgba(29,158,117,.08)" : "rgba(26,58,92,.15)", border: `1px solid ${selecionado ? "rgba(29,158,117,.3)" : "rgba(26,58,92,.3)"}`, cursor: "pointer" }}>
                   <div style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: `1.5px solid ${selecionado ? "#1D9E75" : "rgba(160,200,235,.25)"}`, background: selecionado ? "#1D9E75" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {selecionado && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#07111f" strokeWidth="1.5" strokeLinecap="round"/></svg>}
+                    {selecionado && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#07111f" strokeWidth="1.5" strokeLinecap="round" /></svg>}
                   </div>
                   <span style={{ fontSize: ".78rem", color: selecionado ? "#e8f0f8" : "rgba(160,200,235,.6)" }}>{opcao}</span>
                 </div>
@@ -2014,7 +2027,7 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
           />
         </div>
 
-{/* Relatório */}
+        {/* Relatório */}
         <div style={{ ...card, padding: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ fontSize: ".75rem", fontWeight: 700, color: "rgba(170,210,245,.88)" }}>Relatório de sessão</div>
@@ -2023,25 +2036,25 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
                 Copiar
               </button>
               <button onClick={() => abrirRelatorioPDF({
-                sessaoId:          sessaoDbId ?? '',
-                pacienteNome:      paciente?.nome ?? '—',
-                data:              new Date().toLocaleDateString('pt-BR'),
-                horario:           new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-                duracao:           fmt(segundos),
+                sessaoId: sessaoDbId ?? '',
+                pacienteNome: paciente?.nome ?? '—',
+                data: new Date().toLocaleDateString('pt-BR'),
+                horario: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                duracao: fmt(segundos),
                 duracaoContratada: duracaoMin,
-                tipo:              tipoSessao,
-                local:             localSessao,
-                terapeutaNome:     terapeuta?.nome ?? '—',
+                tipo: tipoSessao,
+                local: localSessao,
+                terapeutaNome: terapeuta?.nome ?? '—',
                 conselhoProfissional: (terapeuta as any)?.conselho_profissional,
                 registroProfissional: (terapeuta as any)?.registro_profissional,
                 familiaComunicada: familiaComunic ?? false,
                 taxaGeral,
-                totalOperantes:    totalOps,
+                totalOperantes: totalOps,
                 programas: acoes.filter(a => a.area === 'intervencao').map(ac => {
                   const t = ac.operantes.length
                   const c = ac.operantes.filter(o => o.correto).length
-                  const tx = t > 0 ? Math.round(c/t*100) : 0
-                  const ind = t > 0 ? Math.round(ac.operantes.filter(o => o.promptLevel === 'independente').length/t*100) : 0
+                  const tx = t > 0 ? Math.round(c / t * 100) : 0
+                  const ind = t > 0 ? Math.round(ac.operantes.filter(o => o.promptLevel === 'independente').length / t * 100) : 0
                   return {
                     nome: ac.itemNome, dominio: ac.itemDominio,
                     taxa: tx, total: t, acertos: c, independencia: ind,
@@ -2065,7 +2078,7 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
             {relatorio}
           </pre>
         </div>
-          <style>{`
+        <style>{`
   @media print {
     body { background: #fff !important; color: #000 !important; }
     nav, button { display: none !important; }
@@ -2081,18 +2094,19 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
     }
   }
 `}</style>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, paddingBottom: 20 }}>
-          <button onClick={() => router.push(`/clinic/paciente/${paciente?.id}`)} style={{ flex: 1, padding: 13, borderRadius: 10, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.9)", fontWeight: 600, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-            Ver histórico do paciente
-          </button>
-          <button onClick={() => router.push("/clinic/dashboard")} style={{ flex: 1, padding: 13, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-            Voltar ao painel →
-          </button>
-        </div>
       </div>
-)}
+
+      <div style={{ display: "flex", gap: 10, paddingBottom: 20 }}>
+        <button onClick={() => router.push(`/clinic/paciente/${paciente?.id}`)} style={{ flex: 1, padding: 13, borderRadius: 10, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.9)", fontWeight: 600, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          Ver histórico do paciente
+        </button>
+        <button onClick={() => router.push("/clinic/dashboard")} style={{ flex: 1, padding: 13, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+          Voltar ao painel →
+        </button>
+      </div>
+    </div>
+  )
+}
 
 
 function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontuacoesAuto }: {
@@ -2108,7 +2122,7 @@ function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontua
 
   const SIGLA_MAP: Record<string, string> = {
     vbmapp: "VB-MAPP", peak: "PEAK", ablls: "ABLLS-R",
-    
+
   }
 
   useEffect(() => {
@@ -2178,20 +2192,20 @@ function FolhaRegistroInline({ itemId, pacienteId, sessaoId, terapeutaId, pontua
       setLoading(false)
     }
     carregar()
-    
+
   }, [itemId, pacienteId])
 
-// Merge respostas manuais com automáticas do tally
-const respostasEfetivas = useMemo(() => {
-  if (!pontuacoesAuto || Object.keys(pontuacoesAuto).length === 0) return respostas
-  const merged = { ...respostas }
-  for (const [item_id, pontuacao] of Object.entries(pontuacoesAuto)) {
-    if (merged[item_id] === undefined) {
-      merged[item_id] = pontuacao
+  // Merge respostas manuais com automáticas do tally
+  const respostasEfetivas = useMemo(() => {
+    if (!pontuacoesAuto || Object.keys(pontuacoesAuto).length === 0) return respostas
+    const merged = { ...respostas }
+    for (const [item_id, pontuacao] of Object.entries(pontuacoesAuto)) {
+      if (merged[item_id] === undefined) {
+        merged[item_id] = pontuacao
+      }
     }
-  }
-  return merged
-}, [respostas, pontuacoesAuto])  
+    return merged
+  }, [respostas, pontuacoesAuto])
 
   async function registrarResposta(item_id: string, pontuacao: number) {
     if (!sessaoAval) return
@@ -2205,58 +2219,58 @@ const respostasEfetivas = useMemo(() => {
   }
 
   async function concluirAvaliacao() {
-  if (!sessaoAval || !protocolo) return
-  console.log("concluirAvaliacao iniciou", { sessaoId: sessaoAval.id, pacienteId, dominios: protocolo.dominios.length })
-  await supabase.from("avaliacoes_sessoes")
-    .update({ status: "concluida", concluida_em: new Date().toISOString() })
-    .eq("id", sessaoAval.id)
-  await atualizarRepertorioSessao(protocolo, sessaoAval, respostas, pacienteId)
-  await atualizarJornadaSessao(protocolo, sessaoAval, respostas, pacienteId)
-  
-  // Gerar sugestões de programas baseadas nos scores baixos
-  for (const dominio of protocolo.dominios) {
-    if (dominio.tipo_dominio === "barreira") continue
-    for (const item of dominio.itens) {
-      const pontuacao = respostas[item.id]
-      if (pontuacao === undefined) continue
-      const scorePercent = Math.round((pontuacao / item.pontuacao_max) * 100)
-      if (scorePercent > 79) continue
-              console.log("item com score baixo:", item.codigo, scorePercent)  // ← adicione aq
-      const { data: programasSugeridos } = await supabase
-        .from("avaliacao_item_programas")
-        .select("*")
-        .eq("avaliacao_item_id", item.id)
-              console.log("programas encontrados:", programasSugeridos?.length ?? 0, item.id)  // ← e aqui
-      if (!programasSugeridos || programasSugeridos.length === 0) continue
-//mudei
-      for (const prog of programasSugeridos) {
-        const { data: existente } = await supabase
-          .from("plano_sugestoes")
-          .select("id")
-          .eq("crianca_id", pacienteId)
+    if (!sessaoAval || !protocolo) return
+    console.log("concluirAvaliacao iniciou", { sessaoId: sessaoAval.id, pacienteId, dominios: protocolo.dominios.length })
+    await supabase.from("avaliacoes_sessoes")
+      .update({ status: "concluida", concluida_em: new Date().toISOString() })
+      .eq("id", sessaoAval.id)
+    await atualizarRepertorioSessao(protocolo, sessaoAval, respostas, pacienteId)
+    await atualizarJornadaSessao(protocolo, sessaoAval, respostas, pacienteId)
+
+    // Gerar sugestões de programas baseadas nos scores baixos
+    for (const dominio of protocolo.dominios) {
+      if (dominio.tipo_dominio === "barreira") continue
+      for (const item of dominio.itens) {
+        const pontuacao = respostas[item.id]
+        if (pontuacao === undefined) continue
+        const scorePercent = Math.round((pontuacao / item.pontuacao_max) * 100)
+        if (scorePercent > 79) continue
+        console.log("item com score baixo:", item.codigo, scorePercent)  // ← adicione aq
+        const { data: programasSugeridos } = await supabase
+          .from("avaliacao_item_programas")
+          .select("*")
           .eq("avaliacao_item_id", item.id)
-          .eq("nome_programa", prog.nome)
-          .in("status", ["pendente", "aprovado"])
-          .maybeSingle()
+        console.log("programas encontrados:", programasSugeridos?.length ?? 0, item.id)  // ← e aqui
+        if (!programasSugeridos || programasSugeridos.length === 0) continue
+        //mudei
+        for (const prog of programasSugeridos) {
+          const { data: existente } = await supabase
+            .from("plano_sugestoes")
+            .select("id")
+            .eq("crianca_id", pacienteId)
+            .eq("avaliacao_item_id", item.id)
+            .eq("nome_programa", prog.nome)
+            .in("status", ["pendente", "aprovado"])
+            .maybeSingle()
 
-        if (existente) continue
+          if (existente) continue
 
-        await supabase.from("plano_sugestoes").insert({
-          crianca_id:          pacienteId,
-          terapeuta_id:        terapeutaId,
-          avaliacao_sessao_id: sessaoAval.id,
-          avaliacao_item_id:   item.id,
-          nome_programa:       prog.nome,
-          dominio:             prog.dominio,
-          score_avaliado:      scorePercent,
-          status:              "pendente",
-        })
+          await supabase.from("plano_sugestoes").insert({
+            crianca_id: pacienteId,
+            terapeuta_id: terapeutaId,
+            avaliacao_sessao_id: sessaoAval.id,
+            avaliacao_item_id: item.id,
+            nome_programa: prog.nome,
+            dominio: prog.dominio,
+            score_avaliado: scorePercent,
+            status: "pendente",
+          })
+        }
       }
     }
+
+    setConcluido(true)
   }
-  
-  setConcluido(true)
-}
 
   if (loading) return (
     <div style={{ padding: 16, fontSize: ".78rem", color: "rgba(160,200,235,.4)" }}>Carregando protocolo...</div>
@@ -2348,20 +2362,20 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
 }) {
   const isPref = acao.itemId === "pref_mswo" || acao.itemId === "pref_livre"
   const isMSWO = acao.itemId === "pref_mswo"
-  const isAF   = acao.itemId === "af_exp"
-  const isMAS  = acao.itemId === "af_mas"
+  const isAF = acao.itemId === "af_exp"
+  const isMAS = acao.itemId === "af_mas"
 
   // Estado Preferências
-  const [itens,         setItens]         = useState<{id:string;nome:string;categoria:string;naturalOcorre:boolean}[]>([])
-  const [novoItem,      setNovoItem]      = useState({nome:"",categoria:"objeto"})
-  const [apresentacoes, setApresentacoes] = useState<{escolhido:string}[]>([])
-  const [salvando,      setSalvando]      = useState(false)
-  const [salvo,         setSalvo]         = useState(false)
-  const [obsGenerico,   setObsGenerico]   = useState("")
+  const [itens, setItens] = useState<{ id: string; nome: string; categoria: string; naturalOcorre: boolean }[]>([])
+  const [novoItem, setNovoItem] = useState({ nome: "", categoria: "objeto" })
+  const [apresentacoes, setApresentacoes] = useState<{ escolhido: string }[]>([])
+  const [salvando, setSalvando] = useState(false)
+  const [salvo, setSalvo] = useState(false)
+  const [obsGenerico, setObsGenerico] = useState("")
 
   // Estado AF Experimental
-  const [condicaoAtiva,  setCondicaoAtiva]  = useState<"atencao"|"fuga"|"tangivel"|"controle">("atencao")
-  const [registrosAF,    setRegistrosAF]    = useState<{condicao:string;freq:number}[]>([])
+  const [condicaoAtiva, setCondicaoAtiva] = useState<"atencao" | "fuga" | "tangivel" | "controle">("atencao")
+  const [registrosAF, setRegistrosAF] = useState<{ condicao: string; freq: number }[]>([])
   const [intervaloAtual, setIntervaloAtual] = useState(1)
 
   // Estado MAS
@@ -2392,7 +2406,7 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
     outline: "none", boxSizing: "border-box" as const,
   }
 
-  function uid2() { return Math.random().toString(36).slice(2,9) }
+  function uid2() { return Math.random().toString(36).slice(2, 9) }
 
   function adicionarItem() {
     if (!novoItem.nome.trim()) return
@@ -2405,14 +2419,14 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
   }
 
   function calcularRanking() {
-    const pontos: Record<string,number> = {}
+    const pontos: Record<string, number> = {}
     itens.forEach(it => { pontos[it.id] = 0 })
     apresentacoes.forEach((ap, idx) => {
       pontos[ap.escolhido] = (pontos[ap.escolhido] ?? 0) + (itens.length - idx)
     })
     return itens
       .map(it => ({ id: it.id, nome: it.nome, pontos: pontos[it.id] ?? 0, naturalOcorre: it.naturalOcorre }))
-      .sort((a,b) => b.pontos - a.pontos)
+      .sort((a, b) => b.pontos - a.pontos)
   }
 
   const densidade = itens.length > 0
@@ -2424,11 +2438,11 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
     setSalvando(true)
     const ranking = calcularRanking()
     const { data: av } = await supabase.from("avaliacoes_clinicas").insert({
-      crianca_id:    pacienteId,
-      sessao_id:     sessaoId || null,
-      terapeuta_id:  terapeutaId,
-      tipo:          isMSWO ? "preferencias_mswo" : "preferencias_livre",
-      resultado_json:{ ranking, densidade, apresentacoes, itens },
+      crianca_id: pacienteId,
+      sessao_id: sessaoId || null,
+      terapeuta_id: terapeutaId,
+      tipo: isMSWO ? "preferencias_mswo" : "preferencias_livre",
+      resultado_json: { ranking, densidade, apresentacoes, itens },
     }).select("id").single()
     if (av) {
       for (let i = 0; i < ranking.length; i++) {
@@ -2452,9 +2466,9 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
 
   async function salvarAF() {
     setSalvando(true)
-    const totais: Record<string,number> = {}
+    const totais: Record<string, number> = {}
     registrosAF.forEach(r => { totais[r.condicao] = (totais[r.condicao] ?? 0) + r.freq })
-    const funcao = Object.entries(totais).sort((a,b) => b[1]-a[1])[0]?.[0] ?? "indeterminada"
+    const funcao = Object.entries(totais).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "indeterminada"
     await supabase.from("avaliacoes_clinicas").insert({
       crianca_id: pacienteId, sessao_id: sessaoId || null,
       terapeuta_id: terapeutaId, tipo: "af_experimental",
@@ -2467,11 +2481,11 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
   async function salvarMAS() {
     setSalvando(true)
     const scores = { atencao: 0, fuga: 0, tangivel: 0, automatico: 0 }
-    const MAP = ["automatico","tangivel","automatico","fuga","atencao","automatico","fuga","automatico","atencao","tangivel","automatico","fuga","atencao","tangivel","automatico","fuga"]
+    const MAP = ["automatico", "tangivel", "automatico", "fuga", "atencao", "automatico", "fuga", "automatico", "atencao", "tangivel", "automatico", "fuga", "atencao", "tangivel", "automatico", "fuga"]
     respostasMAS.forEach((r, i) => {
       if (r >= 0) { const fn = MAP[i] as keyof typeof scores; scores[fn] += r }
     })
-    const funcao = Object.entries(scores).sort((a,b) => b[1]-a[1])[0][0]
+    const funcao = Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0]
     await supabase.from("avaliacoes_clinicas").insert({
       crianca_id: pacienteId, sessao_id: sessaoId || null,
       terapeuta_id: terapeutaId, tipo: "af_mas",
@@ -2575,7 +2589,7 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
             {ranking.map((r, i) => (
               <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                 <div style={{ width: 22, height: 22, borderRadius: "50%", background: i === 0 ? "#1D9E75" : i === 1 ? "#EF9F27" : "rgba(26,58,92,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".65rem", fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-                  {i+1}
+                  {i + 1}
                 </div>
                 <div style={{ flex: 1, fontSize: ".78rem", color: "#e8f0f8" }}>{r.nome}</div>
                 <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: ".65rem", color: "rgba(160,200,235,.4)", cursor: "pointer" }}>
@@ -2601,19 +2615,19 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
 
   // ── AF EXPERIMENTAL ──────────────────────────────────────────────────────────
   if (isAF) {
-    const COR_AF: Record<string,string>   = { atencao:"#8B7FE8", fuga:"#E05A4B", tangivel:"#EF9F27", controle:"#1D9E75" }
-    const LABEL_AF: Record<string,string> = { atencao:"Atenção", fuga:"Fuga", tangivel:"Tangível", controle:"Controle" }
+    const COR_AF: Record<string, string> = { atencao: "#8B7FE8", fuga: "#E05A4B", tangivel: "#EF9F27", controle: "#1D9E75" }
+    const LABEL_AF: Record<string, string> = { atencao: "Atenção", fuga: "Fuga", tangivel: "Tangível", controle: "Controle" }
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".06em" }}>
           AF Experimental — 4 condições · 10 min cada
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          {(["atencao","fuga","tangivel","controle"] as const).map(c => {
-            const total = registrosAF.filter(r => r.condicao === c).reduce((a,r) => a + r.freq, 0)
+          {(["atencao", "fuga", "tangivel", "controle"] as const).map(c => {
+            const total = registrosAF.filter(r => r.condicao === c).reduce((a, r) => a + r.freq, 0)
             return (
               <button key={c} onClick={() => setCondicaoAtiva(c)}
-                style={{ flex: 1, padding: "10px 6px", borderRadius: 9, border: `1px solid ${condicaoAtiva === c ? COR_AF[c]+"55" : "rgba(26,58,92,.4)"}`, background: condicaoAtiva === c ? COR_AF[c]+"15" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                style={{ flex: 1, padding: "10px 6px", borderRadius: 9, border: `1px solid ${condicaoAtiva === c ? COR_AF[c] + "55" : "rgba(26,58,92,.4)"}`, background: condicaoAtiva === c ? COR_AF[c] + "15" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                 <div style={{ fontSize: ".72rem", fontWeight: 700, color: COR_AF[c] }}>{LABEL_AF[c]}</div>
                 <div style={{ fontSize: ".65rem", color: "rgba(160,200,235,.4)", marginTop: 2 }}>{total} ocorrências</div>
               </button>
@@ -2632,7 +2646,7 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
           </button>
         </div>
         <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.35)" }}>
-          {registrosAF.reduce((a,r) => a + r.freq, 0)} ocorrências totais registradas
+          {registrosAF.reduce((a, r) => a + r.freq, 0)} ocorrências totais registradas
         </div>
         <button onClick={salvarAF} disabled={salvando || registrosAF.length === 0}
           style={{ padding: "11px", borderRadius: 9, border: "none", background: registrosAF.length > 0 ? "linear-gradient(135deg,#1D9E75,#0f8f7a)" : "rgba(26,58,92,.4)", color: registrosAF.length > 0 ? "#07111f" : "rgba(160,200,235,.3)", fontSize: ".82rem", fontWeight: 700, cursor: registrosAF.length > 0 ? "pointer" : "not-allowed", fontFamily: "var(--font-sans)" }}>
@@ -2650,11 +2664,11 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
       </div>
       {MAS_PERGUNTAS.map((q, i) => (
         <div key={i} style={{ padding: "10px 12px", background: "rgba(26,58,92,.2)", borderRadius: 9 }}>
-          <div style={{ fontSize: ".75rem", color: "#e8f0f8", marginBottom: 8 }}>{i+1}. {q}</div>
+          <div style={{ fontSize: ".75rem", color: "#e8f0f8", marginBottom: 8 }}>{i + 1}. {q}</div>
           <div style={{ display: "flex", gap: 4 }}>
-            {[0,1,2,3,4,5,6].map(v => (
-              <button key={v} onClick={() => setRespostasMAS(prev => prev.map((r,idx) => idx===i ? v : r))}
-                style={{ flex: 1, padding: "5px", borderRadius: 6, border: `1px solid ${respostasMAS[i]===v ? "#8B7FE855" : "rgba(26,58,92,.4)"}`, background: respostasMAS[i]===v ? "rgba(139,127,232,.2)" : "transparent", color: respostasMAS[i]===v ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".7rem", fontWeight: respostasMAS[i]===v ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            {[0, 1, 2, 3, 4, 5, 6].map(v => (
+              <button key={v} onClick={() => setRespostasMAS(prev => prev.map((r, idx) => idx === i ? v : r))}
+                style={{ flex: 1, padding: "5px", borderRadius: 6, border: `1px solid ${respostasMAS[i] === v ? "#8B7FE855" : "rgba(26,58,92,.4)"}`, background: respostasMAS[i] === v ? "rgba(139,127,232,.2)" : "transparent", color: respostasMAS[i] === v ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".7rem", fontWeight: respostasMAS[i] === v ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                 {v}
               </button>
             ))}
@@ -2668,16 +2682,16 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
     </div>
   )
 
-    // ── VB-MAPP / PEAK / ABLLS — folha de registro inline ──────────────────────
-    return (
-  <FolhaRegistroInline
-    itemId={acao.itemId}
-    pacienteId={pacienteId}
-    sessaoId={sessaoId}
-    terapeutaId={terapeutaId}
-    pontuacoesAuto={pontuacoesAuto}  // ← novo
-  />
-)
+  // ── VB-MAPP / PEAK / ABLLS — folha de registro inline ──────────────────────
+  return (
+    <FolhaRegistroInline
+      itemId={acao.itemId}
+      pacienteId={pacienteId}
+      sessaoId={sessaoId}
+      terapeutaId={terapeutaId}
+      pontuacoesAuto={pontuacoesAuto}  // ← novo
+    />
+  )
 }
 
 // ─── COMPONENTES AUXILIARES ──────────────────────────────────────────────────
@@ -2687,7 +2701,7 @@ function AvisoTempo({ onContinuar, onEncerrar }: { onContinuar: () => void; onEn
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 20 }}>
       <div style={{ background: "rgba(13,32,53,.95)", border: "1px solid rgba(239,159,39,.35)", borderRadius: 16, padding: 28, maxWidth: 400, width: "100%", textAlign: "center" }}>
         <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(239,159,39,.15)", border: "1px solid rgba(239,159,39,.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF9F27" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF9F27" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
         </div>
         <div style={{ fontSize: "1rem", fontWeight: 700, color: "rgba(255,255,255,.95)", marginBottom: 8 }}>Tempo de sessão encerrado</div>
         <div style={{ fontSize: ".82rem", color: "rgba(255,255,255,.5)", lineHeight: 1.6, marginBottom: 24 }}>
@@ -2709,7 +2723,7 @@ function AvisoTempo({ onContinuar, onEncerrar }: { onContinuar: () => void; onEn
 
 function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setFamiliaComunic, notaEncerr, setNotaEncerr, salvando, tipoSessao, onCancelar, onConfirmar }: {
   segundos: number; totalOps: number; taxaGeral: number
-  familiaComunic: boolean|null; setFamiliaComunic: (v: boolean) => void
+  familiaComunic: boolean | null; setFamiliaComunic: (v: boolean) => void
   notaEncerr: string; setNotaEncerr: (v: string) => void
   salvando: boolean; tipoSessao: TipoSessao
   onCancelar: () => void; onConfirmar: () => void
@@ -2717,7 +2731,7 @@ function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setF
   const card: React.CSSProperties = { background: "rgba(13,32,53,.9)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 14 }
   const ehSupervisao = tipoSessao === "supervisao"
   const podeFinalizar = ehSupervisao || familiaComunic !== null
-  
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
       <div style={{ ...card, padding: 28, width: "100%", maxWidth: 460 }}>
@@ -2772,36 +2786,36 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
   const HIERARQUIAS_PRESET: Record<string, string[]> = {
     mando_net: ["espera", "contextual", "gestual", "visual", "ecoica_parcial", "ecoica_total"],
     mando_dtt: ["independente", "gestual", "modelo", "ecoica", "física parcial", "física total"],
-    generica:  ["independente", "gestual", "modelo", "física parcial", "física total"],
+    generica: ["independente", "gestual", "modelo", "física parcial", "física total"],
   }
-const [tipoRegistro, setTipoRegistro] = useState<"dtt"|"frequencia"|"duracao"|"latencia"|"encadeamento"|"matching">(
-  item.tipo_registro ?? "dtt"
-)
-//encadeamento
-const [passosEncadeamento, setPassosEncadeamento] = useState<string[]>([""])
-const [direcaoEncadeamento, setDirecaoEncadeamento] = useState<"frente"|"tras"|"total">("frente")
-const [novoPasso, setNovoPasso] = useState("")
+  const [tipoRegistro, setTipoRegistro] = useState<"dtt" | "frequencia" | "duracao" | "latencia" | "encadeamento" | "matching">(
+    item.tipo_registro ?? "dtt"
+  )
+  //encadeamento
+  const [passosEncadeamento, setPassosEncadeamento] = useState<string[]>([""])
+  const [direcaoEncadeamento, setDirecaoEncadeamento] = useState<"frente" | "tras" | "total">("frente")
+  const [novoPasso, setNovoPasso] = useState("")
 
-//matrizes
+  //matrizes
 
-const [matrizId, setMatrizId] = useState<string>(item.matrizId ?? "")
-const [matrizes, setMatrizes] = useState<{id: string; name: string}[]>([])
+  const [matrizId, setMatrizId] = useState<string>(item.matrizId ?? "")
+  const [matrizes, setMatrizes] = useState<{ id: string; name: string }[]>([])
 
-useEffect(() => {
-  supabase.from("stimulus_matrices").select("id, name").then(({ data }) => {
-    setMatrizes(data ?? [])
-  })
-}, [])
+  useEffect(() => {
+    supabase.from("stimulus_matrices").select("id, name").then(({ data }) => {
+      setMatrizes(data ?? [])
+    })
+  }, [])
 
 
 
   const presetInicial = item.operante === "mando" ? "mando_net" : "generica"
   const [preset, setPreset] = useState(presetInicial)
   const [hierarquia, setHierarquia] = useState<string[]>(
-  (item.hierarquiaDicas?.length ?? 0) > 0 ? (item.hierarquiaDicas ?? []) : HIERARQUIAS_PRESET[presetInicial]
-)
+    (item.hierarquiaDicas?.length ?? 0) > 0 ? (item.hierarquiaDicas ?? []) : HIERARQUIAS_PRESET[presetInicial]
+  )
   const [delay, setDelay] = useState(2)
-  const [estrategia, setEstrategia] = useState<"least_to_most"|"most_to_least">("least_to_most")
+  const [estrategia, setEstrategia] = useState<"least_to_most" | "most_to_least">("least_to_most")
   const [novoNivel, setNovoNivel] = useState("")
 
   function aplicarPreset(p: string) {
@@ -2820,17 +2834,17 @@ useEffect(() => {
   }
 
   function confirmar() {
-  onConfirmar({
-    ...item,
-    nome: item.nome.replace("💡 ", ""),
-    hierarquiaDicas: hierarquia,
-    estrategiaDica: estrategia,
-    tipo_registro: tipoRegistro,
-    passosEncadeamento: tipoRegistro === "encadeamento" ? passosEncadeamento.filter(p => p.trim()) : undefined,
-    direcaoEncadeamento: tipoRegistro === "encadeamento" ? direcaoEncadeamento : undefined,
-    matrizId: tipoRegistro === "matching" ? matrizId : undefined,
-  })
-}
+    onConfirmar({
+      ...item,
+      nome: item.nome.replace("💡 ", ""),
+      hierarquiaDicas: hierarquia,
+      estrategiaDica: estrategia,
+      tipo_registro: tipoRegistro,
+      passosEncadeamento: tipoRegistro === "encadeamento" ? passosEncadeamento.filter(p => p.trim()) : undefined,
+      direcaoEncadeamento: tipoRegistro === "encadeamento" ? direcaoEncadeamento : undefined,
+      matrizId: tipoRegistro === "matching" ? matrizId : undefined,
+    })
+  }
 
   const inp: React.CSSProperties = {
     padding: "8px 10px", borderRadius: 8,
@@ -2843,7 +2857,7 @@ useEffect(() => {
   return (
     <div onClick={onCancelar} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "rgba(7,17,31,.97)", border: "1px solid rgba(26,58,92,.5)", borderRadius: 16, padding: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
-        
+
         <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>
           Configurar programa
         </div>
@@ -2858,7 +2872,7 @@ useEffect(() => {
             {[
               ["mando_net", "Mando NET"],
               ["mando_dtt", "Mando DTT"],
-              ["generica",  "Genérica"],
+              ["generica", "Genérica"],
             ].map(([id, label]) => (
               <button key={id} onClick={() => aplicarPreset(id)}
                 style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${preset === id ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: preset === id ? "rgba(29,158,117,.1)" : "transparent", color: preset === id ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: preset === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
@@ -2895,86 +2909,86 @@ useEffect(() => {
         </div>
 
         {/* Tipo de registro */}
-<div style={{ marginBottom: 16 }}>
-  <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Tipo de registro</div>
-  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-    {([
-      ["dtt",          "DTT",          "Tentativa discreta"],
-      ["frequencia",   "Frequência",   "Contagem livre"],
-      ["duracao",      "Duração",      "Tempo de resposta"],
-      ["latencia",     "Latência",     "SD → resposta"],
-      ["encadeamento", "Encadeamento", "Task analysis"],
-      ["matching",     "Matching",     "Estímulo/comparação"],
-    ] as const).map(([id, label, desc]) => (
-      <button key={id} onClick={() => setTipoRegistro(id)}
-        style={{ padding: "8px 6px", borderRadius: 8, border: `1px solid ${tipoRegistro === id ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: tipoRegistro === id ? "rgba(55,138,221,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
-        <div style={{ fontSize: ".72rem", fontWeight: tipoRegistro === id ? 700 : 400, color: tipoRegistro === id ? "#378ADD" : "rgba(160,200,235,.5)" }}>{label}</div>
-        <div style={{ fontSize: ".58rem", color: "rgba(160,200,235,.3)", marginTop: 2 }}>{desc}</div>
-      </button>
-    ))}
-  </div>
-</div>
-
-{/* Editor de passos — só aparece quando tipo é encadeamento */}
-{tipoRegistro === "encadeamento" && (
-  <div style={{ marginBottom: 16 }}>
-    <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Direção do encadeamento</div>
-    <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-      {([["frente","À frente"],["tras","Atrás"],["total","Cadeia total"]] as const).map(([id, label]) => (
-        <button key={id} onClick={() => setDirecaoEncadeamento(id)}
-          style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${direcaoEncadeamento === id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: direcaoEncadeamento === id ? "rgba(139,127,232,.1)" : "transparent", color: direcaoEncadeamento === id ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: direcaoEncadeamento === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-          {label}
-        </button>
-      ))}
-    </div>
-
-    <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Passos da tarefa</div>
-    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-      {passosEncadeamento.filter(p => p.trim()).map((passo, idx) => (
-        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(26,58,92,.2)", borderRadius: 8, border: "1px solid rgba(26,58,92,.3)" }}>
-          <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20 }}>{idx + 1}.</span>
-          <span style={{ fontSize: ".75rem", color: "#e8f0f8", flex: 1 }}>{passo}</span>
-          <button onClick={() => setPassosEncadeamento(prev => prev.filter((_, i) => i !== idx))}
-            style={{ background: "none", border: "none", color: "rgba(224,90,75,.5)", cursor: "pointer", fontSize: ".8rem" }}>×</button>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Tipo de registro</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+            {([
+              ["dtt", "DTT", "Tentativa discreta"],
+              ["frequencia", "Frequência", "Contagem livre"],
+              ["duracao", "Duração", "Tempo de resposta"],
+              ["latencia", "Latência", "SD → resposta"],
+              ["encadeamento", "Encadeamento", "Task analysis"],
+              ["matching", "Matching", "Estímulo/comparação"],
+            ] as const).map(([id, label, desc]) => (
+              <button key={id} onClick={() => setTipoRegistro(id)}
+                style={{ padding: "8px 6px", borderRadius: 8, border: `1px solid ${tipoRegistro === id ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: tipoRegistro === id ? "rgba(55,138,221,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
+                <div style={{ fontSize: ".72rem", fontWeight: tipoRegistro === id ? 700 : 400, color: tipoRegistro === id ? "#378ADD" : "rgba(160,200,235,.5)" }}>{label}</div>
+                <div style={{ fontSize: ".58rem", color: "rgba(160,200,235,.3)", marginTop: 2 }}>{desc}</div>
+              </button>
+            ))}
+          </div>
         </div>
-      ))}
-    </div>
-    <div style={{ display: "flex", gap: 6 }}>
-      <input value={novoPasso} onChange={e => setNovoPasso(e.target.value)}
-        onKeyDown={e => { if (e.key === "Enter" && novoPasso.trim()) { setPassosEncadeamento(prev => [...prev, novoPasso.trim()]); setNovoPasso("") }}}
-        placeholder="Descrever passo... (Enter para adicionar)"
-        style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".75rem", fontFamily: "var(--font-sans)", outline: "none" }} />
-      <button onClick={() => { if (novoPasso.trim()) { setPassosEncadeamento(prev => [...prev, novoPasso.trim()]); setNovoPasso("") }}}
-        style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(139,127,232,.2)", color: "#8B7FE8", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-        Add
-      </button>
-    </div>
-  </div>
-)}
 
-{/* Seleção de matriz — só aparece quando tipo é matching */}
-{tipoRegistro === "matching" && (
-  <div style={{ marginBottom: 16 }}>
-    <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Matriz de estímulos</div>
-    {matrizes.length === 0 ? (
-      <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.3)", padding: "12px", background: "rgba(26,58,92,.2)", borderRadius: 8, textAlign: "center" }}>
-        Nenhuma matriz cadastrada
-      </div>
-    ) : (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {matrizes.map(m => (
-          <button key={m.id} onClick={() => setMatrizId(m.id)}
-            style={{ padding: "10px 14px", borderRadius: 9, border: `1px solid ${matrizId === m.id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: matrizId === m.id ? "rgba(139,127,232,.1)" : "transparent", color: matrizId === m.id ? "#8B7FE8" : "rgba(160,200,235,.5)", fontSize: ".75rem", fontWeight: matrizId === m.id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" as const }}>
-            {m.name || "Sem nome"}
-          </button>
-        ))}
-      </div>
-    )}
-  </div>
-)}
+        {/* Editor de passos — só aparece quando tipo é encadeamento */}
+        {tipoRegistro === "encadeamento" && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Direção do encadeamento</div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+              {([["frente", "À frente"], ["tras", "Atrás"], ["total", "Cadeia total"]] as const).map(([id, label]) => (
+                <button key={id} onClick={() => setDirecaoEncadeamento(id)}
+                  style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${direcaoEncadeamento === id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: direcaoEncadeamento === id ? "rgba(139,127,232,.1)" : "transparent", color: direcaoEncadeamento === id ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: direcaoEncadeamento === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
 
-{/* Delay e estratégia */}
-<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+            <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Passos da tarefa</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+              {passosEncadeamento.filter(p => p.trim()).map((passo, idx) => (
+                <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(26,58,92,.2)", borderRadius: 8, border: "1px solid rgba(26,58,92,.3)" }}>
+                  <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20 }}>{idx + 1}.</span>
+                  <span style={{ fontSize: ".75rem", color: "#e8f0f8", flex: 1 }}>{passo}</span>
+                  <button onClick={() => setPassosEncadeamento(prev => prev.filter((_, i) => i !== idx))}
+                    style={{ background: "none", border: "none", color: "rgba(224,90,75,.5)", cursor: "pointer", fontSize: ".8rem" }}>×</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={novoPasso} onChange={e => setNovoPasso(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && novoPasso.trim()) { setPassosEncadeamento(prev => [...prev, novoPasso.trim()]); setNovoPasso("") } }}
+                placeholder="Descrever passo... (Enter para adicionar)"
+                style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".75rem", fontFamily: "var(--font-sans)", outline: "none" }} />
+              <button onClick={() => { if (novoPasso.trim()) { setPassosEncadeamento(prev => [...prev, novoPasso.trim()]); setNovoPasso("") } }}
+                style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(139,127,232,.2)", color: "#8B7FE8", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                Add
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Seleção de matriz — só aparece quando tipo é matching */}
+        {tipoRegistro === "matching" && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Matriz de estímulos</div>
+            {matrizes.length === 0 ? (
+              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.3)", padding: "12px", background: "rgba(26,58,92,.2)", borderRadius: 8, textAlign: "center" }}>
+                Nenhuma matriz cadastrada
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {matrizes.map(m => (
+                  <button key={m.id} onClick={() => setMatrizId(m.id)}
+                    style={{ padding: "10px 14px", borderRadius: 9, border: `1px solid ${matrizId === m.id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: matrizId === m.id ? "rgba(139,127,232,.1)" : "transparent", color: matrizId === m.id ? "#8B7FE8" : "rgba(160,200,235,.5)", fontSize: ".75rem", fontWeight: matrizId === m.id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" as const }}>
+                    {m.name || "Sem nome"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Delay e estratégia */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Delay de prompt (s)</div>
             <input type="number" min={0} max={10} value={delay} onChange={e => setDelay(parseInt(e.target.value))}
@@ -3193,7 +3207,7 @@ function FolhaDuracao({ acao, onRegistrar, atingiuLimite }: {
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {episodios.map((ep, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", background: "rgba(26,58,92,.15)", borderRadius: 7 }}>
-              <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20 }}>#{i+1}</span>
+              <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20 }}>#{i + 1}</span>
               <div style={{ flex: 1, height: 4, background: "rgba(26,58,92,.4)", borderRadius: 2, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${Math.min(100, Math.round(ep / meta * 100))}%`, background: "#1D9E75" }} />
               </div>
@@ -3211,10 +3225,10 @@ function FolhaLatencia({ acao, onRegistrar, atingiuLimite }: {
   onRegistrar: (correto: boolean, nivel?: string) => void
   atingiuLimite: boolean
 }) {
-  const [fase, setFase] = useState<"aguardando"|"medindo"|"registrado">("aguardando")
+  const [fase, setFase] = useState<"aguardando" | "medindo" | "registrado">("aguardando")
   const [inicio, setInicio] = useState<number | null>(null)
   const [tempoAtual, setTempoAtual] = useState(0)
-  const [latencias, setLatencias] = useState<{ms: number; nivel: string}[]>([])
+  const [latencias, setLatencias] = useState<{ ms: number; nivel: string }[]>([])
   const [nivelSelecionado, setNivelSelecionado] = useState("independente")
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -3264,13 +3278,15 @@ function FolhaLatencia({ acao, onRegistrar, atingiuLimite }: {
 
       {/* Display de latência */}
       <div style={{ textAlign: "center", padding: "20px 0" }}>
-        <div style={{ fontSize: "3rem", fontWeight: 800, fontFamily: "monospace", lineHeight: 1,
-          color: fase === "medindo" ? "#EF9F27" : fase === "registrado" ? "#1D9E75" : "rgba(160,200,235,.3)" }}>
-          {fase === "medindo" ? fmtMs(tempoAtual) : fase === "registrado" ? `✓ ${fmtMs(latencias[latencias.length-1]?.ms ?? 0)}` : "—"}
+        <div style={{
+          fontSize: "3rem", fontWeight: 800, fontFamily: "monospace", lineHeight: 1,
+          color: fase === "medindo" ? "#EF9F27" : fase === "registrado" ? "#1D9E75" : "rgba(160,200,235,.3)"
+        }}>
+          {fase === "medindo" ? fmtMs(tempoAtual) : fase === "registrado" ? `✓ ${fmtMs(latencias[latencias.length - 1]?.ms ?? 0)}` : "—"}
         </div>
         <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.4)", marginTop: 6 }}>
           {fase === "aguardando" ? `${latencias.length} tentativa(s) registrada(s)` :
-           fase === "medindo" ? "Aguardando resposta..." : "Registrado!"}
+            fase === "medindo" ? "Aguardando resposta..." : "Registrado!"}
         </div>
       </div>
 
@@ -3323,7 +3339,7 @@ function FolhaLatencia({ acao, onRegistrar, atingiuLimite }: {
         <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6 }}>
           {latencias.map((l, i) => (
             <div key={i} style={{ padding: "4px 10px", borderRadius: 20, background: l.ms < 3000 ? "rgba(29,158,117,.1)" : "rgba(239,159,39,.1)", border: `1px solid ${l.ms < 3000 ? "rgba(29,158,117,.3)" : "rgba(239,159,39,.3)"}`, fontSize: ".65rem", color: l.ms < 3000 ? "#1D9E75" : "#EF9F27", fontWeight: 600 }}>
-              #{i+1} {fmtMs(l.ms)}
+              #{i + 1} {fmtMs(l.ms)}
             </div>
           ))}
         </div>
@@ -3339,19 +3355,19 @@ function FolhaEncadeamento({ acao, onRegistrar, atingiuLimite }: {
 }) {
   const passos = acao.passosEncadeamento ?? []
   const direcao = acao.direcaoEncadeamento ?? "frente"
-  
+
   const NIVEIS = ["I", "G", "V", "M", "FP", "FT", "E", "NA"] as const
   type Nivel = typeof NIVEIS[number]
-  
+
   const NIVEL_CONFIG: Record<Nivel, { label: string; cor: string; correto: boolean; peso: number }> = {
-    "I":  { label: "Independente",    cor: "#1D9E75", correto: true,  peso: 1.0 },
-    "G":  { label: "Gestual",         cor: "#378ADD", correto: true,  peso: 0.8 },
-    "V":  { label: "Verbal",          cor: "#8B7FE8", correto: true,  peso: 0.6 },
-    "M":  { label: "Modelo",          cor: "#EF9F27", correto: true,  peso: 0.4 },
-    "FP": { label: "Física parcial",  cor: "#E05A4B", correto: true,  peso: 0.2 },
-    "FT": { label: "Física total",    cor: "#E05A4B", correto: true,  peso: 0.1 },
-    "E":  { label: "Erro",            cor: "#E05A4B", correto: false, peso: 0.0 },
-    "NA": { label: "N/A",             cor: "rgba(160,200,235,.3)", correto: false, peso: 0.0 },
+    "I": { label: "Independente", cor: "#1D9E75", correto: true, peso: 1.0 },
+    "G": { label: "Gestual", cor: "#378ADD", correto: true, peso: 0.8 },
+    "V": { label: "Verbal", cor: "#8B7FE8", correto: true, peso: 0.6 },
+    "M": { label: "Modelo", cor: "#EF9F27", correto: true, peso: 0.4 },
+    "FP": { label: "Física parcial", cor: "#E05A4B", correto: true, peso: 0.2 },
+    "FT": { label: "Física total", cor: "#E05A4B", correto: true, peso: 0.1 },
+    "E": { label: "Erro", cor: "#E05A4B", correto: false, peso: 0.0 },
+    "NA": { label: "N/A", cor: "rgba(160,200,235,.3)", correto: false, peso: 0.0 },
   }
 
   const [registros, setRegistros] = useState<Record<number, Nivel>>({})
@@ -3453,7 +3469,7 @@ function FolhaMatching({ acao, onRegistrar, atingiuLimite }: {
   const [loading, setLoading] = useState(true)
   const [bloco, setBloco] = useState<TentativaBloco[]>([])
   const [tentativaIdx, setTentativaIdx] = useState(0)
-  const [fase, setFase] = useState<"planejamento"|"execucao"|"concluido">("planejamento")
+  const [fase, setFase] = useState<"planejamento" | "execucao" | "concluido">("planejamento")
   const [nivelSelecionado, setNivelSelecionado] = useState("I")
   const [ultimoResultado, setUltimoResultado] = useState<boolean | null>(null)
 
@@ -3464,73 +3480,73 @@ function FolhaMatching({ acao, onRegistrar, atingiuLimite }: {
 
   //const matrizIdRef = useRef<string | undefined>(undefined) 
 
-useEffect(() => {
-  if (!acao.matrizId) { 
-    setLoading(false)
-    return 
-  }
-  let cancelado = false
-  supabase
-    .from("stimulus_matrix_cells")
-    .select("group_index, column_id, inline_type, inline_label, inline_url")
-    .eq("matrix_id", acao.matrizId)
-    .then(({ data }) => {
-      if (!cancelado) {
-        setCelulas(data ?? [])
-        setLoading(false)
-      }
-    })
-  return () => { cancelado = true }
-}, [])
+  useEffect(() => {
+    if (!acao.matrizId) {
+      setLoading(false)
+      return
+    }
+    let cancelado = false
+    supabase
+      .from("stimulus_matrix_cells")
+      .select("group_index, column_id, inline_type, inline_label, inline_url")
+      .eq("matrix_id", acao.matrizId)
+      .then(({ data }) => {
+        if (!cancelado) {
+          setCelulas(data ?? [])
+          setLoading(false)
+        }
+      })
+    return () => { cancelado = true }
+  }, [])
 
   function gerarBloco() {
-  if (celulas.length === 0) return
-  const grupos = [...new Set(celulas.map(c => c.group_index))]
-  if (grupos.length < 2) return
-  
-  const tentativas: TentativaBloco[] = []
-  const historicoPosicoes: number[] = []
+    if (celulas.length === 0) return
+    const grupos = [...new Set(celulas.map(c => c.group_index))]
+    if (grupos.length < 2) return
 
-  for (let i = 0; i < NUM_TENTATIVAS; i++) {
-    const grupoAlvo = grupos[Math.floor(Math.random() * grupos.length)]
-    const modelo = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_MODELO.includes(c.column_id))
-    const correto = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_COMPARACAO.includes(c.column_id))
-    if (!modelo || !correto) continue
+    const tentativas: TentativaBloco[] = []
+    const historicoPosicoes: number[] = []
 
-    const distratores = grupos
-      .filter(g => g !== grupoAlvo)
-      .sort(() => Math.random() - 0.5)
-      .slice(0, NUM_COMPARACOES - 1)
-      .map(g => celulas.find(c => c.group_index === g && COLUNAS_COMPARACAO.includes(c.column_id)))
-      .filter(Boolean) as Celula[]
+    for (let i = 0; i < NUM_TENTATIVAS; i++) {
+      const grupoAlvo = grupos[Math.floor(Math.random() * grupos.length)]
+      const modelo = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_MODELO.includes(c.column_id))
+      const correto = celulas.find(c => c.group_index === grupoAlvo && COLUNAS_COMPARACAO.includes(c.column_id))
+      if (!modelo || !correto) continue
 
-    if (distratores.length < NUM_COMPARACOES - 1) continue
+      const distratores = grupos
+        .filter(g => g !== grupoAlvo)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, NUM_COMPARACOES - 1)
+        .map(g => celulas.find(c => c.group_index === g && COLUNAS_COMPARACAO.includes(c.column_id)))
+        .filter(Boolean) as Celula[]
 
-    // Anti-viés simples — sem loop
-    const ultimas2 = historicoPosicoes.slice(-2)
-    let posicaoCorreta = Math.floor(Math.random() * NUM_COMPARACOES)
-    if (ultimas2.length === 2 && ultimas2[0] === posicaoCorreta && ultimas2[1] === posicaoCorreta) {
-      posicaoCorreta = (posicaoCorreta + 1) % NUM_COMPARACOES
-    }
-    historicoPosicoes.push(posicaoCorreta)
+      if (distratores.length < NUM_COMPARACOES - 1) continue
 
-    const comparacoes: { celula: Celula; posicao: number }[] = []
-    let distIdx = 0
-    for (let p = 0; p < NUM_COMPARACOES; p++) {
-      if (p === posicaoCorreta) {
-        comparacoes.push({ celula: correto, posicao: p })
-      } else {
-        comparacoes.push({ celula: distratores[distIdx++], posicao: p })
+      // Anti-viés simples — sem loop
+      const ultimas2 = historicoPosicoes.slice(-2)
+      let posicaoCorreta = Math.floor(Math.random() * NUM_COMPARACOES)
+      if (ultimas2.length === 2 && ultimas2[0] === posicaoCorreta && ultimas2[1] === posicaoCorreta) {
+        posicaoCorreta = (posicaoCorreta + 1) % NUM_COMPARACOES
       }
+      historicoPosicoes.push(posicaoCorreta)
+
+      const comparacoes: { celula: Celula; posicao: number }[] = []
+      let distIdx = 0
+      for (let p = 0; p < NUM_COMPARACOES; p++) {
+        if (p === posicaoCorreta) {
+          comparacoes.push({ celula: correto, posicao: p })
+        } else {
+          comparacoes.push({ celula: distratores[distIdx++], posicao: p })
+        }
+      }
+
+      tentativas.push({ modelo, correto, comparacoes, posicaoCorreta })
     }
 
-    tentativas.push({ modelo, correto, comparacoes, posicaoCorreta })
+    setBloco(tentativas)
+    setTentativaIdx(0)
+    setFase("planejamento")
   }
-
-  setBloco(tentativas)
-  setTentativaIdx(0)
-  setFase("planejamento")
-}
 
   function iniciarBloco() {
     setTentativaIdx(0)
@@ -3719,7 +3735,7 @@ function Biblioteca({ itens, tab, setTab, busca, setBusca, onAdd, onFechar }: {
         <button onClick={onFechar} style={{ background: "none", border: "none", color: "rgba(160,200,235,.5)", cursor: "pointer", fontSize: "1.2rem" }}>×</button>
       </div>
       <div style={{ display: "flex", borderBottom: "1px solid rgba(26,58,92,.3)" }}>
-        {([["planejado","Planejado"],["programas","Programas"],["avaliacoes","Avaliações"]] as const).map(([id,label]) => (
+        {([["planejado", "Planejado"], ["programas", "Programas"], ["avaliacoes", "Avaliações"]] as const).map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "8px 4px", background: "none", border: "none", borderBottom: `2px solid ${tab === id ? "#1D9E75" : "transparent"}`, color: tab === id ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: tab === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
             {label}
           </button>
@@ -3789,14 +3805,14 @@ async function gerarRadarSnapshotSessao(protocolo: any, sessaoAtiva: any, respos
   const media = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0
   await supabase.from("radar_snapshots").insert({
     crianca_id: pacienteId,
-    score_comunicacao:   media(scores["comunicacao"]   ?? []),
-    score_social:        media(scores["social"]        ?? []),
-    score_atencao:       media(scores["atencao"]       ?? []),
-    score_regulacao:     media(scores["regulacao"]     ?? []),
-    score_brincadeira:   media(scores["brincadeira"]   ?? []),
+    score_comunicacao: media(scores["comunicacao"] ?? []),
+    score_social: media(scores["social"] ?? []),
+    score_atencao: media(scores["atencao"] ?? []),
+    score_regulacao: media(scores["regulacao"] ?? []),
+    score_brincadeira: media(scores["brincadeira"] ?? []),
     score_flexibilidade: media(scores["flexibilidade"] ?? []),
-    score_autonomia:     media(scores["autonomia"]     ?? []),
-    score_motivacao:     media(scores["motivacao"]     ?? []),
+    score_autonomia: media(scores["autonomia"] ?? []),
+    score_motivacao: media(scores["motivacao"] ?? []),
   })
 }
 
@@ -3980,7 +3996,7 @@ function ModalAvaliacaoSessao({ item, pacienteId, sessaoId, terapeutaId, onFecha
   const pct = totalItens > 0 ? Math.round(totalRespondidos / totalItens * 100) : 0
   const cor = protocolo?.cor ?? "#1D9E75"
 
-  
+
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.8)", backdropFilter: "blur(6px)", zIndex: 200, display: "flex", flexDirection: "column" }}>
@@ -3988,7 +4004,7 @@ function ModalAvaliacaoSessao({ item, pacienteId, sessaoId, terapeutaId, onFecha
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", background: "rgba(7,17,31,.97)", borderBottom: "1px solid rgba(26,58,92,.4)" }}>
         <button onClick={onFechar} style={{ background: "none", border: "none", color: "rgba(160,200,235,.7)", cursor: "pointer", fontSize: ".75rem", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 4 }}>
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5"/></svg>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5" /></svg>
           Voltar à sessão
         </button>
         <div style={{ width: 1, height: 20, background: "rgba(26,58,92,.5)" }} />
@@ -4020,7 +4036,7 @@ function ModalAvaliacaoSessao({ item, pacienteId, sessaoId, terapeutaId, onFecha
 
           {/* Sidebar domínios */}
           {/* Sidebar domínios */}
-<div style={{ width: 200, minWidth: 200, flexShrink: 0, overflowY: "auto", padding: "12px 8px", background: "rgba(7,17,31,.95)", borderRight: "1px solid rgba(26,58,92,.3)", display: "flex", flexDirection: "column" }}>
+          <div style={{ width: 200, minWidth: 200, flexShrink: 0, overflowY: "auto", padding: "12px 8px", background: "rgba(7,17,31,.95)", borderRight: "1px solid rgba(26,58,92,.3)", display: "flex", flexDirection: "column" }}>
             {protocolo?.dominios?.map((d: any) => {
               const respondidos = d.itens.filter((i: any) => respostas[i.id] !== undefined).length
               const ativo = dominioAtivo === d.id
@@ -4085,12 +4101,11 @@ function PainelMobile({ eventos, tallyItens, tallyContadores, onEvento, onTally,
   tallyContadores: Record<string, number>
   onEvento: (tipo: EventType) => void
   onTally: (chave: string, label: string) => void
-  estadoAssentimento: "ativo"|"revogado"|"pendente"
-  onAlterarAssentimento: (estado: "ativo"|"revogado") => void
-}) 
-{
+  estadoAssentimento: "ativo" | "revogado" | "pendente"
+  onAlterarAssentimento: (estado: "ativo" | "revogado") => void
+}) {
   const [aberto, setAberto] = useState(false)
-  const [aba, setAba] = useState<"assentimento"|"contexto"|"tally">("tally")
+  const [aba, setAba] = useState<"assentimento" | "contexto" | "tally">("tally")
 
 
   return (
@@ -4109,8 +4124,8 @@ function PainelMobile({ eventos, tallyItens, tallyContadores, onEvento, onTally,
           <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>
             {([
               ["assentimento", "Assentimento"],
-              ["contexto",     "Contexto"    ],
-              ["tally",        "Tally"       ],
+              ["contexto", "Contexto"],
+              ["tally", "Tally"],
             ] as const).map(([id, label]) => (
               <button key={id} onClick={() => setAba(id)}
                 style={{ flex: 1, padding: "6px 4px", borderRadius: 8, border: `1px solid ${aba === id ? "#1D9E75" : "rgba(26,58,92,.4)"}`, background: aba === id ? "rgba(29,158,117,.15)" : "transparent", color: aba === id ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: aba === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
@@ -4120,40 +4135,40 @@ function PainelMobile({ eventos, tallyItens, tallyContadores, onEvento, onTally,
           </div>
 
           {aba === "assentimento" && (
-  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-    
-    {/* Estado atual */}
-    <div style={{ padding: "12px", borderRadius: 10, background: estadoAssentimento === "ativo" ? "rgba(29,158,117,.1)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.1)" : "rgba(26,58,92,.2)", border: `1px solid ${estadoAssentimento === "ativo" ? "rgba(29,158,117,.3)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.3)" : "rgba(26,58,92,.3)"}`, textAlign: "center" }}>
-      <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.5)", marginBottom: 4 }}>Estado atual</div>
-      <div style={{ fontSize: "1rem", fontWeight: 700, color: estadoAssentimento === "ativo" ? "#1D9E75" : estadoAssentimento === "revogado" ? "#E05A4B" : "rgba(160,200,235,.4)" }}>
-        {estadoAssentimento === "ativo" ? "✓ Assentimento ativo" : estadoAssentimento === "revogado" ? "✗ Assentimento revogado" : "Não registrado"}
-      </div>
-    </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 
-    {/* Ações disponíveis baseadas no estado */}
-    {estadoAssentimento !== "ativo" && (
-      <button onClick={() => { onAlterarAssentimento("ativo"); setAberto(false) }}
-        style={{ padding: "16px", borderRadius: 12, border: "1px solid rgba(29,158,117,.44)", background: "rgba(29,158,117,.12)", color: "#1D9E75", fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
-        {estadoAssentimento === "pendente" ? "✓ Registrar assentimento" : "↺ Assentimento recuperado"}
-      </button>
-    )}
-    
-    {estadoAssentimento === "ativo" && (
-      <button onClick={() => { onAlterarAssentimento("revogado"); setAberto(false) }}
-        style={{ padding: "16px", borderRadius: 12, border: "1px solid rgba(224,90,75,.44)", background: "rgba(224,90,75,.12)", color: "#E05A4B", fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
-        ✗ Revogar assentimento
-      </button>
-    )}
-  </div>
-)}
+              {/* Estado atual */}
+              <div style={{ padding: "12px", borderRadius: 10, background: estadoAssentimento === "ativo" ? "rgba(29,158,117,.1)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.1)" : "rgba(26,58,92,.2)", border: `1px solid ${estadoAssentimento === "ativo" ? "rgba(29,158,117,.3)" : estadoAssentimento === "revogado" ? "rgba(224,90,75,.3)" : "rgba(26,58,92,.3)"}`, textAlign: "center" }}>
+                <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.5)", marginBottom: 4 }}>Estado atual</div>
+                <div style={{ fontSize: "1rem", fontWeight: 700, color: estadoAssentimento === "ativo" ? "#1D9E75" : estadoAssentimento === "revogado" ? "#E05A4B" : "rgba(160,200,235,.4)" }}>
+                  {estadoAssentimento === "ativo" ? "✓ Assentimento ativo" : estadoAssentimento === "revogado" ? "✗ Assentimento revogado" : "Não registrado"}
+                </div>
+              </div>
+
+              {/* Ações disponíveis baseadas no estado */}
+              {estadoAssentimento !== "ativo" && (
+                <button onClick={() => { onAlterarAssentimento("ativo"); setAberto(false) }}
+                  style={{ padding: "16px", borderRadius: 12, border: "1px solid rgba(29,158,117,.44)", background: "rgba(29,158,117,.12)", color: "#1D9E75", fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+                  {estadoAssentimento === "pendente" ? "✓ Registrar assentimento" : "↺ Assentimento recuperado"}
+                </button>
+              )}
+
+              {estadoAssentimento === "ativo" && (
+                <button onClick={() => { onAlterarAssentimento("revogado"); setAberto(false) }}
+                  style={{ padding: "16px", borderRadius: 12, border: "1px solid rgba(224,90,75,.44)", background: "rgba(224,90,75,.12)", color: "#E05A4B", fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
+                  ✗ Revogar assentimento
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Aba Contexto */}
           {aba === "contexto" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {([
-                ["distress_signal",  "Desconforto / MO", "#EF9F27"],
-                ["avoidance_signal", "Esquiva",          "#E05A4B"],
-                ["break_requested",  "Pausa",            "#4d6d8a"],
+                ["distress_signal", "Desconforto / MO", "#EF9F27"],
+                ["avoidance_signal", "Esquiva", "#E05A4B"],
+                ["break_requested", "Pausa", "#4d6d8a"],
               ] as [EventType, string, string][]).map(([tipo, label, cor]) => (
                 <button key={tipo} onClick={() => { onEvento(tipo); setAberto(false) }}
                   style={{ padding: "16px", borderRadius: 12, border: `1px solid ${cor}44`, background: `${cor}12`, color: cor, fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
