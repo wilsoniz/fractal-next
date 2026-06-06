@@ -483,7 +483,7 @@ function SessaoInner() {
       const planejadosIds = planejados.map(p => p.id)
       const { data: todos } = await supabase
         .from("programas")
-        .select("id,nome,dominio,operante,total_tentativas,hierarquia_dicas,nivel_dicas,sd,tipo_registro,passos_encadeamento,direcao_encadeamento,estimulos,relacoes,criterio_maestria,objetivo")
+        .select("id,nome,dominio,operante,total_tentativas,hierarquia_dicas,nivel_dicas,sd,tipo_registro,passos_tarefa,direcao_encadeamento,estimulos,relacoes,criterio_maestria,objetivo")
         .eq("ativo", true)
         .limit(50)
 
@@ -503,7 +503,7 @@ function SessaoInner() {
           estrategiaDica: "least_to_most",
           sd: p.sd,
           tipo_registro: p.tipo_registro ?? "dtt",
-          passosEncadeamento: p.passos_encadeamento ?? [],
+          passosEncadeamento: p.passos_tarefa ?? [],
           direcaoEncadeamento: p.direcao_encadeamento ?? "frente",
         }))
 
