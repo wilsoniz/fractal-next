@@ -65,7 +65,7 @@ interface ProgramaDB {
   nivel: string | null;
   tipo_registro: string | null;
   hierarquia_dicas: string[] | null;
-  passos_encadeamento: string[] | null;
+  passos_tarefa: string[] | null;
   direcao_encadeamento: string | null;
   estimulos: any[] | null;
   relacoes: string[] | null;
@@ -355,20 +355,20 @@ export default function ProgramasPage() {
                             </div>
                           )}
                           {/* Passos de encadeamento */}
-                          {prog.tipo_registro === "encadeamento" && prog.passos_encadeamento && prog.passos_encadeamento.length > 0 && (
+                          {prog.tipo_registro === "encadeamento" && prog.passos_tarefa && prog.passos_tarefa.length > 0 && (
                             <div style={{ marginTop: 8 }}>
                               <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.4)", textTransform: "uppercase" as const, letterSpacing: ".07em", marginBottom: 4 }}>
-                                {prog.passos_encadeamento.length} passos · {prog.direcao_encadeamento ?? "frente"}
+                                {prog.passos_tarefa.length} passos · {prog.direcao_encadeamento ?? "frente"}
                               </div>
                               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
-                                {prog.passos_encadeamento.slice(0, 4).map((passo, i) => (
+                                {prog.passos_tarefa.slice(0, 4).map((passo, i) => (
                                   <span key={i} style={{ fontSize: ".62rem", padding: "2px 8px", borderRadius: 4, background: "rgba(139,127,232,.1)", color: "#8B7FE8", border: "1px solid rgba(139,127,232,.2)" }}>
                                     {i + 1}. {passo.slice(0, 30)}{passo.length > 30 ? "..." : ""}
                                   </span>
                                 ))}
-                                {prog.passos_encadeamento.length > 4 && (
+                                {prog.passos_tarefa.length > 4 && (
                                   <span style={{ fontSize: ".62rem", color: "rgba(160,200,235,.3)" }}>
-                                    +{prog.passos_encadeamento.length - 4}
+                                    +{prog.passos_tarefa.length - 4}
                                   </span>
                                 )}
                               </div>
@@ -564,7 +564,7 @@ function GoalBuilder({
         reforcoGeral: "",
         nivelDicas: data.hierarquia_dicas ?? DICAS_DEFAULT,
         tipoRegistro: data.tipo_registro ?? "dtt",
-        passosEncadeamento: data.passos_encadeamento ?? [],
+        passosEncadeamento: data.passos_tarefa ?? [],
         direcaoEncadeamento: (data.direcao_encadeamento ?? "frente") as "frente" | "tras" | "total",
       })
     }
@@ -611,7 +611,7 @@ function GoalBuilder({
       relacoes: programa.relacoes,
       hierarquia_dicas: programa.nivelDicas.filter(d => d.trim()),
       tipo_registro: programa.tipoRegistro,
-      passos_encadeamento: programa.tipoRegistro === "encadeamento" ? programa.passosEncadeamento.filter(p => p.trim()) : null,
+      passos_tarefa: programa.tipoRegistro === "encadeamento" ? programa.passosEncadeamento.filter(p => p.trim()) : null,
       direcao_encadeamento: programa.tipoRegistro === "encadeamento" ? programa.direcaoEncadeamento : null,
       ativo: true,
       criado_por: terapeutaId || undefined,
