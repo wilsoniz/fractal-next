@@ -85,35 +85,35 @@ const GRADIENTS_PAC = [
 
 function iniciaisPac(nome: string) {
   const p = nome.trim().split(" ")
-  return p.length >= 2 ? `${p[0][0]}${p[p.length-1][0]}`.toUpperCase() : nome.slice(0,2).toUpperCase()
+  return p.length >= 2 ? `${p[0][0]}${p[p.length - 1][0]}`.toUpperCase() : nome.slice(0, 2).toUpperCase()
 }
 
 const OPERANTES: { id: TipoOperante; label: string; desc: string; cor: string }[] = [
-  { id: "mando",       label: "Mando",        desc: "Solicitar itens ou ações",           cor: "#1D9E75" },
-  { id: "tato",        label: "Tato",         desc: "Nomear estímulos presentes",         cor: "#378ADD" },
-  { id: "intraverbal", label: "Intraverbal",  desc: "Responder a perguntas verbais",      cor: "#8B7FE8" },
-  { id: "echoico",     label: "Echoico",      desc: "Imitar sons e palavras",             cor: "#EF9F27" },
-  { id: "imitacao",    label: "Imitação",     desc: "Imitar ações motoras",               cor: "#E05A4B" },
-  { id: "ouvinte",     label: "Ouvinte",      desc: "Seguir instruções verbais",          cor: "#23c48f" },
-  { id: "textual",     label: "Textual",      desc: "Leitura funcional",                  cor: "#378ADD" },
-  { id: "transcricao", label: "Transcrição",  desc: "Escrita sob controle verbal",        cor: "#8B7FE8" },
+  { id: "mando", label: "Mando", desc: "Solicitar itens ou ações", cor: "#1D9E75" },
+  { id: "tato", label: "Tato", desc: "Nomear estímulos presentes", cor: "#378ADD" },
+  { id: "intraverbal", label: "Intraverbal", desc: "Responder a perguntas verbais", cor: "#8B7FE8" },
+  { id: "echoico", label: "Echoico", desc: "Imitar sons e palavras", cor: "#EF9F27" },
+  { id: "imitacao", label: "Imitação", desc: "Imitar ações motoras", cor: "#E05A4B" },
+  { id: "ouvinte", label: "Ouvinte", desc: "Seguir instruções verbais", cor: "#23c48f" },
+  { id: "textual", label: "Textual", desc: "Leitura funcional", cor: "#378ADD" },
+  { id: "transcricao", label: "Transcrição", desc: "Escrita sob controle verbal", cor: "#8B7FE8" },
 ]
 
 const NIVEIS_TREINO: { id: NivelTreino; label: string; desc: string }[] = [
-  { id: "basico",        label: "Nível 1 — Controle direto",     desc: "Treino direto, sem equivalência" },
-  { id: "intermediario", label: "Nível 2 — Controle colateral",  desc: "Equivalência de estímulos"       },
-  { id: "avancado",      label: "Nível 3 — Molduras relacionais",desc: "RFT e relações derivadas"        },
+  { id: "basico", label: "Nível 1 — Controle direto", desc: "Treino direto, sem equivalência" },
+  { id: "intermediario", label: "Nível 2 — Controle colateral", desc: "Equivalência de estímulos" },
+  { id: "avancado", label: "Nível 3 — Molduras relacionais", desc: "RFT e relações derivadas" },
 ]
 
 const DOMINIOS = [
-  { id: "comunicacao",   label: "Comunicação",   cor: "#1D9E75" },
-  { id: "social",        label: "Social",        cor: "#378ADD" },
-  { id: "atencao",       label: "Atenção",       cor: "#8B7FE8" },
-  { id: "regulacao",     label: "Regulação",     cor: "#E05A4B" },
-  { id: "brincadeira",   label: "Brincadeira",   cor: "#EF9F27" },
+  { id: "comunicacao", label: "Comunicação", cor: "#1D9E75" },
+  { id: "social", label: "Social", cor: "#378ADD" },
+  { id: "atencao", label: "Atenção", cor: "#8B7FE8" },
+  { id: "regulacao", label: "Regulação", cor: "#E05A4B" },
+  { id: "brincadeira", label: "Brincadeira", cor: "#EF9F27" },
   { id: "flexibilidade", label: "Flexibilidade", cor: "#23c48f" },
-  { id: "autonomia",     label: "Autonomia",     cor: "#378ADD" },
-  { id: "motivacao",     label: "Motivação",     cor: "#8B7FE8" },
+  { id: "autonomia", label: "Autonomia", cor: "#378ADD" },
+  { id: "motivacao", label: "Motivação", cor: "#8B7FE8" },
 ]
 
 const RELACOES_DISP: { id: TipoRelacao; label: string; desc: string }[] = [
@@ -130,11 +130,11 @@ const RELACOES_DISP: { id: TipoRelacao; label: string; desc: string }[] = [
 ]
 
 const CRITERIOS_DEFAULT: CriterioPontuacao[] = [
-  { pontos: 0,  descricao: "Sem resposta mesmo com várias dicas",              reforco: "Sem reforço" },
-  { pontos: 2,  descricao: "Resposta após redução de estímulos e dicas",       reforco: "1 unidade de reforçador" },
-  { pontos: 4,  descricao: "Resposta após 2+ dicas, sem redução de estímulos", reforco: "2 unidades de reforçador" },
-  { pontos: 8,  descricao: "Resposta após 1 dica verbal ou visual",            reforco: "3 unidades de reforçador" },
-  { pontos: 10, descricao: "Resposta independente, sem dicas",                 reforco: "4 unidades de reforçador" },
+  { pontos: 0, descricao: "Sem resposta mesmo com várias dicas", reforco: "Sem reforço" },
+  { pontos: 2, descricao: "Resposta após redução de estímulos e dicas", reforco: "1 unidade de reforçador" },
+  { pontos: 4, descricao: "Resposta após 2+ dicas, sem redução de estímulos", reforco: "2 unidades de reforçador" },
+  { pontos: 8, descricao: "Resposta após 1 dica verbal ou visual", reforco: "3 unidades de reforçador" },
+  { pontos: 10, descricao: "Resposta independente, sem dicas", reforco: "4 unidades de reforçador" },
 ]
 
 const DICAS_DEFAULT = ["Independente", "Gestual", "Modelo", "Física parcial", "Física total"]
@@ -168,15 +168,15 @@ export default function ProgramasPage() {
   const { terapeuta } = useClinicContext()
   const acesso = useAcesso()
 
-  const [view,          setView]          = useState<ViewPrincipal>("biblioteca")
+  const [view, setView] = useState<ViewPrincipal>("biblioteca")
   const [tabBiblioteca, setTabBiblioteca] = useState<TabBiblioteca>("meus")
-  const [programasDB,   setProgramasDB]   = useState<ProgramaDB[]>([])
-  const [loading,       setLoading]       = useState(true)
-  const [busca,         setBusca]         = useState("")
+  const [programasDB, setProgramasDB] = useState<ProgramaDB[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busca, setBusca] = useState("")
   const [filtroDominio, setFiltroDominio] = useState("todos")
-  const [editandoId,    setEditandoId]    = useState<string | null>(null)
-  const [confirmExcluir,setConfirmExcluir]= useState<ProgramaDB | null>(null)
-  const [excluindo,     setExcluindo]     = useState(false)
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [confirmExcluir, setConfirmExcluir] = useState<ProgramaDB | null>(null)
+  const [excluindo, setExcluindo] = useState(false)
 
   const card: React.CSSProperties = {
     background: "rgba(13,32,53,.75)",
@@ -252,7 +252,7 @@ export default function ProgramasPage() {
           {acesso.podeEditarProgramas && (
             <button onClick={() => setView("goal-builder")}
               style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 6 }}>
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M8 3v10M3 8h10"/></svg>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M8 3v10M3 8h10" /></svg>
               Novo programa
             </button>
           )}
@@ -261,10 +261,10 @@ export default function ProgramasPage() {
         {/* Tabs */}
         <div style={{ display: "flex", borderBottom: "1px solid rgba(26,58,92,.4)", overflowX: "auto", scrollbarWidth: "none" as any }}>
           {([
-            ["meus",       "Meus programas"],
+            ["meus", "Meus programas"],
             ["plataforma", "Plataforma Fracta"],
-            ["avaliacao",  "Da avaliação"],
-            ["equipe",     "Da equipe"],
+            ["avaliacao", "Da avaliação"],
+            ["equipe", "Da equipe"],
           ] as const).map(([id, label]) => (
             <button key={id} onClick={() => setTabBiblioteca(id)} style={{
               padding: "10px 16px", background: "none", border: "none",
@@ -414,7 +414,7 @@ export default function ProgramasPage() {
               Biblioteca Fracta
             </div>
             <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.2)", lineHeight: 1.65 }}>
-              Pacotes de programas curados pela equipe Fracta — por diagnóstico, operante e fase de intervenção.<br/>
+              Pacotes de programas curados pela equipe Fracta — por diagnóstico, operante e fase de intervenção.<br />
               Em breve.
             </div>
           </div>
@@ -426,7 +426,7 @@ export default function ProgramasPage() {
               Programas gerados por avaliação
             </div>
             <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.2)", lineHeight: 1.65 }}>
-              Programas sugeridos automaticamente com base nos resultados de VB-MAPP, PEAK e ABLLS-R.<br/>
+              Programas sugeridos automaticamente com base nos resultados de VB-MAPP, PEAK e ABLLS-R.<br />
               Acesse via perfil do paciente — aba Programas.
             </div>
           </div>
@@ -438,7 +438,7 @@ export default function ProgramasPage() {
               Programas da equipe
             </div>
             <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.2)", lineHeight: 1.65 }}>
-              Pacotes de programas enviados pelo supervisor para os supervisionados.<br/>
+              Pacotes de programas enviados pelo supervisor para os supervisionados.<br />
               Em breve — integração com gestão de equipe.
             </div>
           </div>
@@ -494,9 +494,9 @@ function GoalBuilder({
   acesso: any
   onVoltar: () => void
 }) {
-  const [etapa,    setEtapa]    = useState<Etapa>(1)
+  const [etapa, setEtapa] = useState<Etapa>(1)
   const [programa, setPrograma] = useState<Programa>(PROGRAMA_INICIAL)
-  const [salvo,    setSalvo]    = useState(false)
+  const [salvo, setSalvo] = useState(false)
   const [pacientes, setPacientes] = useState<{ id: string; nome: string; iniciais: string; gradient: string }[]>([])
 
   const card: React.CSSProperties = {
@@ -544,28 +544,28 @@ function GoalBuilder({
       const { data } = await supabase.from("programas").select("*").eq("id", editandoId).single()
       if (!data) return
       setPrograma({
-        nome:               data.nome ?? "",
-        operante:           data.operante ?? "tato",
-        tipoComportamento:  "verbal",
-        nivelTreino:        (data.nivel === "iniciante" ? "basico" : data.nivel) ?? "basico",
-        dominio:            data.dominio ?? "comunicacao",
-        comportamentoAlvo:  data.comportamento_alvo ?? data.objetivo ?? "",
-        sd:                 data.sd ?? "",
-        material:           data.materiais ?? "",
-        instrucoes:         data.dica ?? "",
-        pacienteId:         "1",
-        estimulos:          data.estimulos?.length > 0 ? data.estimulos : [{ id: uid(), modelo: "", comparacao: "", modeloTipo: "texto", comparacaoTipo: "texto" }],
-        relacoes:           data.relacoes ?? ["A→B"],
-        totalTentativas:    data.total_tentativas ?? 10,
-        ordemApresentacao:  "randomizado",
-        criterios:          CRITERIOS_DEFAULT,
-        criterioMaestria:   data.criterio_maestria ?? "80% de respostas corretas",
+        nome: data.nome ?? "",
+        operante: data.operante ?? "tato",
+        tipoComportamento: "verbal",
+        nivelTreino: (data.nivel === "iniciante" ? "basico" : data.nivel) ?? "basico",
+        dominio: data.dominio ?? "comunicacao",
+        comportamentoAlvo: data.comportamento_alvo ?? data.objetivo ?? "",
+        sd: data.sd ?? "",
+        material: data.materiais ?? "",
+        instrucoes: data.dica ?? "",
+        pacienteId: "1",
+        estimulos: data.estimulos?.length > 0 ? data.estimulos : [{ id: uid(), modelo: "", comparacao: "", modeloTipo: "texto", comparacaoTipo: "texto" }],
+        relacoes: data.relacoes ?? ["A→B"],
+        totalTentativas: data.total_tentativas ?? 10,
+        ordemApresentacao: "randomizado",
+        criterios: CRITERIOS_DEFAULT,
+        criterioMaestria: data.criterio_maestria ?? "80% de respostas corretas",
         sessoesParaMaestria: 3,
-        reforcoGeral:       "",
-        nivelDicas:         data.hierarquia_dicas ?? DICAS_DEFAULT,
-        tipoRegistro:       data.tipo_registro ?? "dtt",
+        reforcoGeral: "",
+        nivelDicas: data.hierarquia_dicas ?? DICAS_DEFAULT,
+        tipoRegistro: data.tipo_registro ?? "dtt",
         passosEncadeamento: data.passos_encadeamento ?? [],
-        direcaoEncadeamento:(data.direcao_encadeamento ?? "frente") as "frente" | "tras" | "total",
+        direcaoEncadeamento: (data.direcao_encadeamento ?? "frente") as "frente" | "tras" | "total",
       })
     }
 
@@ -596,24 +596,25 @@ function GoalBuilder({
 
   const handleSalvar = async () => {
     const payload = {
-      nome:                    programa.nome,
-      operante:                programa.operante,
-      dominio:                 programa.dominio,
-      objetivo:                programa.comportamentoAlvo,
-      comportamento_alvo:      programa.comportamentoAlvo,
-      sd:                      programa.sd,
-      materiais:               programa.material,
-      dica:                    programa.instrucoes,
-      total_tentativas:        programa.totalTentativas,
-      criterio_maestria:       programa.criterioMaestria,
-      nivel:                   programa.nivelTreino === "basico" ? "iniciante" : programa.nivelTreino,
-      estimulos:               programa.estimulos,
-      relacoes:                programa.relacoes,
-      hierarquia_dicas:        programa.nivelDicas.filter(d => d.trim()),
-      tipo_registro:           programa.tipoRegistro,
-      passos_encadeamento:     programa.tipoRegistro === "encadeamento" ? programa.passosEncadeamento.filter(p => p.trim()) : null,
-      direcao_encadeamento:    programa.tipoRegistro === "encadeamento" ? programa.direcaoEncadeamento : null,
-      ativo:                   true,
+      nome: programa.nome,
+      operante: programa.operante,
+      dominio: programa.dominio,
+      objetivo: programa.comportamentoAlvo,
+      comportamento_alvo: programa.comportamentoAlvo,
+      sd: programa.sd,
+      materiais: programa.material,
+      dica: programa.instrucoes,
+      total_tentativas: programa.totalTentativas,
+      criterio_maestria: programa.criterioMaestria,
+      nivel: programa.nivelTreino === "basico" ? "iniciante" : programa.nivelTreino,
+      estimulos: programa.estimulos,
+      relacoes: programa.relacoes,
+      hierarquia_dicas: programa.nivelDicas.filter(d => d.trim()),
+      tipo_registro: programa.tipoRegistro,
+      passos_encadeamento: programa.tipoRegistro === "encadeamento" ? programa.passosEncadeamento.filter(p => p.trim()) : null,
+      direcao_encadeamento: programa.tipoRegistro === "encadeamento" ? programa.direcaoEncadeamento : null,
+      ativo: true,
+      criado_por: terapeutaId || undefined,
     }
 
     let error
@@ -664,7 +665,7 @@ function GoalBuilder({
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={onVoltar}
           style={{ background: "none", border: "none", color: "rgba(160,200,235,.7)", cursor: "pointer", fontSize: ".75rem", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 4, padding: 0 }}>
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5"/></svg>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5" /></svg>
           Biblioteca
         </button>
         <div style={{ width: 1, height: 16, background: "rgba(26,58,92,.5)" }} />
@@ -678,7 +679,7 @@ function GoalBuilder({
 
       {/* Progress steps */}
       <div style={{ display: "flex", alignItems: "center" }}>
-        {([1,2,3,4] as Etapa[]).map((e, i) => {
+        {([1, 2, 3, 4] as Etapa[]).map((e, i) => {
           const ativa = e === etapa
           const concluida = e < etapa
           return (
@@ -707,7 +708,7 @@ function GoalBuilder({
           <div style={{ ...card, padding: 20 }}>
             <label style={lbl}>Tipo de comportamento *</label>
             <div style={{ display: "flex", gap: 8 }}>
-              {(["verbal","não-verbal"] as TipoComportamento[]).map(t => (
+              {(["verbal", "não-verbal"] as TipoComportamento[]).map(t => (
                 <button key={t} onClick={() => upd("tipoComportamento", t)}
                   style={{ flex: 1, padding: "10px", borderRadius: 9, border: `1px solid ${programa.tipoComportamento === t ? "rgba(29,158,117,.5)" : "rgba(26,58,92,.4)"}`, background: programa.tipoComportamento === t ? "rgba(29,158,117,.15)" : "transparent", color: programa.tipoComportamento === t ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".78rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textTransform: "capitalize" as const }}>
                   {t === "verbal" ? "Comportamento Verbal" : "Comportamento Não-verbal"}
@@ -720,7 +721,7 @@ function GoalBuilder({
             <div style={{ ...card, padding: 20 }}>
               <label style={lbl}>Operante verbal *</label>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8 }}>
-                {OPERANTES.filter(o => !["imitacao","ouvinte"].includes(o.id)).map(o => (
+                {OPERANTES.filter(o => !["imitacao", "ouvinte"].includes(o.id)).map(o => (
                   <button key={o.id} onClick={() => upd("operante", o.id)}
                     style={{ padding: "10px 12px", borderRadius: 9, border: `1px solid ${programa.operante === o.id ? o.cor + "55" : "rgba(26,58,92,.5)"}`, background: programa.operante === o.id ? o.cor + "11" : "transparent", cursor: "pointer", textAlign: "left" as const, fontFamily: "var(--font-sans)" }}>
                     <div style={{ fontSize: ".78rem", fontWeight: 600, color: programa.operante === o.id ? o.cor : "rgba(160,200,235,.92)" }}>{o.label}</div>
@@ -815,9 +816,9 @@ function GoalBuilder({
 
             {programa.estimulos.map((est, i) => (
               <div key={est.id} style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                <input value={est.modelo} onChange={e => upd("estimulos", programa.estimulos.map((x, j) => j === i ? { ...x, modelo: e.target.value } : x))} placeholder={`Modelo ${i+1}...`} style={inp} />
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(170,210,245,.4)" strokeWidth="1.5"><path d="M2 8h12M9 3l5 5-5 5"/></svg>
-                <input value={est.comparacao} onChange={e => upd("estimulos", programa.estimulos.map((x, j) => j === i ? { ...x, comparacao: e.target.value } : x))} placeholder={`Comparação ${i+1}...`} style={inp} />
+                <input value={est.modelo} onChange={e => upd("estimulos", programa.estimulos.map((x, j) => j === i ? { ...x, modelo: e.target.value } : x))} placeholder={`Modelo ${i + 1}...`} style={inp} />
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(170,210,245,.4)" strokeWidth="1.5"><path d="M2 8h12M9 3l5 5-5 5" /></svg>
+                <input value={est.comparacao} onChange={e => upd("estimulos", programa.estimulos.map((x, j) => j === i ? { ...x, comparacao: e.target.value } : x))} placeholder={`Comparação ${i + 1}...`} style={inp} />
                 <button onClick={() => programa.estimulos.length > 1 && upd("estimulos", programa.estimulos.filter((_, j) => j !== i))}
                   style={{ width: 28, height: 36, borderRadius: 7, border: "1px solid rgba(224,90,75,.25)", background: "transparent", color: "rgba(224,90,75,.6)", cursor: programa.estimulos.length > 1 ? "pointer" : "not-allowed", fontSize: ".85rem", display: "flex", alignItems: "center", justifyContent: "center", opacity: programa.estimulos.length > 1 ? 1 : .3 }}>
                   ×
@@ -834,7 +835,7 @@ function GoalBuilder({
             <div style={{ ...card, padding: 20 }}>
               <label style={lbl}>Ordem de apresentação</label>
               <div style={{ display: "flex", gap: 8 }}>
-                {(["randomizado","fixo"] as const).map(o => (
+                {(["randomizado", "fixo"] as const).map(o => (
                   <button key={o} onClick={() => upd("ordemApresentacao", o)}
                     style={{ flex: 1, padding: "9px", borderRadius: 8, border: `1px solid ${programa.ordemApresentacao === o ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: programa.ordemApresentacao === o ? "rgba(29,158,117,.1)" : "transparent", color: programa.ordemApresentacao === o ? "#1D9E75" : "rgba(160,200,235,.5)", fontSize: ".75rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textTransform: "capitalize" as const }}>
                     {o}
@@ -874,12 +875,12 @@ function GoalBuilder({
             <label style={lbl}>Tipo de registro</label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
               {([
-                ["dtt",          "DTT",          "Tentativa discreta"],
-                ["frequencia",   "Frequência",   "Contagem livre"],
-                ["duracao",      "Duração",       "Tempo de resposta"],
-                ["latencia",     "Latência",      "SD → resposta"],
-                ["encadeamento", "Encadeamento",  "Task analysis"],
-                ["matching",     "Matching",      "Estímulo/comparação"],
+                ["dtt", "DTT", "Tentativa discreta"],
+                ["frequencia", "Frequência", "Contagem livre"],
+                ["duracao", "Duração", "Tempo de resposta"],
+                ["latencia", "Latência", "SD → resposta"],
+                ["encadeamento", "Encadeamento", "Task analysis"],
+                ["matching", "Matching", "Estímulo/comparação"],
               ] as const).map(([id, label, desc]) => (
                 <button key={id} onClick={() => upd("tipoRegistro", id)}
                   style={{ padding: "8px 6px", borderRadius: 8, border: `1px solid ${programa.tipoRegistro === id ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: programa.tipoRegistro === id ? "rgba(55,138,221,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
@@ -894,7 +895,7 @@ function GoalBuilder({
             <div style={{ ...card, padding: 20 }}>
               <label style={lbl}>Passos da tarefa (task analysis)</label>
               <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-                {([["frente","À frente"],["tras","Atrás"],["total","Cadeia total"]] as const).map(([id, label]) => (
+                {([["frente", "À frente"], ["tras", "Atrás"], ["total", "Cadeia total"]] as const).map(([id, label]) => (
                   <button key={id} onClick={() => upd("direcaoEncadeamento", id)}
                     style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${programa.direcaoEncadeamento === id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: programa.direcaoEncadeamento === id ? "rgba(139,127,232,.1)" : "transparent", color: programa.direcaoEncadeamento === id ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: programa.direcaoEncadeamento === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                     {label}
@@ -974,15 +975,15 @@ function GoalBuilder({
             <div style={{ fontSize: ".62rem", color: "#1D9E75", fontWeight: 700, letterSpacing: ".09em", textTransform: "uppercase" as const, marginBottom: 12 }}>Resumo do programa</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {[
-                { l: "Nome",             v: programa.nome },
-                { l: "Disponibilidade",  v: "Biblioteca global" },
-                { l: "Operante",         v: OPERANTES.find(o => o.id === programa.operante)?.label ?? "—" },
-                { l: "Nível de treino",  v: NIVEIS_TREINO.find(n => n.id === programa.nivelTreino)?.label ?? "—" },
-                { l: "Estímulos",        v: `${programa.estimulos.length} pares` },
-                { l: "Tentativas/sessão",v: String(programa.totalTentativas) },
+                { l: "Nome", v: programa.nome },
+                { l: "Disponibilidade", v: "Biblioteca global" },
+                { l: "Operante", v: OPERANTES.find(o => o.id === programa.operante)?.label ?? "—" },
+                { l: "Nível de treino", v: NIVEIS_TREINO.find(n => n.id === programa.nivelTreino)?.label ?? "—" },
+                { l: "Estímulos", v: `${programa.estimulos.length} pares` },
+                { l: "Tentativas/sessão", v: String(programa.totalTentativas) },
                 { l: "Tipo de registro", v: programa.tipoRegistro },
-                { l: "Critério",         v: `${programa.criterioMaestria} em ${programa.sessoesParaMaestria} sessões` },
-                { l: "Reforçador",       v: programa.reforcoGeral },
+                { l: "Critério", v: `${programa.criterioMaestria} em ${programa.sessoesParaMaestria} sessões` },
+                { l: "Reforçador", v: programa.reforcoGeral },
               ].map(r => (
                 <div key={r.l}>
                   <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", textTransform: "uppercase" as const, letterSpacing: ".08em", marginBottom: 3 }}>{r.l}</div>
