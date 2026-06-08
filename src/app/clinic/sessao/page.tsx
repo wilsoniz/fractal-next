@@ -2398,7 +2398,7 @@ function RegistroAvaliacao({ acao, pacienteId, sessaoId, terapeutaId, pontuacoes
     "O comportamento cessa quando você remove a exigência?",
   ]
   const [respostasMAS, setRespostasMAS] = useState<number[]>(new Array(MAS_PERGUNTAS.length).fill(-1))
-
+  const [modoPersonalizar, setModoPersonalizar] = useState(false)
   const inp: React.CSSProperties = {
     padding: "8px 10px", borderRadius: 8,
     border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)",
@@ -2788,16 +2788,17 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
     mando_dtt: ["independente", "gestual", "modelo", "ecoica", "física parcial", "física total"],
     generica: ["independente", "gestual", "modelo", "física parcial", "física total"],
   }
+
   const [tipoRegistro, setTipoRegistro] = useState<"dtt" | "frequencia" | "duracao" | "latencia" | "encadeamento" | "matching">(
     item.tipo_registro ?? "dtt"
   )
-  //encadeamento
-  const [passosEncadeamento, setPassosEncadeamento] = useState<string[]>([""])
-  const [direcaoEncadeamento, setDirecaoEncadeamento] = useState<"frente" | "tras" | "total">("frente")
+  const [passosEncadeamento, setPassosEncadeamento] = useState<string[]>(
+    item.passosEncadeamento && item.passosEncadeamento.length > 0 ? item.passosEncadeamento : [""]
+  )
+  const [direcaoEncadeamento, setDirecaoEncadeamento] = useState<"frente" | "tras" | "total">(
+    item.direcaoEncadeamento ?? "frente"
+  )
   const [novoPasso, setNovoPasso] = useState("")
-
-  //matrizes
-
   const [matrizId, setMatrizId] = useState<string>(item.matrizId ?? "")
   const [matrizes, setMatrizes] = useState<{ id: string; name: string }[]>([])
 
@@ -2806,8 +2807,6 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
       setMatrizes(data ?? [])
     })
   }, [])
-
-
 
   const presetInicial = item.operante === "mando" ? "mando_net" : "generica"
   const [preset, setPreset] = useState(presetInicial)
@@ -2818,21 +2817,24 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
   const [estrategia, setEstrategia] = useState<"least_to_most" | "most_to_least">("least_to_most")
   const [novoNivel, setNovoNivel] = useState("")
 
+  // Detecta se o programa já tem configuração do Goal Builder
+  const temConfiguracao = !!(
+    item.tipo_registro ||
+    (item.hierarquiaDicas && item.hierarquiaDicas.length > 0) ||
+    (item.passosEncadeamento && item.passosEncadeamento.length > 0)
+  )
+  const [modoPersonalizar, setModoPersonalizar] = useState(!temConfiguracao)
+
   function aplicarPreset(p: string) {
     setPreset(p)
     setHierarquia([...HIERARQUIAS_PRESET[p]])
   }
-
-  function removerNivel(idx: number) {
-    setHierarquia(prev => prev.filter((_, i) => i !== idx))
-  }
-
+  function removerNivel(idx: number) { setHierarquia(prev => prev.filter((_, i) => i !== idx)) }
   function adicionarNivel() {
     if (!novoNivel.trim()) return
     setHierarquia(prev => [...prev, novoNivel.trim()])
     setNovoNivel("")
   }
-
   function confirmar() {
     onConfirmar({
       ...item,
@@ -2853,165 +2855,232 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
     fontSize: ".75rem", fontFamily: "var(--font-sans)",
     outline: "none", boxSizing: "border-box" as const,
   }
+  const lbl: React.CSSProperties = {
+    fontSize: ".6rem", color: "rgba(170,210,245,.5)",
+    textTransform: "uppercase" as const, letterSpacing: ".06em",
+    display: "block", marginBottom: 4,
+  }
 
   return (
     <div onClick={onCancelar} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "rgba(7,17,31,.97)", border: "1px solid rgba(26,58,92,.5)", borderRadius: 16, padding: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
 
         <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>
-          Configurar programa
+          {modoPersonalizar ? "Personalizar para esta sessão" : "Iniciar programa"}
         </div>
         <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.5)", marginBottom: 20 }}>
           {item.nome.replace("💡 ", "")}
         </div>
 
-        {/* Preset */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Hierarquia base</div>
-          <div style={{ display: "flex", gap: 6 }}>
-            {[
-              ["mando_net", "Mando NET"],
-              ["mando_dtt", "Mando DTT"],
-              ["generica", "Genérica"],
-            ].map(([id, label]) => (
-              <button key={id} onClick={() => aplicarPreset(id)}
-                style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${preset === id ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: preset === id ? "rgba(29,158,117,.1)" : "transparent", color: preset === id ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: preset === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Níveis editáveis */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Níveis de dica (arraste para reordenar)</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {hierarquia.map((nivel, idx) => (
-              <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: idx === 0 ? "rgba(29,158,117,.1)" : "rgba(26,58,92,.2)", borderRadius: 8, border: `1px solid ${idx === 0 ? "rgba(29,158,117,.3)" : "rgba(26,58,92,.3)"}` }}>
-                <span style={{ fontSize: ".72rem", color: idx === 0 ? "#1D9E75" : "rgba(160,200,235,.7)", flex: 1 }}>
-                  {idx === 0 ? "✓ " : `${idx}. `}{nivel}
-                </span>
-                {idx > 0 && (
-                  <button onClick={() => removerNivel(idx)} style={{ background: "none", border: "none", color: "rgba(224,90,75,.5)", cursor: "pointer", fontSize: ".8rem", padding: 0 }}>×</button>
-                )}
+        {/* ── NÍVEL 1: RESUMO DO PROGRAMA ── */}
+        {!modoPersonalizar && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: "rgba(29,158,117,.06)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 12, padding: 16 }}>
+              <div style={{ fontSize: ".6rem", color: "#1D9E75", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".08em", marginBottom: 12 }}>
+                Configuração padrão
               </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            <input value={novoNivel} onChange={e => setNovoNivel(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") adicionarNivel() }}
-              placeholder="+ Adicionar nível..."
-              style={{ ...inp, flex: 1 }} />
-            <button onClick={adicionarNivel} style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(29,158,117,.2)", color: "#1D9E75", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-              Add
-            </button>
-          </div>
-        </div>
-
-        {/* Tipo de registro */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Tipo de registro</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-            {([
-              ["dtt", "DTT", "Tentativa discreta"],
-              ["frequencia", "Frequência", "Contagem livre"],
-              ["duracao", "Duração", "Tempo de resposta"],
-              ["latencia", "Latência", "SD → resposta"],
-              ["encadeamento", "Encadeamento", "Task analysis"],
-              ["matching", "Matching", "Estímulo/comparação"],
-            ] as const).map(([id, label, desc]) => (
-              <button key={id} onClick={() => setTipoRegistro(id)}
-                style={{ padding: "8px 6px", borderRadius: 8, border: `1px solid ${tipoRegistro === id ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: tipoRegistro === id ? "rgba(55,138,221,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
-                <div style={{ fontSize: ".72rem", fontWeight: tipoRegistro === id ? 700 : 400, color: tipoRegistro === id ? "#378ADD" : "rgba(160,200,235,.5)" }}>{label}</div>
-                <div style={{ fontSize: ".58rem", color: "rgba(160,200,235,.3)", marginTop: 2 }}>{desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Editor de passos — só aparece quando tipo é encadeamento */}
-        {tipoRegistro === "encadeamento" && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Direção do encadeamento</div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-              {([["frente", "À frente"], ["tras", "Atrás"], ["total", "Cadeia total"]] as const).map(([id, label]) => (
-                <button key={id} onClick={() => setDirecaoEncadeamento(id)}
-                  style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${direcaoEncadeamento === id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: direcaoEncadeamento === id ? "rgba(139,127,232,.1)" : "transparent", color: direcaoEncadeamento === id ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: direcaoEncadeamento === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                  {label}
-                </button>
-              ))}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {[
+                  ["Tipo de registro", tipoRegistro.toUpperCase()],
+                  ["Estratégia de dica", estrategia === "least_to_most" ? "Menos → Mais" : "Mais → Menos"],
+                  ["Hierarquia", hierarquia.slice(0, 3).join(" → ") + (hierarquia.length > 3 ? " ..." : "")],
+                  ...(item.sd ? [["SD", `"${item.sd.slice(0, 60)}${item.sd.length > 60 ? "..." : ""}"`]] : []),
+                  ...(tipoRegistro === "encadeamento" && passosEncadeamento.filter(p => p.trim()).length > 0
+                    ? [["Encadeamento", `${passosEncadeamento.filter(p => p.trim()).length} passos · ${direcaoEncadeamento}`]]
+                    : []),
+                ].map(([label, val]) => (
+                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                    <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)", flexShrink: 0 }}>{label}</span>
+                    <span style={{ fontSize: ".72rem", color: "#e8f0f8", fontWeight: 500, textAlign: "right" as const }}>{val}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Passos da tarefa</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-              {passosEncadeamento.filter(p => p.trim()).map((passo, idx) => (
-                <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(26,58,92,.2)", borderRadius: 8, border: "1px solid rgba(26,58,92,.3)" }}>
-                  <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20 }}>{idx + 1}.</span>
-                  <span style={{ fontSize: ".75rem", color: "#e8f0f8", flex: 1 }}>{passo}</span>
-                  <button onClick={() => setPassosEncadeamento(prev => prev.filter((_, i) => i !== idx))}
-                    style={{ background: "none", border: "none", color: "rgba(224,90,75,.5)", cursor: "pointer", fontSize: ".8rem" }}>×</button>
+            {tipoRegistro === "encadeamento" && passosEncadeamento.filter(p => p.trim()).length > 0 && (
+              <div style={{ background: "rgba(139,127,232,.06)", border: "1px solid rgba(139,127,232,.2)", borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: ".6rem", color: "#8B7FE8", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".08em", marginBottom: 8 }}>
+                  Passos da tarefa
                 </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <input value={novoPasso} onChange={e => setNovoPasso(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && novoPasso.trim()) { setPassosEncadeamento(prev => [...prev, novoPasso.trim()]); setNovoPasso("") } }}
-                placeholder="Descrever passo... (Enter para adicionar)"
-                style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".75rem", fontFamily: "var(--font-sans)", outline: "none" }} />
-              <button onClick={() => { if (novoPasso.trim()) { setPassosEncadeamento(prev => [...prev, novoPasso.trim()]); setNovoPasso("") } }}
-                style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(139,127,232,.2)", color: "#8B7FE8", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                Add
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Seleção de matriz — só aparece quando tipo é matching */}
-        {tipoRegistro === "matching" && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Matriz de estímulos</div>
-            {matrizes.length === 0 ? (
-              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.3)", padding: "12px", background: "rgba(26,58,92,.2)", borderRadius: 8, textAlign: "center" }}>
-                Nenhuma matriz cadastrada
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {matrizes.map(m => (
-                  <button key={m.id} onClick={() => setMatrizId(m.id)}
-                    style={{ padding: "10px 14px", borderRadius: 9, border: `1px solid ${matrizId === m.id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: matrizId === m.id ? "rgba(139,127,232,.1)" : "transparent", color: matrizId === m.id ? "#8B7FE8" : "rgba(160,200,235,.5)", fontSize: ".75rem", fontWeight: matrizId === m.id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" as const }}>
-                    {m.name || "Sem nome"}
-                  </button>
+                {passosEncadeamento.filter(p => p.trim()).map((p, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: ".62rem", color: "rgba(160,200,235,.3)", width: 18, flexShrink: 0 }}>{i + 1}.</span>
+                    <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.8)" }}>{p}</span>
+                  </div>
                 ))}
               </div>
             )}
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setModoPersonalizar(true)}
+                style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid rgba(70,120,180,.4)", background: "transparent", color: "rgba(160,200,235,.6)", fontSize: ".78rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                Personalizar para esta sessão
+              </button>
+              <button onClick={confirmar}
+                style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                Iniciar →
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Delay e estratégia */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Delay de prompt (s)</div>
-            <input type="number" min={0} max={10} value={delay} onChange={e => setDelay(parseInt(e.target.value))}
-              style={{ ...inp, width: "100%" }} />
-          </div>
-          <div>
-            <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Estratégia</div>
-            <select value={estrategia} onChange={e => setEstrategia(e.target.value as any)}
-              style={{ ...inp, width: "100%" }}>
-              <option value="least_to_most">Menos → Mais</option>
-              <option value="most_to_least">Mais → Menos</option>
-            </select>
-          </div>
-        </div>
+        {/* ── NÍVEL 2: PERSONALIZAÇÃO COMPLETA ── */}
+        {modoPersonalizar && (
+          <>
+            {/* Preset */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Hierarquia base</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                {[["mando_net", "Mando NET"], ["mando_dtt", "Mando DTT"], ["generica", "Genérica"]].map(([id, label]) => (
+                  <button key={id} onClick={() => aplicarPreset(id)}
+                    style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${preset === id ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: preset === id ? "rgba(29,158,117,.1)" : "transparent", color: preset === id ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: preset === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onCancelar} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid rgba(26,58,92,.5)", background: "transparent", color: "rgba(160,200,235,.6)", fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-            Cancelar
-          </button>
-          <button onClick={confirmar} style={{ flex: 2, padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-            Adicionar à sessão →
-          </button>
-        </div>
+            {/* Níveis editáveis */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Níveis de dica</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {hierarquia.map((nivel, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: idx === 0 ? "rgba(29,158,117,.1)" : "rgba(26,58,92,.2)", borderRadius: 8, border: `1px solid ${idx === 0 ? "rgba(29,158,117,.3)" : "rgba(26,58,92,.3)"}` }}>
+                    <span style={{ fontSize: ".72rem", color: idx === 0 ? "#1D9E75" : "rgba(160,200,235,.7)", flex: 1 }}>
+                      {idx === 0 ? "✓ " : `${idx}. `}{nivel}
+                    </span>
+                    {idx > 0 && (
+                      <button onClick={() => removerNivel(idx)} style={{ background: "none", border: "none", color: "rgba(224,90,75,.5)", cursor: "pointer", fontSize: ".8rem", padding: 0 }}>×</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                <input value={novoNivel} onChange={e => setNovoNivel(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") adicionarNivel() }}
+                  placeholder="+ Adicionar nível..."
+                  style={{ ...inp, flex: 1 }} />
+                <button onClick={adicionarNivel} style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(29,158,117,.2)", color: "#1D9E75", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  Add
+                </button>
+              </div>
+            </div>
+
+            {/* Tipo de registro */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Tipo de registro</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                {([
+                  ["dtt", "DTT", "Tentativa discreta"],
+                  ["frequencia", "Frequência", "Contagem livre"],
+                  ["duracao", "Duração", "Tempo de resposta"],
+                  ["latencia", "Latência", "SD → resposta"],
+                  ["encadeamento", "Encadeamento", "Task analysis"],
+                  ["matching", "Matching", "Estímulo/comparação"],
+                ] as const).map(([id, label, desc]) => (
+                  <button key={id} onClick={() => setTipoRegistro(id)}
+                    style={{ padding: "8px 6px", borderRadius: 8, border: `1px solid ${tipoRegistro === id ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: tipoRegistro === id ? "rgba(55,138,221,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
+                    <div style={{ fontSize: ".72rem", fontWeight: tipoRegistro === id ? 700 : 400, color: tipoRegistro === id ? "#378ADD" : "rgba(160,200,235,.5)" }}>{label}</div>
+                    <div style={{ fontSize: ".58rem", color: "rgba(160,200,235,.3)", marginTop: 2 }}>{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Editor de passos — encadeamento */}
+            {tipoRegistro === "encadeamento" && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Direção do encadeamento</div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                  {([["frente", "À frente"], ["tras", "Atrás"], ["total", "Cadeia total"]] as const).map(([id, label]) => (
+                    <button key={id} onClick={() => setDirecaoEncadeamento(id)}
+                      style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${direcaoEncadeamento === id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: direcaoEncadeamento === id ? "rgba(139,127,232,.1)" : "transparent", color: direcaoEncadeamento === id ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: direcaoEncadeamento === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Passos da tarefa</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+                  {passosEncadeamento.filter(p => p.trim()).map((passo, idx) => (
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(26,58,92,.2)", borderRadius: 8, border: "1px solid rgba(26,58,92,.3)" }}>
+                      <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20 }}>{idx + 1}.</span>
+                      <span style={{ fontSize: ".75rem", color: "#e8f0f8", flex: 1 }}>{passo}</span>
+                      <button onClick={() => setPassosEncadeamento(prev => prev.filter((_, i) => i !== idx))}
+                        style={{ background: "none", border: "none", color: "rgba(224,90,75,.5)", cursor: "pointer", fontSize: ".8rem" }}>×</button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input value={novoPasso} onChange={e => setNovoPasso(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && novoPasso.trim()) { setPassosEncadeamento(prev => [...prev, novoPasso.trim()]); setNovoPasso("") } }}
+                    placeholder="Descrever passo... (Enter para adicionar)"
+                    style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".75rem", fontFamily: "var(--font-sans)", outline: "none" }} />
+                  <button onClick={() => { if (novoPasso.trim()) { setPassosEncadeamento(prev => [...prev, novoPasso.trim()]); setNovoPasso("") } }}
+                    style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(139,127,232,.2)", color: "#8B7FE8", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Seleção de matriz — matching */}
+            {tipoRegistro === "matching" && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Matriz de estímulos</div>
+                {matrizes.length === 0 ? (
+                  <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.3)", padding: "12px", background: "rgba(26,58,92,.2)", borderRadius: 8, textAlign: "center" }}>
+                    Nenhuma matriz cadastrada
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {matrizes.map(m => (
+                      <button key={m.id} onClick={() => setMatrizId(m.id)}
+                        style={{ padding: "10px 14px", borderRadius: 9, border: `1px solid ${matrizId === m.id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: matrizId === m.id ? "rgba(139,127,232,.1)" : "transparent", color: matrizId === m.id ? "#8B7FE8" : "rgba(160,200,235,.5)", fontSize: ".75rem", fontWeight: matrizId === m.id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" as const }}>
+                        {m.name || "Sem nome"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Delay e estratégia */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Delay de prompt (s)</div>
+                <input type="number" min={0} max={10} value={delay} onChange={e => setDelay(parseInt(e.target.value))}
+                  style={{ ...inp, width: "100%" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Estratégia</div>
+                <select value={estrategia} onChange={e => setEstrategia(e.target.value as any)}
+                  style={{ ...inp, width: "100%" }}>
+                  <option value="least_to_most">Menos → Mais</option>
+                  <option value="most_to_least">Mais → Menos</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              {temConfiguracao && (
+                <button onClick={() => setModoPersonalizar(false)}
+                  style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid rgba(70,120,180,.4)", background: "transparent", color: "rgba(160,200,235,.6)", fontSize: ".78rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  Ver resumo
+                </button>
+              )}
+              {!temConfiguracao && (
+                <button onClick={onCancelar}
+                  style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid rgba(26,58,92,.5)", background: "transparent", color: "rgba(160,200,235,.6)", fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  Cancelar
+                </button>
+              )}
+              <button onClick={confirmar}
+                style={{ flex: 2, padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 800, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                Adicionar à sessão →
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
