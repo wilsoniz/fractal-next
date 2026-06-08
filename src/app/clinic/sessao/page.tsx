@@ -511,8 +511,14 @@ function SessaoInner() {
           tipo_registro: p.tipo_registro ?? "dtt",
           passosEncadeamento: p.passos_tarefa ?? [],
           direcaoEncadeamento: p.direcao_encadeamento ?? "frente",
+          procedimentoEnsino: p.procedimento_ensino ?? "dtt",
+          progressaoPrompt: p.progressao_prompt ?? undefined,
+          generalizacao: p.generalizacao ?? [],
+          barreirasPrevistas: p.barreiras_previstas ?? [],
+          manutencaoDias: p.manutencao_dias ?? 0,
+          controleEstimulo: p.controle_estimulo ?? "sd",
+          delayPrompt: p.delay_prompt ?? 2,
         }))
-
       // 5. Avaliações
       const libAvals: LibItem[] = AVALIACOES_CAT.map(a => ({
         ...a,
