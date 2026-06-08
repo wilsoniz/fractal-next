@@ -92,13 +92,13 @@ const PERFIL_INICIAL: PerfilData = {
     { id: "a4", familiaNome: "Família Santos", pacienteIniciais: "MS", nota: 4, comentario: "Muito boa profissional, cuidadosa e atenciosa. Às vezes demora um pouco para responder mensagens, mas o trabalho é de altíssima qualidade.", data: "Abr 2025", verificada: true },
   ],
   disponibilidade: [
-    ...([1,2,3,4,5] as number[]).flatMap(dia =>
-      (["manha","tarde","noite"] as const).map(turno => ({
+    ...([1, 2, 3, 4, 5] as number[]).flatMap(dia =>
+      (["manha", "tarde", "noite"] as const).map(turno => ({
         dia, turno, disponivel: turno !== "noite" && !(dia === 5 && turno === "tarde"),
       }))
     ),
-    ...([0,6] as number[]).flatMap(dia =>
-      (["manha","tarde","noite"] as const).map(turno => ({
+    ...([0, 6] as number[]).flatMap(dia =>
+      (["manha", "tarde", "noite"] as const).map(turno => ({
         dia, turno, disponivel: false,
       }))
     ),
@@ -115,20 +115,20 @@ const PERFIL_INICIAL: PerfilData = {
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
 const NIVEL_CONFIG: Record<Nivel, { label: string; cor: string; bg: string; modo: string }> = {
-  terapeuta:   { label: "Terapeuta / RBT",      cor: "#1D9E75", bg: "rgba(29,158,117,.1)",  modo: "Modo guiado"       },
-  coordenador: { label: "Coordenador ABA",       cor: "#EF9F27", bg: "rgba(239,159,39,.1)",  modo: "Modo semi-guiado"  },
-  senior:      { label: "Terapeuta Sênior",      cor: "#378ADD", bg: "rgba(55,138,221,.1)",  modo: "Modo livre · atendimento" },
-  supervisor:  { label: "Supervisor / BCBA",     cor: "#8B7FE8", bg: "rgba(139,127,232,.1)", modo: "Modo livre · supervisão"  },
+  terapeuta: { label: "Terapeuta / RBT", cor: "#1D9E75", bg: "rgba(29,158,117,.1)", modo: "Modo guiado" },
+  coordenador: { label: "Coordenador ABA", cor: "#EF9F27", bg: "rgba(239,159,39,.1)", modo: "Modo semi-guiado" },
+  senior: { label: "Terapeuta Sênior", cor: "#378ADD", bg: "rgba(55,138,221,.1)", modo: "Modo livre · atendimento" },
+  supervisor: { label: "Supervisor / BCBA", cor: "#8B7FE8", bg: "rgba(139,127,232,.1)", modo: "Modo livre · supervisão" },
 }
 
 const TIPO_CERT_CONFIG = {
-  graduacao:       { label: "Graduação",       cor: "#378ADD", icon: "🎓" },
-  especializacao:  { label: "Especialização",  cor: "#8B7FE8", icon: "📚" },
-  certificacao:    { label: "Certificação",    cor: "#1D9E75", icon: "🏆" },
-  curso:           { label: "Curso",           cor: "#EF9F27", icon: "📋" },
+  graduacao: { label: "Graduação", cor: "#378ADD", icon: "🎓" },
+  especializacao: { label: "Especialização", cor: "#8B7FE8", icon: "📚" },
+  certificacao: { label: "Certificação", cor: "#1D9E75", icon: "🏆" },
+  curso: { label: "Curso", cor: "#EF9F27", icon: "📋" },
 };
 
-const DIAS_LABEL = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const DIAS_LABEL = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const TURNOS_LABEL = { manha: "Manhã (8–12h)", tarde: "Tarde (13–18h)", noite: "Noite (18–21h)" };
 
 // Opções de conselho profissional
@@ -137,9 +137,9 @@ const CONSELHOS = ["CRP", "CRA", "CREFITO", "CFP", "BACB", "ABPMC", "Outro"];
 function Stars({ nota, size = 14 }: { nota: number; size?: number }) {
   return (
     <div style={{ display: "flex", gap: 2 }}>
-      {[1,2,3,4,5].map(i => (
+      {[1, 2, 3, 4, 5].map(i => (
         <svg key={i} width={size} height={size} viewBox="0 0 16 16" fill={i <= nota ? "#EF9F27" : "rgba(138,168,200,.2)"}>
-          <path d="M8 1l1.9 3.8 4.2.6-3 3 .7 4.2L8 11l-3.8 2 .7-4.2-3-3 4.2-.6z"/>
+          <path d="M8 1l1.9 3.8 4.2.6-3 3 .7 4.2L8 11l-3.8 2 .7-4.2-3-3 4.2-.6z" />
         </svg>
       ))}
     </div>
@@ -151,10 +151,10 @@ export default function TerapeutaPerfilPage() {
   const { terapeuta: terapeutaCtx } = useClinicContext();
   const nivelCtx = terapeutaCtx?.nivel ?? "supervisor";
 
-  const [tab,      setTab]      = useState<TabPerfil>("vitrine")
-  const [perfil,   setPerfil]   = useState<PerfilData>(PERFIL_INICIAL)
-  const [loading,  setLoading]  = useState(true)
-  const [editBio,  setEditBio]  = useState(false)
+  const [tab, setTab] = useState<TabPerfil>("vitrine")
+  const [perfil, setPerfil] = useState<PerfilData>(PERFIL_INICIAL)
+  const [loading, setLoading] = useState(true)
+  const [editBio, setEditBio] = useState(false)
   const [bioDraft, setBioDraft] = useState("")
   const [salvando, setSalvando] = useState(false)
 
@@ -182,6 +182,44 @@ export default function TerapeutaPerfilPage() {
         }))
         setBioDraft(data.bio ?? "")
       }
+      // Busca certificações do banco
+      const { data: certs } = await supabase
+        .from("terapeuta_certificacoes")
+        .select("*")
+        .eq("terapeuta_id", terapeutaCtx.id)
+        .order("ano", { ascending: false })
+
+      // Busca avaliações do banco
+      const { data: avals } = await supabase
+        .from("terapeuta_avaliacoes")
+        .select("*")
+        .eq("terapeuta_id", terapeutaCtx.id)
+        .order("criado_em", { ascending: false })
+
+      if (certs || avals) {
+        setPerfil(prev => ({
+          ...prev,
+          certificacoes: certs ? certs.map(c => ({
+            id: c.id,
+            titulo: c.titulo,
+            instituicao: c.instituicao,
+            ano: c.ano,
+            tipo: c.tipo as "graduacao" | "especializacao" | "certificacao" | "curso",
+            verificada: c.verificada,
+            url: c.url,
+          })) : prev.certificacoes,
+          avaliacoes: avals ? avals.map(a => ({
+            id: a.id,
+            familiaNome: a.familia_nome,
+            pacienteIniciais: a.paciente_iniciais ?? "",
+            nota: a.nota,
+            comentario: a.comentario ?? "",
+            data: new Date(a.data_avaliacao).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }),
+            verificada: a.verificada,
+          })) : prev.avaliacoes,
+        }))
+      }
+
       setLoading(false)
     }
     carregar()
@@ -239,16 +277,16 @@ export default function TerapeutaPerfilPage() {
 
   // ── CSS ────────────────────────────────────────────────────────────────────
   const card: React.CSSProperties = { background: "rgba(13,32,53,.75)", border: "1px solid rgba(70,120,180,.5)", borderRadius: 14, backdropFilter: "blur(8px)" };
-  const inp: React.CSSProperties  = { background: "rgba(20,55,110,.55)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 8, padding: "9px 12px", color: "#e8f0f8", fontFamily: "var(--font-sans)", fontSize: ".82rem", outline: "none", width: "100%", boxSizing: "border-box" as const };
-  const lbl: React.CSSProperties  = { fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".09em", color: "rgba(170,210,245,.88)", marginBottom: 8 };
+  const inp: React.CSSProperties = { background: "rgba(20,55,110,.55)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 8, padding: "9px 12px", color: "#e8f0f8", fontFamily: "var(--font-sans)", fontSize: ".82rem", outline: "none", width: "100%", boxSizing: "border-box" as const };
+  const lbl: React.CSSProperties = { fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".09em", color: "rgba(170,210,245,.88)", marginBottom: 8 };
 
   const TABS: { id: TabPerfil; label: string }[] = [
-    { id: "vitrine",          label: "Vitrine"        },
-    { id: "formacao",         label: "Formação"       },
-    { id: "disponibilidade",  label: "Disponibilidade"},
-    { id: "avaliacoes",       label: `Avaliações (${perfil.avaliacoes.length})` },
-    { id: "configuracoes",    label: "Configurações"  },
-    { id: "supervisao",       label: "Supervisão"     },
+    { id: "vitrine", label: "Vitrine" },
+    { id: "formacao", label: "Formação" },
+    { id: "disponibilidade", label: "Disponibilidade" },
+    { id: "avaliacoes", label: `Avaliações (${perfil.avaliacoes.length})` },
+    { id: "configuracoes", label: "Configurações" },
+    { id: "supervisao", label: "Supervisão" },
   ];
 
   return (
@@ -290,10 +328,10 @@ export default function TerapeutaPerfilPage() {
           {/* Stats */}
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" as const }}>
             {[
-              { l: "Pacientes",  v: perfil.pacientesAtivos, c: "#1D9E75"  },
-              { l: "Sessões",    v: perfil.sessoesTotais,   c: "#378ADD"  },
-              { l: "Sucesso",    v: `${perfil.taxaSucesso}%`, c: "#EF9F27" },
-              { l: "Resposta",   v: perfil.tempoResposta,  c: "#e8f0f8"  },
+              { l: "Pacientes", v: perfil.pacientesAtivos, c: "#1D9E75" },
+              { l: "Sessões", v: perfil.sessoesTotais, c: "#378ADD" },
+              { l: "Sucesso", v: `${perfil.taxaSucesso}%`, c: "#EF9F27" },
+              { l: "Resposta", v: perfil.tempoResposta, c: "#e8f0f8" },
             ].map(s => (
               <div key={s.l} style={{ textAlign: "center" }}>
                 <div style={{ fontSize: "1.1rem", fontWeight: 800, color: s.c, lineHeight: 1 }}>{s.v}</div>
@@ -447,9 +485,9 @@ export default function TerapeutaPerfilPage() {
             <div style={{ ...card, padding: 18 }}>
               <div style={{ ...lbl }}>Métricas clínicas</div>
               {[
-                { l: "Pacientes ativos",    v: perfil.pacientesAtivos, c: "#1D9E75" },
-                { l: "Sessões realizadas",  v: perfil.sessoesTotais,   c: "#378ADD" },
-                { l: "Taxa de sucesso",     v: `${perfil.taxaSucesso}%`, c: "#EF9F27" },
+                { l: "Pacientes ativos", v: perfil.pacientesAtivos, c: "#1D9E75" },
+                { l: "Sessões realizadas", v: perfil.sessoesTotais, c: "#378ADD" },
+                { l: "Taxa de sucesso", v: `${perfil.taxaSucesso}%`, c: "#EF9F27" },
                 { l: "Anos de experiência", v: perfil.anosExperiencia, c: "#e8f0f8" },
               ].map(m => (
                 <div key={m.l} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(26,58,92,.2)" }}>
@@ -480,12 +518,12 @@ export default function TerapeutaPerfilPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: ".8rem", color: "rgba(160,200,235,.90)" }}>{perfil.certificacoes.filter(c => c.verificada).length} de {perfil.certificacoes.length} certificações verificadas</div>
             <button style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".75rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10"/></svg>
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" /></svg>
               Adicionar certificação
             </button>
           </div>
 
-          {(["certificacao","graduacao","especializacao","curso"] as const).map(tipo => {
+          {(["certificacao", "graduacao", "especializacao", "curso"] as const).map(tipo => {
             const certs = perfil.certificacoes.filter(c => c.tipo === tipo);
             if (!certs.length) return null;
             const tc = TIPO_CERT_CONFIG[tipo];
@@ -544,10 +582,10 @@ export default function TerapeutaPerfilPage() {
               {DIAS_LABEL.map(d => (
                 <div key={d} style={{ textAlign: "center", fontSize: ".65rem", color: "rgba(160,200,235,.84)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }}>{d}</div>
               ))}
-              {(["manha","tarde","noite"] as const).map(turno => (
+              {(["manha", "tarde", "noite"] as const).map(turno => (
                 <>
                   <div key={turno} style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)", display: "flex", alignItems: "center" }}>{TURNOS_LABEL[turno]}</div>
-                  {[0,1,2,3,4,5,6].map(dia => {
+                  {[0, 1, 2, 3, 4, 5, 6].map(dia => {
                     const slot = perfil.disponibilidade.find(s => s.dia === dia && s.turno === turno);
                     const disp = slot?.disponivel ?? false;
                     return (
@@ -598,13 +636,13 @@ export default function TerapeutaPerfilPage() {
               <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.88)", marginTop: 4 }}>{perfil.avaliacoes.length} avaliações</div>
             </div>
             <div style={{ flex: 1 }}>
-              {[5,4,3,2,1].map(n => {
+              {[5, 4, 3, 2, 1].map(n => {
                 const qtd = perfil.avaliacoes.filter(a => a.nota === n).length;
                 const pct = perfil.avaliacoes.length > 0 ? Math.round((qtd / perfil.avaliacoes.length) * 100) : 0;
                 return (
                   <div key={n} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                     <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)", width: 8 }}>{n}</span>
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="#EF9F27"><path d="M8 1l1.9 3.8 4.2.6-3 3 .7 4.2L8 11l-3.8 2 .7-4.2-3-3 4.2-.6z"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="#EF9F27"><path d="M8 1l1.9 3.8 4.2.6-3 3 .7 4.2L8 11l-3.8 2 .7-4.2-3-3 4.2-.6z" /></svg>
                     <div style={{ flex: 1, height: 6, background: "rgba(26,58,92,.5)", borderRadius: 3, overflow: "hidden" }}>
                       <div style={{ height: "100%", width: `${pct}%`, background: "#EF9F27", opacity: .8 }} />
                     </div>
