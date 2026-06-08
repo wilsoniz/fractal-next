@@ -157,6 +157,11 @@ export default function TerapeutaPerfilPage() {
   const [editBio, setEditBio] = useState(false)
   const [bioDraft, setBioDraft] = useState("")
   const [salvando, setSalvando] = useState(false)
+  const [modalCert, setModalCert] = useState(false)
+  const [editCert, setEditCert] = useState<Certificacao | null>(null)
+  const [certForm, setCertForm] = useState({ titulo: "", instituicao: "", ano: new Date().getFullYear(), tipo: "certificacao" as "graduacao" | "especializacao" | "certificacao" | "curso", verificada: false, url: "" })
+  const [salvandoCert, setSalvandoCert] = useState(false)
+  const [excluindoCert, setExcluindoCert] = useState<string | null>(null)
 
   useEffect(() => {
     async function carregar() {
@@ -252,6 +257,48 @@ export default function TerapeutaPerfilPage() {
 
   async function salvarDisponibilidade() {
     await salvarPerfil({ disponibilidade: perfil.disponibilidade })
+  }
+
+  function abrirNovaCert() {
+    setEditCert(null)
+    setCertForm({ titulo: "", instituicao: "", ano: new Date().getFullYear(), tipo: "certificacao", verificada: false, url: "" })
+    setModalCert(true)
+  }
+
+  function abrirEditarCert(c: Certificacao) {
+    setEditCert(c)
+    setCertForm({ titulo: c.titulo, instituicao: c.instituicao, ano: c.ano ?? new Date().getFullYear(), tipo: c.tipo, verificada: c.verificada, url: c.url ?? "" })
+    setModalCert(true)
+  }
+
+  async function salvarCertificacao() {
+    if (!terapeutaCtx?.id || !certForm.titulo.trim() || !certForm.instituicao.trim()) return
+    setSalvandoCert(true)
+    if (editCert) {
+      await supabase.from("terapeuta_certificacoes").update({
+        titulo: certForm.titulo, instituicao: certForm.instituicao,
+        ano: certForm.ano, tipo: certForm.tipo,
+        verificada: certForm.verificada, url: certForm.url || null,
+      }).eq("id", editCert.id)
+      setPerfil(prev => ({ ...prev, certificacoes: prev.certificacoes.map(c => c.id === editCert.id ? { ...c, ...certForm } : c) }))
+    } else {
+      const { data } = await supabase.from("terapeuta_certificacoes").insert({
+        terapeuta_id: terapeutaCtx.id, titulo: certForm.titulo,
+        instituicao: certForm.instituicao, ano: certForm.ano,
+        tipo: certForm.tipo, verificada: certForm.verificada,
+        url: certForm.url || null,
+      }).select().single()
+      if (data) setPerfil(prev => ({ ...prev, certificacoes: [{ id: data.id, titulo: data.titulo, instituicao: data.instituicao, ano: data.ano, tipo: data.tipo, verificada: data.verificada, url: data.url }, ...prev.certificacoes] }))
+    }
+    setSalvandoCert(false)
+    setModalCert(false)
+  }
+
+  async function excluirCertificacao(id: string) {
+    setExcluindoCert(id)
+    await supabase.from("terapeuta_certificacoes").delete().eq("id", id)
+    setPerfil(prev => ({ ...prev, certificacoes: prev.certificacoes.filter(c => c.id !== id) }))
+    setExcluindoCert(null)
   }
 
   const notaMedia = useMemo(() => {
@@ -517,7 +564,7 @@ export default function TerapeutaPerfilPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: ".8rem", color: "rgba(160,200,235,.90)" }}>{perfil.certificacoes.filter(c => c.verificada).length} de {perfil.certificacoes.length} certificações verificadas</div>
-            <button style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".75rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+            <button onClick={abrirNovaCert} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".75rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
               <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" /></svg>
               Adicionar certificação
             </button>
@@ -545,15 +592,59 @@ export default function TerapeutaPerfilPage() {
                         </div>
                         <div style={{ fontSize: ".75rem", color: "rgba(160,200,235,.90)" }}>{c.instituicao} · {c.ano}</div>
                       </div>
-                      {c.url && (
-                        <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: ".68rem", color: "#378ADD", textDecoration: "none", padding: "3px 8px", border: "1px solid rgba(55,138,221,.2)", borderRadius: 6 }}>Ver →</a>
-                      )}
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: ".68rem", color: "#378ADD", textDecoration: "none", padding: "3px 8px", border: "1px solid rgba(55,138,221,.2)", borderRadius: 6 }}>Ver →</a>}
+                        <button onClick={() => abrirEditarCert(c)} style={{ fontSize: ".68rem", color: "#378ADD", background: "transparent", border: "1px solid rgba(55,138,221,.2)", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Editar</button>
+                        <button onClick={() => excluirCertificacao(c.id)} disabled={excluindoCert === c.id} style={{ fontSize: ".68rem", color: "rgba(224,90,75,.6)", background: "transparent", border: "1px solid rgba(224,90,75,.2)", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                          {excluindoCert === c.id ? "..." : "Excluir"}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             );
           })}
+
+          {/* Modal adicionar/editar certificação */}
+          {modalCert && (
+            <div onClick={() => setModalCert(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: "rgba(13,32,53,.97)", border: "1px solid rgba(26,58,92,.5)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8" }}>{editCert ? "Editar certificação" : "Adicionar certificação"}</div>
+                {[
+                  ["Título *", "titulo", "text", "Ex: BCBA — Board Certified Behavior Analyst"],
+                  ["Instituição *", "instituicao", "text", "Ex: BACB, USP, IBAC..."],
+                  ["Ano", "ano", "number", "2024"],
+                  ["URL (opcional)", "url", "text", "https://..."],
+                ].map(([label, field, type, placeholder]) => (
+                  <div key={field}>
+                    <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".07em", marginBottom: 5 }}>{label}</div>
+                    <input type={type} value={(certForm as any)[field]} onChange={e => setCertForm(prev => ({ ...prev, [field]: type === "number" ? Number(e.target.value) : e.target.value }))}
+                      placeholder={placeholder}
+                      style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(26,58,92,.5)", background: "rgba(20,55,110,.4)", color: "#e8f0f8", fontSize: ".82rem", fontFamily: "var(--font-sans)", outline: "none", boxSizing: "border-box" as const }} />
+                  </div>
+                ))}
+                <div>
+                  <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".07em", marginBottom: 5 }}>Tipo</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                    {(["certificacao", "graduacao", "especializacao", "curso"] as const).map(t => (
+                      <button key={t} onClick={() => setCertForm(prev => ({ ...prev, tipo: t }))}
+                        style={{ padding: "7px", borderRadius: 8, border: `1px solid ${certForm.tipo === t ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: certForm.tipo === t ? "rgba(29,158,117,.1)" : "transparent", color: certForm.tipo === t ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".72rem", fontWeight: certForm.tipo === t ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)", textTransform: "capitalize" as const }}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setModalCert(false)} style={{ flex: 1, padding: "10px", borderRadius: 9, border: "1px solid rgba(70,120,180,.4)", background: "transparent", color: "rgba(160,200,235,.6)", fontSize: ".8rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancelar</button>
+                  <button onClick={salvarCertificacao} disabled={salvandoCert || !certForm.titulo.trim() || !certForm.instituicao.trim()}
+                    style={{ flex: 2, padding: "10px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".82rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", opacity: salvandoCert ? 0.7 : 1 }}>
+                    {salvandoCert ? "Salvando..." : editCert ? "Salvar alterações" : "Adicionar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Link para Education */}
           <div style={{ ...card, padding: 18, border: "1px solid rgba(55,138,221,.2)", background: "rgba(55,138,221,.04)", display: "flex", alignItems: "center", gap: 14 }}>
