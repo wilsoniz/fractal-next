@@ -61,8 +61,14 @@ interface LibItem {
   passosEncadeamento?: string[]
   direcaoEncadeamento?: "frente" | "tras" | "total"
   matrizId?: string
+  procedimentoEnsino?: string
+  progressaoPrompt?: string
+  generalizacao?: string[]
+  barreirasPrevistas?: string[]
+  manutencaoDias?: number
+  controleEstimulo?: string
+  delayPrompt?: number
 }
-
 interface Encaminhamento {
   id: string
   programaId: string | null
@@ -483,7 +489,7 @@ function SessaoInner() {
       const planejadosIds = planejados.map(p => p.id)
       const { data: todos } = await supabase
         .from("programas")
-        .select("id,nome,dominio,operante,total_tentativas,hierarquia_dicas,nivel_dicas,sd,tipo_registro,passos_tarefa,direcao_encadeamento,estimulos,relacoes,criterio_maestria,objetivo")
+        .select("id,nome,dominio,operante,total_tentativas,hierarquia_dicas,nivel_dicas,sd,tipo_registro,passos_tarefa,direcao_encadeamento,estimulos,relacoes,criterio_maestria,objetivo,procedimento_ensino,progressao_prompt,generalizacao,barreiras_previstas,manutencao_dias,controle_estimulo,delay_prompt")
         .eq("ativo", true)
         .limit(50)
 
@@ -2882,12 +2888,18 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
                   ["Tipo de registro", tipoRegistro.toUpperCase()],
+                  ...(item.procedimentoEnsino ? [["Procedimento", item.procedimentoEnsino.toUpperCase()]] : []),
+                  ...(item.progressaoPrompt ? [["Progressão prompt", item.progressaoPrompt.replace(/_/g, " ")]] : []),
+                  ["Delay de prompt", `${item.delayPrompt ?? delay}s`],
                   ["Estratégia de dica", estrategia === "least_to_most" ? "Menos → Mais" : "Mais → Menos"],
                   ["Hierarquia", hierarquia.slice(0, 3).join(" → ") + (hierarquia.length > 3 ? " ..." : "")],
                   ...(item.sd ? [["SD", `"${item.sd.slice(0, 60)}${item.sd.length > 60 ? "..." : ""}"`]] : []),
                   ...(tipoRegistro === "encadeamento" && passosEncadeamento.filter(p => p.trim()).length > 0
                     ? [["Encadeamento", `${passosEncadeamento.filter(p => p.trim()).length} passos · ${direcaoEncadeamento}`]]
                     : []),
+                  ...((item.generalizacao?.length ?? 0) > 0 ? [["Generalização", item.generalizacao!.slice(0, 3).join(", ")]] : []),
+                  ...((item.barreirasPrevistas?.length ?? 0) > 0 ? [["Barreiras previstas", item.barreirasPrevistas!.slice(0, 3).join(", ")]] : []),
+                  ...(item.manutencaoDias && item.manutencaoDias > 0 ? [["Manutenção", `${item.manutencaoDias} dias`]] : []),
                 ].map(([label, val]) => (
                   <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
                     <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)", flexShrink: 0 }}>{label}</span>
