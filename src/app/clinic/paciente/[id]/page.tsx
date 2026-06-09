@@ -979,15 +979,21 @@ export default function PerfilPacientePage() {
     let programaId: string | null = progExistente?.id ?? null
 
     if (!programaId) {
-      const { data: novoProg, error: errNovo } = await supabase
+      const { data: novoProg } = await supabase
         .from("programas")
         .insert({
           nome: sugestao.nome_programa,
           dominio: sugestao.dominio ?? "",
           operante: sugestao.operante ?? "",
           tipo_registro: sugestao.tipo_registro ?? "dtt",
-          objetivo: `Desenvolver ${sugestao.nome_programa}`,  // ← adicione
+          objetivo: sugestao.objetivo ?? `Desenvolver ${sugestao.nome_programa}`,
+          comportamento_alvo: sugestao.objetivo ?? null,
+          sd: sugestao.sd ?? null,
+          hierarquia_dicas: sugestao.hierarquia_dicas ?? null,
+          criterio_maestria: sugestao.criterio_dominio ?? "80% em 2 sessões consecutivas",
+          total_tentativas: sugestao.total_tentativas ?? 10,
           ativo: true,
+          criado_por: terapeuta?.id ?? null,
         })
         .select("id")
         .single()
@@ -1342,16 +1348,16 @@ export default function PerfilPacientePage() {
                         <div style={{ fontSize: ".82rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>
                           {s.nome_programa}
                         </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, marginBottom: s.objetivo ? 6 : 0 }}>
                           {s.dominio && <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.5)" }}>{s.dominio}</span>}
                           {s.operante && <span style={{ fontSize: ".65rem", color: "#8B7FE8" }}>{s.operante}</span>}
                           {s.tipo_registro && <span style={{ fontSize: ".65rem", color: "#378ADD", background: "rgba(55,138,221,.1)", borderRadius: 20, padding: "1px 7px" }}>{s.tipo_registro}</span>}
-                          {s.score_avaliado !== null && (
-                            <span style={{ fontSize: ".65rem", color: "#E05A4B" }}>
-                              score: {s.score_avaliado}%
-                            </span>
-                          )}
+                          {s.total_tentativas && <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.4)" }}>{s.total_tentativas} tentativas</span>}
+                          {s.score_avaliado !== null && <span style={{ fontSize: ".65rem", color: "#E05A4B" }}>avaliado: {s.score_avaliado}%</span>}
+                          {s.peak_teaching_program_id && <span style={{ fontSize: ".62rem", color: "#8B7FE8", background: "rgba(139,127,232,.1)", borderRadius: 20, padding: "1px 7px", fontWeight: 600 }}>PEAK TP</span>}
                         </div>
+                        {s.objetivo && <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.5)", lineHeight: 1.5, marginTop: 4 }}>{s.objetivo}</div>}
+                        {s.criterio_dominio && <div style={{ fontSize: ".68rem", color: "rgba(29,158,117,.6)", marginTop: 3 }}>Critério: {s.criterio_dominio}</div>}
                       </div>
                       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                         <button
