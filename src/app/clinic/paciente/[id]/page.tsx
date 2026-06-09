@@ -56,49 +56,49 @@ type Tab = "visao-geral" | "programas" | "skill-graph" | "forecast" | "avaliacoe
 
 // ─── FORECAST GOALS ──────────────────────────────────────────────────────────
 const FORECAST_GOALS: ForecastGoal[] = [
-  { id: "g1", name: "Pedir o que quer (mando básico)", type: "acquisition",    targetDomain: "communication", requiredSkills: [],       relatedPrograms: ["Atenção conjunta"] },
-  { id: "g2", name: "Esperar 3 segundos",              type: "acquisition",    targetDomain: "regulation",    requiredSkills: ["g1"],   relatedPrograms: ["Troca de turnos"] },
-  { id: "g3", name: "Troca de turnos simples",         type: "acquisition",    targetDomain: "social",        requiredSkills: ["g1"],   relatedPrograms: ["Pedir o que quer"] },
-  { id: "g4", name: "Seguir instrução de 1 passo",     type: "acquisition",    targetDomain: "attention",     requiredSkills: [],       relatedPrograms: [] },
-  { id: "g5", name: "Redução de fuga de demanda",      type: "reduction",      targetDomain: "regulation",    requiredSkills: ["g2"],   relatedPrograms: ["Esperar 3 segundos"] },
-  { id: "g6", name: "Brincar funcionalmente por 5 min",type: "acquisition",    targetDomain: "play",          requiredSkills: ["g1"],   relatedPrograms: ["Troca de turnos"] },
+  { id: "g1", name: "Pedir o que quer (mando básico)", type: "acquisition", targetDomain: "communication", requiredSkills: [], relatedPrograms: ["Atenção conjunta"] },
+  { id: "g2", name: "Esperar 3 segundos", type: "acquisition", targetDomain: "regulation", requiredSkills: ["g1"], relatedPrograms: ["Troca de turnos"] },
+  { id: "g3", name: "Troca de turnos simples", type: "acquisition", targetDomain: "social", requiredSkills: ["g1"], relatedPrograms: ["Pedir o que quer"] },
+  { id: "g4", name: "Seguir instrução de 1 passo", type: "acquisition", targetDomain: "attention", requiredSkills: [], relatedPrograms: [] },
+  { id: "g5", name: "Redução de fuga de demanda", type: "reduction", targetDomain: "regulation", requiredSkills: ["g2"], relatedPrograms: ["Esperar 3 segundos"] },
+  { id: "g6", name: "Brincar funcionalmente por 5 min", type: "acquisition", targetDomain: "play", requiredSkills: ["g1"], relatedPrograms: ["Troca de turnos"] },
 ];
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const STATUS_PROG = {
-  active:    { label: "Ativo",     cor: "#1D9E75", bg: "rgba(29,158,117,.12)", borda: "rgba(29,158,117,.25)" },
+  active: { label: "Ativo", cor: "#1D9E75", bg: "rgba(29,158,117,.12)", borda: "rgba(29,158,117,.25)" },
   completed: { label: "Concluído", cor: "#378ADD", bg: "rgba(55,138,221,.12)", borda: "rgba(55,138,221,.25)" },
-  stalled:   { label: "Travado",   cor: "#E05A4B", bg: "rgba(224,90,75,.12)",  borda: "rgba(224,90,75,.25)"  },
+  stalled: { label: "Travado", cor: "#E05A4B", bg: "rgba(224,90,75,.12)", borda: "rgba(224,90,75,.25)" },
 };
-const ALERT_COR   = { high: "#E05A4B", medium: "#EF9F27", low: "#1D9E75" };
-const ALERT_BG    = { high: "rgba(224,90,75,.08)", medium: "rgba(239,159,39,.08)", low: "rgba(29,158,117,.08)" };
+const ALERT_COR = { high: "#E05A4B", medium: "#EF9F27", low: "#1D9E75" };
+const ALERT_BG = { high: "rgba(224,90,75,.08)", medium: "rgba(239,159,39,.08)", low: "rgba(29,158,117,.08)" };
 const ALERT_BORDA = { high: "rgba(224,90,75,.25)", medium: "rgba(239,159,39,.2)", low: "rgba(29,158,117,.2)" };
 
 const DOMINIO_PT: Record<string, string> = {
-  comunicacao:"Comunicação", social:"Social", atencao:"Atenção",
-  regulacao:"Regulação", autonomia:"Autonomia", flexibilidade:"Flexibilidade",
-  brincadeira:"Brincadeira", cognicao:"Cognição", motricidade:"Motricidade",
-  communication:"Comunicação", attention:"Atenção", regulation:"Regulação",
-  autonomy:"Autonomia", flexibility:"Flexibilidade", play:"Brincadeira", motivation:"Motivação",
+  comunicacao: "Comunicação", social: "Social", atencao: "Atenção",
+  regulacao: "Regulação", autonomia: "Autonomia", flexibilidade: "Flexibilidade",
+  brincadeira: "Brincadeira", cognicao: "Cognição", motricidade: "Motricidade",
+  communication: "Comunicação", attention: "Atenção", regulation: "Regulação",
+  autonomy: "Autonomia", flexibility: "Flexibilidade", play: "Brincadeira", motivation: "Motivação",
 };
 
 const STATUS_HAB: Record<string, { label: string; cor: string; bg: string }> = {
-  ausente:      { label: "Ausente",       cor: "#4d6d8a", bg: "rgba(77,109,138,.12)"  },
-  emergente:    { label: "Emergente",     cor: "#EF9F27", bg: "rgba(239,159,39,.12)"  },
-  em_aquisicao: { label: "Em aquisição",  cor: "#378ADD", bg: "rgba(55,138,221,.12)"  },
-  dominada:     { label: "Dominada",      cor: "#1D9E75", bg: "rgba(29,158,117,.12)"  },
+  ausente: { label: "Ausente", cor: "#4d6d8a", bg: "rgba(77,109,138,.12)" },
+  emergente: { label: "Emergente", cor: "#EF9F27", bg: "rgba(239,159,39,.12)" },
+  em_aquisicao: { label: "Em aquisição", cor: "#378ADD", bg: "rgba(55,138,221,.12)" },
+  dominada: { label: "Dominada", cor: "#1D9E75", bg: "rgba(29,158,117,.12)" },
 };
 
 const STATUS_COMP: Record<string, { label: string; cor: string }> = {
-  monitorado:      { label: "Monitorado",      cor: "#EF9F27" },
-  em_intervencao:  { label: "Em intervenção",  cor: "#E05A4B" },
-  resolvido:       { label: "Resolvido",       cor: "#1D9E75" },
-  ativo:           { label: "Ativo",           cor: "#E05A4B" },
-  reduzindo:       { label: "Reduzindo",       cor: "#EF9F27" },
-  controlado:      { label: "Controlado",      cor: "#1D9E75" },
+  monitorado: { label: "Monitorado", cor: "#EF9F27" },
+  em_intervencao: { label: "Em intervenção", cor: "#E05A4B" },
+  resolvido: { label: "Resolvido", cor: "#1D9E75" },
+  ativo: { label: "Ativo", cor: "#E05A4B" },
+  reduzindo: { label: "Reduzindo", cor: "#EF9F27" },
+  controlado: { label: "Controlado", cor: "#1D9E75" },
 };
 
-const DOMINIOS = ["comunicacao","social","atencao","regulacao","brincadeira","cognicao","autonomia","flexibilidade","motricidade"];
+const DOMINIOS = ["comunicacao", "social", "atencao", "regulacao", "brincadeira", "cognicao", "autonomia", "flexibilidade", "motricidade"];
 
 function JornadaClinica({ jornada, jornadaAnterior, dominios, paciente, criancaId, onJornadaCriada }: {
   jornada: any
@@ -113,23 +113,23 @@ function JornadaClinica({ jornada, jornadaAnterior, dominios, paciente, criancaI
   const [motivoNovo, setMotivoNovo] = useState("")
 
   const FASES = [
-    { id: "avaliacao",   label: "Avaliação",    icone: "📋" },
-    { id: "intervencao", label: "Intervenção",  icone: "🎯" },
-    { id: "reavaliacao", label: "Reavaliação",  icone: "🔄" },
-    { id: "alta",        label: "Alta",         icone: "🏆" },
+    { id: "avaliacao", label: "Avaliação", icone: "📋" },
+    { id: "intervencao", label: "Intervenção", icone: "🎯" },
+    { id: "reavaliacao", label: "Reavaliação", icone: "🔄" },
+    { id: "alta", label: "Alta", icone: "🏆" },
   ]
 
   const FASE_TAG: Record<string, { label: string; cor: string; bg: string }> = {
-    avaliacao:    { label: "Avaliação",    cor: "#EF9F27", bg: "rgba(239,159,39,.12)"  },
-    intervencao:  { label: "Intervenção",  cor: "#378ADD", bg: "rgba(55,138,221,.12)"  },
-    generalizacao:{ label: "Generalização",cor: "#8B7FE8", bg: "rgba(139,127,232,.12)" },
-    dominado:     { label: "Dominado",     cor: "#1D9E75", bg: "rgba(29,158,117,.12)"  },
+    avaliacao: { label: "Avaliação", cor: "#EF9F27", bg: "rgba(239,159,39,.12)" },
+    intervencao: { label: "Intervenção", cor: "#378ADD", bg: "rgba(55,138,221,.12)" },
+    generalizacao: { label: "Generalização", cor: "#8B7FE8", bg: "rgba(139,127,232,.12)" },
+    dominado: { label: "Dominado", cor: "#1D9E75", bg: "rgba(29,158,117,.12)" },
   }
 
   const DOMINIO_PT: Record<string, string> = {
-    comunicacao:"Comunicação", social:"Social", atencao:"Atenção",
-    regulacao:"Regulação", autonomia:"Autonomia", flexibilidade:"Flexibilidade",
-    brincadeira:"Brincadeira", cognicao:"Cognição", motivacao:"Motivação",
+    comunicacao: "Comunicação", social: "Social", atencao: "Atenção",
+    regulacao: "Regulação", autonomia: "Autonomia", flexibilidade: "Flexibilidade",
+    brincadeira: "Brincadeira", cognicao: "Cognição", motivacao: "Motivação",
   }
 
   const card: React.CSSProperties = {
@@ -445,27 +445,27 @@ export default function PerfilPacientePage() {
   const [jornadaDominios, setJornadaDominios] = useState<any[]>([])
 
 
-const [sugestoes, setSugestoes] = useState<any[]>([])
-const [aprovando, setAprovando] = useState<string | null>(null)
+  const [sugestoes, setSugestoes] = useState<any[]>([])
+  const [aprovando, setAprovando] = useState<string | null>(null)
 
-  
-  const [data,         setData]         = useState<LearnerProfile | null>(null);
-  const [habilidades,  setHabilidades]  = useState<Habilidade[]>([]);
-  const [comportamentos,setComportamentos]=useState<Comportamento[]>([]);
-  const [variaveis,    setVariaveis]    = useState<VariaveisClinicas | null>(null);
-  const [tab,          setTab]          = useState<Tab>("visao-geral");
-  const [loading,      setLoading]      = useState(true);
+
+  const [data, setData] = useState<LearnerProfile | null>(null);
+  const [habilidades, setHabilidades] = useState<Habilidade[]>([]);
+  const [comportamentos, setComportamentos] = useState<Comportamento[]>([]);
+  const [variaveis, setVariaveis] = useState<VariaveisClinicas | null>(null);
+  const [tab, setTab] = useState<Tab>("visao-geral");
+  const [loading, setLoading] = useState(true);
   const [responsaveis, setResponsaveis] = useState<{ id: string; nome: string; email: string; tipo: string }[]>([]);
 
   // Modal de adicionar habilidade
-  const [modalHab,     setModalHab]     = useState(false);
-  const [novaHab,      setNovaHab]      = useState({ dominio: "comunicacao", habilidade: "", operante: "", status: "ausente" as Habilidade["status"] });
-  const [salvandoHab,  setSalvandoHab]  = useState(false);
+  const [modalHab, setModalHab] = useState(false);
+  const [novaHab, setNovaHab] = useState({ dominio: "comunicacao", habilidade: "", operante: "", status: "ausente" as Habilidade["status"] });
+  const [salvandoHab, setSalvandoHab] = useState(false);
 
   // Modal de adicionar comportamento
-  const [modalComp,    setModalComp]    = useState(false);
+  const [modalComp, setModalComp] = useState(false);
   const [dominiosExpandidos, setDominiosExpandidos] = useState<string[]>([]);
-  const [novoComp,     setNovoComp]     = useState({ nome: "", topografia: "", funcao: "fuga", intensidade: "leve", contexto: "" });
+  const [novoComp, setNovoComp] = useState({ nome: "", topografia: "", funcao: "fuga", intensidade: "leve", contexto: "" });
   const [salvandoComp, setSalvandoComp] = useState(false);
 
   useEffect(() => {
@@ -542,7 +542,7 @@ const [aprovando, setAprovando] = useState<string | null>(null)
         if (vars) setVariaveis(vars);
 
 
- // 8. Jornada clínica
+        // 8. Jornada clínica
         const { data: jornadaAtiva } = await supabase
           .from("jornada_clinica")
           .select("*")
@@ -584,20 +584,20 @@ const [aprovando, setAprovando] = useState<string | null>(null)
           .eq("crianca_id", criancaId)
           .eq("status", "pendente")
           .order("criado_em", { ascending: false })
-        
+
         setSugestoes(sugestoesData ?? [])
 
         // Mapear radar
         const radarFormatado: RadarSnapshot[] = (radares ?? []).map((r: any, i: number) => ({
           date: `Semana ${(i + 1) * 4}`,
-          communication: r.score_comunicacao   ?? 0,
-          social:        r.score_social        ?? 0,
-          attention:     r.score_atencao       ?? 0,
-          regulation:    r.score_regulacao     ?? 0,
-          autonomy:      r.score_autonomia     ?? 0,
-          flexibility:   r.score_flexibilidade ?? 0,
-          play:          r.score_brincadeira   ?? 0,
-          motivation:    r.score_motivacao     ?? 0,
+          communication: r.score_comunicacao ?? 0,
+          social: r.score_social ?? 0,
+          attention: r.score_atencao ?? 0,
+          regulation: r.score_regulacao ?? 0,
+          autonomy: r.score_autonomia ?? 0,
+          flexibility: r.score_flexibilidade ?? 0,
+          play: r.score_brincadeira ?? 0,
+          motivation: r.score_motivacao ?? 0,
         }));
 
         if (radarFormatado.length === 0) {
@@ -608,7 +608,7 @@ const [aprovando, setAprovando] = useState<string | null>(null)
         const programs: Program[] = (planos ?? [])
           .filter((pl: any) => pl.programas)
           .map((pl: any) => {
-            const prog  = pl.programas as any;
+            const prog = pl.programas as any;
             const score = pl.score_atual ?? 50;
             return {
               id: pl.id, name: prog.nome, domain: prog.dominio,
@@ -620,7 +620,7 @@ const [aprovando, setAprovando] = useState<string | null>(null)
         // Alertas automáticos
         const alerts: ClinicalAlert[] = [];
         for (const pl of (planos ?? [])) {
-          const prog  = (pl as any).programas as any;
+          const prog = (pl as any).programas as any;
           if (!prog) continue;
           const score = (pl as any).score_atual ?? 0;
           if (score > 0 && score < 50) alerts.push({ id: pl.id + "_h", title: "Score baixo", description: `${prog.nome} com ${score}%`, level: "high" });
@@ -628,15 +628,15 @@ const [aprovando, setAprovando] = useState<string | null>(null)
         }
 
         const idade = crianca?.data_nascimento
-          ? Math.floor((Date.now() - new Date(crianca.data_nascimento).getTime()) / (1000*60*60*24*365.25))
+          ? Math.floor((Date.now() - new Date(crianca.data_nascimento).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
           : 0;
 
         setData({
-          id:        criancaId,
-          name:      crianca?.nome ?? "Paciente",
-          age:       idade,
+          id: criancaId,
+          name: crianca?.nome ?? "Paciente",
+          age: idade,
           diagnosis: crianca?.diagnostico ?? "Não informado",
-          radar:     radarFormatado,
+          radar: radarFormatado,
           programs,
           alerts,
         });
@@ -653,12 +653,12 @@ const [aprovando, setAprovando] = useState<string | null>(null)
     if (!novaHab.habilidade.trim()) return;
     setSalvandoHab(true);
     await supabase.from("repertorio_habilidades").insert({
-      crianca_id:  params.id,
-      dominio:     novaHab.dominio,
-      habilidade:  novaHab.habilidade,
-      operante:    novaHab.operante || null,
-      status:      novaHab.status,
-      score:       novaHab.status === "dominada" ? 100 : novaHab.status === "em_aquisicao" ? 50 : novaHab.status === "emergente" ? 20 : 0,
+      crianca_id: params.id,
+      dominio: novaHab.dominio,
+      habilidade: novaHab.habilidade,
+      operante: novaHab.operante || null,
+      status: novaHab.status,
+      score: novaHab.status === "dominada" ? 100 : novaHab.status === "em_aquisicao" ? 50 : novaHab.status === "emergente" ? 20 : 0,
     });
     const { data: habs } = await supabase.from("repertorio_habilidades").select("*").eq("crianca_id", params.id).order("dominio");
     setHabilidades(habs ?? []);
@@ -672,13 +672,13 @@ const [aprovando, setAprovando] = useState<string | null>(null)
     if (!novoComp.nome.trim()) return;
     setSalvandoComp(true);
     await supabase.from("planos_comportamento_interferente").insert({
-      crianca_id:  params.id,
-      nome:        novoComp.nome,
-      topografia:  novoComp.topografia || null,
-      funcao:      novoComp.funcao,
+      crianca_id: params.id,
+      nome: novoComp.nome,
+      topografia: novoComp.topografia || null,
+      funcao: novoComp.funcao,
       intensidade: novoComp.intensidade,
-      contexto:    novoComp.contexto || null,
-      status:      "ativo",
+      contexto: novoComp.contexto || null,
+      status: "ativo",
     });
     const { data: comps } = await supabase.from("planos_comportamento_interferente").select("*").eq("crianca_id", params.id).order("intensidade");
     setComportamentos(comps ?? []);
@@ -692,14 +692,14 @@ const [aprovando, setAprovando] = useState<string | null>(null)
   const radarData = useMemo(() => {
     if (!latest) return [];
     return [
-      { domain: "Comunicação",  value: latest?.communication ?? 0 },
-      { domain: "Social",       value: latest?.social        ?? 0 },
-      { domain: "Atenção",      value: latest?.attention     ?? 0 },
-      { domain: "Regulação",    value: latest?.regulation    ?? 0 },
-      { domain: "Autonomia",    value: latest?.autonomy      ?? 0 },
-      { domain: "Flexibilidade",value: latest?.flexibility   ?? 0 },
-      { domain: "Brincadeira",  value: latest?.play          ?? 0 },
-      { domain: "Motivação",    value: latest?.motivation    ?? 0 },
+      { domain: "Comunicação", value: latest?.communication ?? 0 },
+      { domain: "Social", value: latest?.social ?? 0 },
+      { domain: "Atenção", value: latest?.attention ?? 0 },
+      { domain: "Regulação", value: latest?.regulation ?? 0 },
+      { domain: "Autonomia", value: latest?.autonomy ?? 0 },
+      { domain: "Flexibilidade", value: latest?.flexibility ?? 0 },
+      { domain: "Brincadeira", value: latest?.play ?? 0 },
+      { domain: "Motivação", value: latest?.motivation ?? 0 },
     ];
   }, [latest]);
 
@@ -708,24 +708,24 @@ const [aprovando, setAprovando] = useState<string | null>(null)
     return (data.radar ?? []).map(r => ({
       date: r?.date ?? '',
       Comunicação: r?.communication ?? 0,
-      Atenção:     r?.attention     ?? 0,
-      Regulação:   r?.regulation    ?? 0,
-      Social:      r?.social        ?? 0,
+      Atenção: r?.attention ?? 0,
+      Regulação: r?.regulation ?? 0,
+      Social: r?.social ?? 0,
     }));
   }, [data]);
 
   const summary = useMemo(() => {
     if (!data || !latest) return null;
     const activeProgs = data.programs.filter(p => p.status === "active").length;
-    const avgSuccess  = data.programs.length > 0
+    const avgSuccess = data.programs.length > 0
       ? Math.round(data.programs.reduce((a, p) => a + p.success, 0) / data.programs.length)
       : 0;
     const radarValues = [latest?.communication ?? 0, latest?.social ?? 0, latest?.attention ?? 0, latest?.regulation ?? 0, latest?.autonomy ?? 0, latest?.flexibility ?? 0, latest?.play ?? 0, latest?.motivation ?? 0];
-    const avg         = Math.round(radarValues.reduce((a, b) => a + b, 0) / radarValues.length);
-    const weakest     = Object.entries({ Comunicação: latest?.communication ?? 0, Atenção: latest?.attention ?? 0, Regulação: latest?.regulation ?? 0, Flexibilidade: latest?.flexibility ?? 0 }).sort((a, b) => a[1] - b[1])[0];
-    const strongest   = Object.entries({ Autonomia: latest?.autonomy ?? 0, Social: latest?.social ?? 0, Motivação: latest?.motivation ?? 0, Brincadeira: latest?.play ?? 0 }).sort((a, b) => b[1] - a[1])[0];
+    const avg = Math.round(radarValues.reduce((a, b) => a + b, 0) / radarValues.length);
+    const weakest = Object.entries({ Comunicação: latest?.communication ?? 0, Atenção: latest?.attention ?? 0, Regulação: latest?.regulation ?? 0, Flexibilidade: latest?.flexibility ?? 0 }).sort((a, b) => a[1] - b[1])[0];
+    const strongest = Object.entries({ Autonomia: latest?.autonomy ?? 0, Social: latest?.social ?? 0, Motivação: latest?.motivation ?? 0, Brincadeira: latest?.play ?? 0 }).sort((a, b) => b[1] - a[1])[0];
     const habDominadas = habilidades.filter(h => h.status === "dominada").length;
-    const habEmerg     = habilidades.filter(h => h.status === "emergente" || h.status === "em_aquisicao").length;
+    const habEmerg = habilidades.filter(h => h.status === "emergente" || h.status === "em_aquisicao").length;
     return { activeProgs, avgSuccess, avg, weakest, strongest, habDominadas, habEmerg };
   }, [data, latest, habilidades]);
 
@@ -736,7 +736,7 @@ const [aprovando, setAprovando] = useState<string | null>(null)
     if ((latest?.attention ?? 0) >= 50) out.push("Atenção sustentada já sustenta programas mais estruturados e instruções de 1–2 passos.");
     if (summary.weakest[0] === "Flexibilidade") out.push("Flexibilidade é o domínio mais sensível — deve entrar como alvo transversal na rotina clínica.");
     if (data.programs.some(p => p.status === "stalled")) out.push("Existe programa em estagnação — revisar critério, nível de dica ou reforçadores.");
-    if (habilidades.filter(h => h.status === "em_aquisicao").length > 0) out.push(`${habilidades.filter(h=>h.status==="em_aquisicao").length} habilidade(s) em aquisição — sessões frequentes aumentam velocidade de consolidação.`);
+    if (habilidades.filter(h => h.status === "em_aquisicao").length > 0) out.push(`${habilidades.filter(h => h.status === "em_aquisicao").length} habilidade(s) em aquisição — sessões frequentes aumentam velocidade de consolidação.`);
     return out.slice(0, 4);
   }, [data, latest, summary, habilidades]);
 
@@ -749,8 +749,8 @@ const [aprovando, setAprovando] = useState<string | null>(null)
 
   // CSS
   const card: React.CSSProperties = { background: "rgba(13,32,53,.75)", border: "1px solid rgba(70,120,180,.5)", borderRadius: 14, backdropFilter: "blur(8px)" };
-  const lbl:  React.CSSProperties = { fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".09em", color: "rgba(170,210,245,.88)", marginBottom: 8 };
-  const inp:  React.CSSProperties = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid rgba(26,58,92,.5)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: 13, fontFamily: "var(--font-sans)", outline: "none", boxSizing: "border-box" as const };
+  const lbl: React.CSSProperties = { fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".09em", color: "rgba(170,210,245,.88)", marginBottom: 8 };
+  const inp: React.CSSProperties = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid rgba(26,58,92,.5)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: 13, fontFamily: "var(--font-sans)", outline: "none", boxSizing: "border-box" as const };
 
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
@@ -760,15 +760,15 @@ const [aprovando, setAprovando] = useState<string | null>(null)
   if (!data) return null;
 
   const TABS: { id: Tab; label: string }[] = [
-  { id: "visao-geral", label: "Visão geral"    },
-  { id: "jornada",     label: "Jornada Clínica" }, // ← nova
-  { id: "programas",   label: "Programas"      },
-  { id: "skill-graph", label: "Skill Graph"    },
-  { id: "forecast",    label: "Forecast"       },
-  { id: "avaliacoes",  label: "Avaliações"     },
-  { id: "historico",   label: "Histórico"      },
-  { id: "contrato",    label: "Contrato"       },
-];
+    { id: "visao-geral", label: "Visão geral" },
+    { id: "jornada", label: "Jornada Clínica" }, // ← nova
+    { id: "programas", label: "Programas" },
+    { id: "skill-graph", label: "Skill Graph" },
+    { id: "forecast", label: "Forecast" },
+    { id: "avaliacoes", label: "Avaliações" },
+    { id: "historico", label: "Histórico" },
+    { id: "contrato", label: "Contrato" },
+  ];
 
   // Habilidades agrupadas por domínio
   const habsPorDominio = DOMINIOS.reduce((acc, dom) => {
@@ -777,77 +777,77 @@ const [aprovando, setAprovando] = useState<string | null>(null)
     return acc;
   }, {} as Record<string, Habilidade[]>);
 
-async function aprovarSugestao(sugestao: any) {
-  setAprovando(sugestao.id)
+  async function aprovarSugestao(sugestao: any) {
+    setAprovando(sugestao.id)
 
-  const { data: planoAtivo, error: errPlano } = await supabase
-    .from("planos")
-    .select("id")
-    .eq("crianca_id", params.id as string)
-    .eq("status", "ativo")
-    .maybeSingle()
+    const { data: planoAtivo, error: errPlano } = await supabase
+      .from("planos")
+      .select("id")
+      .eq("crianca_id", params.id as string)
+      .eq("status", "ativo")
+      .maybeSingle()
 
-  let planoId = planoAtivo?.id
-  if (!planoId) { setAprovando(null); return }
+    let planoId = planoAtivo?.id
+    if (!planoId) { setAprovando(null); return }
 
-  // 3. Cria programa se não existir
-  const { data: progExistente, error: errProg } = await supabase
-    .from("programas")
-    .select("id")
-    .eq("nome", sugestao.nome_programa)
-    .maybeSingle()
+    // 3. Cria programa se não existir
+    const { data: progExistente, error: errProg } = await supabase
+      .from("programas")
+      .select("id")
+      .eq("nome", sugestao.nome_programa)
+      .maybeSingle()
 
-  let programaId: string | null = progExistente?.id ?? null
+    let programaId: string | null = progExistente?.id ?? null
 
-  if (!programaId) {
-    const { data: novoProg, error: errNovo } = await supabase
-  .from("programas")
-  .insert({
-    nome:          sugestao.nome_programa,
-    dominio:       sugestao.dominio ?? "",
-    operante:      sugestao.operante ?? "",
-    tipo_registro: sugestao.tipo_registro ?? "dtt",
-    objetivo:      `Desenvolver ${sugestao.nome_programa}`,  // ← adicione
-    ativo:         true,
-  })
-  .select("id")
-  .single()
-    programaId = novoProg?.id ?? null
+    if (!programaId) {
+      const { data: novoProg, error: errNovo } = await supabase
+        .from("programas")
+        .insert({
+          nome: sugestao.nome_programa,
+          dominio: sugestao.dominio ?? "",
+          operante: sugestao.operante ?? "",
+          tipo_registro: sugestao.tipo_registro ?? "dtt",
+          objetivo: `Desenvolver ${sugestao.nome_programa}`,  // ← adicione
+          ativo: true,
+        })
+        .select("id")
+        .single()
+      programaId = novoProg?.id ?? null
+    }
+
+    if (!programaId) { setAprovando(null); return }
+
+    const { data: planoProg, error: errPP } = await supabase
+      .from("plano_programas")
+      .insert({
+        plano_id: planoId,
+        programa_id: programaId,
+        status: "ativo",
+      })
+      .select("id")
+      .single()
+
+    await supabase
+      .from("plano_sugestoes")
+      .update({
+        status: "aprovado",
+        aprovado_por: terapeuta?.id,
+        aprovado_em: new Date().toISOString(),
+        plano_programa_id: planoProg?.id ?? null,
+      })
+      .eq("id", sugestao.id)
+
+    setSugestoes(prev => prev.filter(s => s.id !== sugestao.id))
+    setAprovando(null)
   }
 
-  if (!programaId) { setAprovando(null); return }
-
-  const { data: planoProg, error: errPP } = await supabase
-    .from("plano_programas")
-    .insert({
-      plano_id:    planoId,
-      programa_id: programaId,
-      status:      "ativo",
-    })
-    .select("id")
-    .single()
-
-  await supabase
-    .from("plano_sugestoes")
-    .update({
-      status:       "aprovado",
-      aprovado_por: terapeuta?.id,
-      aprovado_em:  new Date().toISOString(),
-      plano_programa_id: planoProg?.id ?? null,
-    })
-    .eq("id", sugestao.id)
-
-  setSugestoes(prev => prev.filter(s => s.id !== sugestao.id))
-  setAprovando(null)
-}
-
-async function rejeitarSugestao(id: string) {
-  await supabase
-    .from("plano_sugestoes")
-    .update({ status: "rejeitado", atualizado_em: new Date().toISOString() })
-    .eq("id", id)
-  setSugestoes(prev => prev.filter(s => s.id !== id))
-}
+  async function rejeitarSugestao(id: string) {
+    await supabase
+      .from("plano_sugestoes")
+      .update({ status: "rejeitado", atualizado_em: new Date().toISOString() })
+      .eq("id", id)
+    setSugestoes(prev => prev.filter(s => s.id !== id))
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -855,7 +855,7 @@ async function rejeitarSugestao(id: string) {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg,#1D9E75,#378ADD)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".88rem", fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-            {data.name.split(" ").map(n => n[0]).slice(0,2).join("").toUpperCase()}
+            {data.name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase()}
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
@@ -867,11 +867,11 @@ async function rejeitarSugestao(id: string) {
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link href="/clinic/dashboard" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(70,120,180,.5)", background: "transparent", color: "rgba(160,200,235,.90)", fontSize: ".78rem", fontWeight: 500, textDecoration: "none" }}>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 3L5 8l5 5"/></svg>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 3L5 8l5 5" /></svg>
             Dashboard
           </Link>
           <Link href={`/clinic/sessao?pacienteId=${data.id}`} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".82rem", fontWeight: 800, textDecoration: "none" }}>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="8" r="6" /><path d="M8 5v3l2 1.5" /></svg>
             Iniciar sessão
           </Link>
         </div>
@@ -880,10 +880,10 @@ async function rejeitarSugestao(id: string) {
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10, marginBottom: 20 }}>
         {[
-          { l: "Média radar",       v: summary ? `${summary.avg}%` : "—",  c: summary && summary.avg >= 70 ? "#1D9E75" : summary && summary.avg >= 50 ? "#EF9F27" : "#E05A4B" },
-          { l: "Habs. dominadas",   v: summary?.habDominadas ?? 0,         c: "#1D9E75" },
-          { l: "Em aquisição",      v: summary?.habEmerg ?? 0,             c: "#EF9F27" },
-          { l: "Programas ativos",  v: summary?.activeProgs ?? 0,          c: "#378ADD" },
+          { l: "Média radar", v: summary ? `${summary.avg}%` : "—", c: summary && summary.avg >= 70 ? "#1D9E75" : summary && summary.avg >= 50 ? "#EF9F27" : "#E05A4B" },
+          { l: "Habs. dominadas", v: summary?.habDominadas ?? 0, c: "#1D9E75" },
+          { l: "Em aquisição", v: summary?.habEmerg ?? 0, c: "#EF9F27" },
+          { l: "Programas ativos", v: summary?.activeProgs ?? 0, c: "#378ADD" },
         ].map(k => (
           <div key={k.l} style={{ ...card, padding: "14px 16px" }}>
             <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>{k.l}</div>
@@ -936,17 +936,17 @@ async function rejeitarSugestao(id: string) {
                   <LineChart data={evolutionData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,58,92,.5)" />
                     <XAxis dataKey="date" stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} />
-                    <YAxis domain={[0,100]} stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} />
+                    <YAxis domain={[0, 100]} stroke="rgba(165,208,242,.85)" tick={{ fill: "rgba(160,200,235,.84)", fontSize: 10 }} />
                     <Tooltip contentStyle={{ background: "#0d2035", border: "1px solid rgba(26,58,92,.7)", borderRadius: 10, color: "#e8f0f8", fontSize: 12 }} />
                     <Line type="monotone" dataKey="Comunicação" stroke="#1D9E75" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="Atenção"     stroke="#378ADD" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="Regulação"   stroke="#EF9F27" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="Social"      stroke="#8B7FE8" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Atenção" stroke="#378ADD" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Regulação" stroke="#EF9F27" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Social" stroke="#8B7FE8" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-                {[["#1D9E75","Comunicação"],["#378ADD","Atenção"],["#EF9F27","Regulação"],["#8B7FE8","Social"]].map(([c,l]) => (
+                {[["#1D9E75", "Comunicação"], ["#378ADD", "Atenção"], ["#EF9F27", "Regulação"], ["#8B7FE8", "Social"]].map(([c, l]) => (
                   <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <div style={{ width: 10, height: 3, background: c, borderRadius: 2 }} />
                     <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>{l}</span>
@@ -961,7 +961,7 @@ async function rejeitarSugestao(id: string) {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8" }}>Repertório de habilidades</div>
-                <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)", marginTop: 2 }}>Estado atual por domínio — atualizado pelas sessões</div>
+                <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.84)", marginTop: 2 }}>Estado atual por domínio — atualizado por sessões e avaliações</div>
               </div>
               <button onClick={() => setModalHab(true)} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".75rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                 + Habilidade
@@ -1004,7 +1004,7 @@ async function rejeitarSugestao(id: string) {
                             </div>
                           </div>
                           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(160,200,235,.5)" strokeWidth="1.5" style={{ transform: expandido ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s" }}>
-                            <path d="M3 6l5 5 5-5"/>
+                            <path d="M3 6l5 5 5-5" />
                           </svg>
                         </div>
                       </button>
@@ -1019,6 +1019,7 @@ async function rejeitarSugestao(id: string) {
                                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                   <span style={{ fontSize: ".62rem", color: st.cor, fontWeight: 600 }}>{st.label}</span>
                                   {h.operante && <span style={{ fontSize: ".58rem", color: "rgba(160,200,235,.35)" }}>{h.operante}</span>}
+                                  {h.fonte && <span style={{ fontSize: ".58rem", color: "rgba(160,200,235,.25)", background: "rgba(26,58,92,.3)", borderRadius: 4, padding: "1px 5px" }}>{h.fonte.toUpperCase()}</span>}
                                 </div>
                                 {h.score > 0 && (
                                   <div style={{ marginTop: 6, height: 3, background: "rgba(26,58,92,.5)", borderRadius: 2, overflow: "hidden" }}>
@@ -1068,8 +1069,8 @@ async function rejeitarSugestao(id: string) {
                         </div>
                         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                           {c.topografia && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Topografia: {c.topografia}</span>}
-                          {c.funcao     && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Função: {c.funcao}</span>}
-                          {c.contexto   && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Contexto: {c.contexto}</span>}
+                          {c.funcao && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Função: {c.funcao}</span>}
+                          {c.contexto && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Contexto: {c.contexto}</span>}
                         </div>
                       </div>
                     </div>
@@ -1088,10 +1089,10 @@ async function rejeitarSugestao(id: string) {
               {variaveis ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {[
-                    { l: "Assentimento",          v: variaveis.assentimento_pct,        suf: "%",  cor: variaveis.assentimento_pct >= 70 ? "#1D9E75" : "#EF9F27" },
-                    { l: "Tolerância à exigência", v: variaveis.tolerancia_exigencia,    suf: "/100", cor: "#378ADD" },
-                    { l: "Responsividade ao reforço",v: variaveis.responsividade_reforco, suf: "/100", cor: "#8B7FE8" },
-                    { l: "Revogações/sessão",      v: variaveis.revogacoes_por_sessao,   suf: "x",  cor: variaveis.revogacoes_por_sessao > 2 ? "#E05A4B" : "#1D9E75" },
+                    { l: "Assentimento", v: variaveis.assentimento_pct, suf: "%", cor: variaveis.assentimento_pct >= 70 ? "#1D9E75" : "#EF9F27" },
+                    { l: "Tolerância à exigência", v: variaveis.tolerancia_exigencia, suf: "/100", cor: "#378ADD" },
+                    { l: "Responsividade ao reforço", v: variaveis.responsividade_reforco, suf: "/100", cor: "#8B7FE8" },
+                    { l: "Revogações/sessão", v: variaveis.revogacoes_por_sessao, suf: "x", cor: variaveis.revogacoes_por_sessao > 2 ? "#E05A4B" : "#1D9E75" },
                   ].map(r => (
                     <div key={r.l} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "rgba(26,58,92,.2)", borderRadius: 8 }}>
                       <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.7)" }}>{r.l}</span>
@@ -1140,103 +1141,103 @@ async function rejeitarSugestao(id: string) {
       )}
 
       {/* ── PROGRAMAS ── */}
-{tab === "programas" && (
-  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {tab === "programas" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-    {/* Sugestões pendentes */}
-    {sugestoes.length > 0 && (
-      <div style={{ ...card, padding: 20, border: "1px solid rgba(239,159,39,.25)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF9F27" }} />
-          <span style={{ fontSize: ".85rem", fontWeight: 700, color: "#EF9F27" }}>
-            {sugestoes.length} sugestão{sugestoes.length > 1 ? "ões" : ""} de programa{sugestoes.length > 1 ? "s" : ""}
-          </span>
-          <span style={{ fontSize: ".7rem", color: "rgba(160,200,235,.4)" }}>— geradas pela avaliação</span>
-        </div>
+          {/* Sugestões pendentes */}
+          {sugestoes.length > 0 && (
+            <div style={{ ...card, padding: 20, border: "1px solid rgba(239,159,39,.25)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF9F27" }} />
+                <span style={{ fontSize: ".85rem", fontWeight: 700, color: "#EF9F27" }}>
+                  {sugestoes.length} sugestão{sugestoes.length > 1 ? "ões" : ""} de programa{sugestoes.length > 1 ? "s" : ""}
+                </span>
+                <span style={{ fontSize: ".7rem", color: "rgba(160,200,235,.4)" }}>— geradas pela avaliação</span>
+              </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {sugestoes.map(s => (
-            <div key={s.id} style={{ padding: "14px 16px", background: "rgba(239,159,39,.05)", border: "1px solid rgba(239,159,39,.15)", borderRadius: 11 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: ".82rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>
-                    {s.nome_programa}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {sugestoes.map(s => (
+                  <div key={s.id} style={{ padding: "14px 16px", background: "rgba(239,159,39,.05)", border: "1px solid rgba(239,159,39,.15)", borderRadius: 11 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: ".82rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>
+                          {s.nome_programa}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                          {s.dominio && <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.5)" }}>{s.dominio}</span>}
+                          {s.operante && <span style={{ fontSize: ".65rem", color: "#8B7FE8" }}>{s.operante}</span>}
+                          {s.tipo_registro && <span style={{ fontSize: ".65rem", color: "#378ADD", background: "rgba(55,138,221,.1)", borderRadius: 20, padding: "1px 7px" }}>{s.tipo_registro}</span>}
+                          {s.score_avaliado !== null && (
+                            <span style={{ fontSize: ".65rem", color: "#E05A4B" }}>
+                              score: {s.score_avaliado}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <button
+                          onClick={() => rejeitarSugestao(s.id)}
+                          style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid rgba(224,90,75,.3)", background: "transparent", color: "#E05A4B", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                          Rejeitar
+                        </button>
+                        <button
+                          onClick={() => aprovarSugestao(s)}
+                          disabled={aprovando === s.id}
+                          style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".68rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", opacity: aprovando === s.id ? 0.6 : 1 }}>
+                          {aprovando === s.id ? "Aprovando..." : "Aprovar →"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
-                    {s.dominio && <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.5)" }}>{s.dominio}</span>}
-                    {s.operante && <span style={{ fontSize: ".65rem", color: "#8B7FE8" }}>{s.operante}</span>}
-                    {s.tipo_registro && <span style={{ fontSize: ".65rem", color: "#378ADD", background: "rgba(55,138,221,.1)", borderRadius: 20, padding: "1px 7px" }}>{s.tipo_registro}</span>}
-                    {s.score_avaliado !== null && (
-                      <span style={{ fontSize: ".65rem", color: "#E05A4B" }}>
-                        score: {s.score_avaliado}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <button
-                    onClick={() => rejeitarSugestao(s.id)}
-                    style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid rgba(224,90,75,.3)", background: "transparent", color: "#E05A4B", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                    Rejeitar
-                  </button>
-                  <button
-                    onClick={() => aprovarSugestao(s)}
-                    disabled={aprovando === s.id}
-                    style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".68rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", opacity: aprovando === s.id ? 0.6 : 1 }}>
-                    {aprovando === s.id ? "Aprovando..." : "Aprovar →"}
-                  </button>
-                </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-    )}
+          )}
 
-    {/* Programas ativos */}
-    {data.programs.length === 0 && sugestoes.length === 0 ? (
-      <div style={{ ...card, padding: 32, textAlign: "center", color: "rgba(160,200,235,.3)", fontSize: ".82rem" }}>
-        Nenhum plano ativo para este paciente
-      </div>
-    ) : data.programs.map(p => {
-      const st = STATUS_PROG[p.status];
-      return (
-        <div key={p.id} style={{ ...card, padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                <span style={{ fontSize: ".92rem", fontWeight: 700, color: "#e8f0f8" }}>{p.name}</span>
-                <span style={{ fontSize: ".65rem", background: st.bg, border: `1px solid ${st.borda}`, color: st.cor, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>{st.label}</span>
-              </div>
-              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{p.domain}</div>
+          {/* Programas ativos */}
+          {data.programs.length === 0 && sugestoes.length === 0 ? (
+            <div style={{ ...card, padding: 32, textAlign: "center", color: "rgba(160,200,235,.3)", fontSize: ".82rem" }}>
+              Nenhum plano ativo para este paciente
             </div>
-            {nivel !== "terapeuta" && (
-              <Link href={`/clinic/sessao?pacienteId=${data.id}&programaId=${p.id}`} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".72rem", fontWeight: 600, textDecoration: "none" }}>
-                Executar →
-              </Link>
-            )}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-            {[{ l: "Taxa de sucesso", v: p.success }, { l: "Independência", v: p.independence }].map(m => (
-              <div key={m.l}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                  <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{m.l}</span>
-                  <span style={{ fontSize: ".72rem", color: m.v >= 80 ? "#1D9E75" : m.v >= 50 ? "#EF9F27" : "#E05A4B", fontWeight: 600 }}>{m.v}%</span>
+          ) : data.programs.map(p => {
+            const st = STATUS_PROG[p.status];
+            return (
+              <div key={p.id} style={{ ...card, padding: 20 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: ".92rem", fontWeight: 700, color: "#e8f0f8" }}>{p.name}</span>
+                      <span style={{ fontSize: ".65rem", background: st.bg, border: `1px solid ${st.borda}`, color: st.cor, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>{st.label}</span>
+                    </div>
+                    <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{p.domain}</div>
+                  </div>
+                  {nivel !== "terapeuta" && (
+                    <Link href={`/clinic/sessao?pacienteId=${data.id}&programaId=${p.id}`} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".72rem", fontWeight: 600, textDecoration: "none" }}>
+                      Executar →
+                    </Link>
+                  )}
                 </div>
-                <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${m.v}%`, background: m.v >= 80 ? "#1D9E75" : m.v >= 50 ? "#EF9F27" : "#E05A4B" }} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                  {[{ l: "Taxa de sucesso", v: p.success }, { l: "Independência", v: p.independence }].map(m => (
+                    <div key={m.l}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                        <span style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{m.l}</span>
+                        <span style={{ fontSize: ".72rem", color: m.v >= 80 ? "#1D9E75" : m.v >= 50 ? "#EF9F27" : "#E05A4B", fontWeight: 600 }}>{m.v}%</span>
+                      </div>
+                      <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${m.v}%`, background: m.v >= 80 ? "#1D9E75" : m.v >= 50 ? "#EF9F27" : "#E05A4B" }} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
+                {p.status === "stalled" && <div style={{ background: "rgba(224,90,75,.07)", border: "1px solid rgba(224,90,75,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#E05A4B" }}>Programa travado — revisar critério, nível de dica ou reforçadores</div>}
+                {p.status === "completed" && <div style={{ background: "rgba(55,138,221,.07)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#378ADD" }}>Programa concluído — considerar generalização</div>}
+                {p.success >= 80 && p.status === "active" && <div style={{ background: "rgba(29,158,117,.07)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#1D9E75" }}>Próximo de critério — considerar avançar nível de dica</div>}
               </div>
-            ))}
-          </div>
-          {p.status === "stalled" && <div style={{ background: "rgba(224,90,75,.07)", border: "1px solid rgba(224,90,75,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#E05A4B" }}>Programa travado — revisar critério, nível de dica ou reforçadores</div>}
-          {p.status === "completed" && <div style={{ background: "rgba(55,138,221,.07)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#378ADD" }}>Programa concluído — considerar generalização</div>}
-          {p.success >= 80 && p.status === "active" && <div style={{ background: "rgba(29,158,117,.07)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 8, padding: "8px 12px", fontSize: ".75rem", color: "#1D9E75" }}>Próximo de critério — considerar avançar nível de dica</div>}
+            );
+          })}
         </div>
-      );
-    })}
-  </div>
-)}
+      )}
       {/* ── SKILL GRAPH ── */}
       {tab === "skill-graph" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1248,7 +1249,7 @@ async function rejeitarSugestao(id: string) {
             <>
               {/* Resumo por status */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
-                {(["dominada","em_aquisicao","emergente","ausente"] as const).map(st => {
+                {(["dominada", "em_aquisicao", "emergente", "ausente"] as const).map(st => {
                   const cfg = STATUS_HAB[st];
                   const count = habilidades.filter(h => h.status === st).length;
                   return (
@@ -1304,35 +1305,35 @@ async function rejeitarSugestao(id: string) {
             const corSaude = f.goalHealth === "stalled" ? "#E05A4B" : f.goalHealth === "watch" ? "#EF9F27" : "#1D9E75"
             const labelSaude = f.goalHealth === "on_track" ? "Em curso" : f.goalHealth === "watch" ? "Monitorar" : f.goalHealth === "stalled" ? "Travada" : f.goalHealth === "accelerating" ? "Acelerando" : "Consolidando"
             return (
-            <div key={f.goalId} style={{ ...card, padding: 20, border: `1px solid ${f.goalHealth === "stalled" ? "rgba(224,90,75,.2)" : f.goalHealth === "watch" ? "rgba(239,159,39,.15)" : "rgba(29,158,117,.15)"}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-                <div>
-                  <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>{f.goalName}</div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: ".65rem", color: corSaude, fontWeight: 600 }}>{labelSaude}</span>
-                    <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.4)" }}>Confiança: {f.confidence}</span>
+              <div key={f.goalId} style={{ ...card, padding: 20, border: `1px solid ${f.goalHealth === "stalled" ? "rgba(224,90,75,.2)" : f.goalHealth === "watch" ? "rgba(239,159,39,.15)" : "rgba(29,158,117,.15)"}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>{f.goalName}</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: ".65rem", color: corSaude, fontWeight: 600 }}>{labelSaude}</span>
+                      <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.4)" }}>Confiança: {f.confidence}</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.88)", marginBottom: 2 }}>Estimativa</div>
+                    <div style={{ fontSize: "1rem", fontWeight: 800, color: "#EF9F27" }}>{f.min}–{f.max} sessões</div>
                   </div>
                 </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.88)", marginBottom: 2 }}>Estimativa</div>
-                  <div style={{ fontSize: "1rem", fontWeight: 800, color: "#EF9F27" }}>{f.min}–{f.max} sessões</div>
+                <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden", marginBottom: 10 }}>
+                  <div style={{ height: "100%", width: `${Math.min(100, Math.round(f.min / Math.max(f.max, 1) * 100))}%`, background: corSaude }} />
                 </div>
-              </div>
-              <div style={{ height: 5, background: "rgba(26,58,92,.5)", borderRadius: 50, overflow: "hidden", marginBottom: 10 }}>
-                <div style={{ height: "100%", width: `${Math.min(100, Math.round(f.min / Math.max(f.max,1) * 100))}%`, background: corSaude }} />
-              </div>
-              <div style={{ display: "flex", gap: 14, marginBottom: f.rationale.length > 0 ? 10 : 0 }}>
-                <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>Barreiras: <strong style={{ color: f.inferredBarriers > 1 ? "#E05A4B" : "#e8f0f8" }}>{f.inferredBarriers}</strong></div>
-                <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>Ação: <strong style={{ color: "#e8f0f8" }}>{f.recommendedAction.replace(/_/g," ")}</strong></div>
-              </div>
-              {f.rationale.length > 0 && (
-                <div style={{ background: "rgba(26,58,92,.2)", border: "1px solid rgba(26,58,92,.4)", borderRadius: 9, padding: "10px 12px" }}>
-                  {f.rationale.map((b: string, i: number) => (
-                    <div key={i} style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)", marginBottom: 3 }}>• {b}</div>
-                  ))}
+                <div style={{ display: "flex", gap: 14, marginBottom: f.rationale.length > 0 ? 10 : 0 }}>
+                  <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>Barreiras: <strong style={{ color: f.inferredBarriers > 1 ? "#E05A4B" : "#e8f0f8" }}>{f.inferredBarriers}</strong></div>
+                  <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.84)" }}>Ação: <strong style={{ color: "#e8f0f8" }}>{f.recommendedAction.replace(/_/g, " ")}</strong></div>
                 </div>
-              )}
-            </div>
+                {f.rationale.length > 0 && (
+                  <div style={{ background: "rgba(26,58,92,.2)", border: "1px solid rgba(26,58,92,.4)", borderRadius: 9, padding: "10px 12px" }}>
+                    {f.rationale.map((b: string, i: number) => (
+                      <div key={i} style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)", marginBottom: 3 }}>• {b}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>
@@ -1382,18 +1383,18 @@ async function rejeitarSugestao(id: string) {
       {/* ── HISTÓRICO ── */}
       {tab === "historico" && <HistoricoSessoes criancaId={params.id as string} criancaNome={data?.name ?? '—'} />}
 
-{/* ── JORNADA CLÍNICA ── */}
-{tab === "jornada" && (
-   <JornadaClinica
-     jornada={jornada}
-     jornadaAnterior={jornadaAnterior}
-     dominios={jornadaDominios}
-     paciente={data}
-     criancaId={params.id as string}
-     onJornadaCriada={(j) => setJornada(j)}
-   />
- // <div>Jornada temporariamente desabilitada</div>
-)}
+      {/* ── JORNADA CLÍNICA ── */}
+      {tab === "jornada" && (
+        <JornadaClinica
+          jornada={jornada}
+          jornadaAnterior={jornadaAnterior}
+          dominios={jornadaDominios}
+          paciente={data}
+          criancaId={params.id as string}
+          onJornadaCriada={(j) => setJornada(j)}
+        />
+        // <div>Jornada temporariamente desabilitada</div>
+      )}
 
 
       {/* ── CONTRATO ── */}
@@ -1423,7 +1424,7 @@ async function rejeitarSugestao(id: string) {
               <div>
                 <label style={{ fontSize: ".62rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Status inicial</label>
                 <div style={{ display: "flex", gap: 6 }}>
-                  {(["ausente","emergente","em_aquisicao","dominada"] as const).map(s => {
+                  {(["ausente", "emergente", "em_aquisicao", "dominada"] as const).map(s => {
                     const cfg = STATUS_HAB[s];
                     return (
                       <button key={s} onClick={() => setNovaHab(p => ({ ...p, status: s }))}
