@@ -345,23 +345,47 @@ async function gerarSugestoesProgramas(
       const scorePercent = Math.round((pontuacao / item.pontuacao_max) * 100)
       if (scorePercent > 79) continue // já adquirido, não sugere
 
-      // 2. Busca programas sugeridos para este item
+      // 2. Busca programas sugeridos — avaliacao_item_programas + peak_teaching_programs
       const { data: programasSugeridos } = await supabase
         .from("avaliacao_item_programas")
         .select("*")
         .eq("avaliacao_item_id", item.id)
         .order("id")
 
-      if (!programasSugeridos || programasSugeridos.length === 0) continue
+      const { data: peakTPs } = await supabase
+        .from("peak_teaching_programs")
+        .select("*")
+        .eq("assessment_item_id", item.id)
+        .eq("ativo", true)
+
+      const todasSugestoes = [
+        ...(programasSugeridos ?? []),
+        ...(peakTPs ?? []).map((tp: any) => ({
+          id: tp.id,
+          nome: tp.nome,
+          dominio: dominio.dominio_radar ?? dominio.nome,
+          operante: null,
+          tipo_registro: tp.tipo_registro,
+          score_gatilho: 79,
+          avaliacao_item_id: item.id,
+          origem: "peak_tp",
+          objetivo: tp.objetivo,
+          sd: tp.sd,
+          hierarquia_dicas: tp.hierarquia_dicas,
+          criterio_dominio: tp.criterio_dominio,
+          total_tentativas: tp.total_tentativas,
+        }))
+      ]
+      if (todasSugestoes.length === 0) continue
 
       // 3. Para cada programa sugerido, verifica se já existe sugestão pendente
-      for (const prog of programasSugeridos) {
+      for (const prog of todasSugestoes) {
         const { data: existente } = await supabase
           .from("plano_sugestoes")
           .select("id")
           .eq("crianca_id", sessaoAtiva.crianca_id)
           .eq("avaliacao_item_id", item.id)
-          .eq("item_programa_id", prog.id)
+          .eq("item_programa_id", prog.origem === "peak_tp" ? null : prog.id)
           .in("status", ["pendente", "aprovado"])
           .maybeSingle()
         if (existente) continue // já existe, não duplica
@@ -372,14 +396,20 @@ async function gerarSugestoesProgramas(
           terapeuta_id: (await supabase.auth.getUser()).data.user?.id ?? "",
           avaliacao_sessao_id: sessaoAtiva.id,
           avaliacao_item_id: item.id,
-          item_programa_id: prog.id,
+          item_programa_id: prog.origem === "peak_tp" ? null : prog.id,
+          peak_teaching_program_id: prog.origem === "peak_tp" ? prog.id : null,
           nome_programa: prog.nome,
           dominio: prog.dominio,
-          operante: prog.operante,
+          operante: prog.operante ?? null,
           tipo_registro: prog.tipo_registro,
           score_avaliado: scorePercent,
-          score_gatilho: prog.score_gatilho,
+          score_gatilho: prog.score_gatilho ?? 79,
           status: "pendente",
+          objetivo: prog.objetivo ?? null,
+          sd: prog.sd ?? null,
+          hierarquia_dicas: prog.hierarquia_dicas ?? null,
+          criterio_dominio: prog.criterio_dominio ?? null,
+          total_tentativas: prog.total_tentativas ?? 10,
         })
       }
     }
