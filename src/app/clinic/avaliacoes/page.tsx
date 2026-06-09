@@ -5,8 +5,8 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useClinicContext, useAcesso } from "../layout";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
-type TabAval    = "protocolos" | "analise-funcional" | "historico";
-type TipoAF     = "indireta" | "descritiva" | "experimental";
+type TabAval = "protocolos" | "analise-funcional" | "historico";
+type TipoAF = "indireta" | "descritiva" | "experimental";
 type StatusAval = "nao_iniciada" | "em_andamento" | "concluida";
 type FuncaoComport = "atencao" | "fuga" | "tangivel" | "automatica" | "indefinida";
 
@@ -82,10 +82,10 @@ const REGISTROS_ABC: RegistroABC[] = [
 ];
 
 const CONDICOES_EXPERIMENTAIS: CondicaoExperimental[] = [
-  { id: "atencao",  nome: "Atenção",  cor: "#378ADD", descricao: "Atenção contingente ao comportamento-alvo",           registros: [2,3,4,3,5,4,6,5,4,3] },
-  { id: "fuga",     nome: "Fuga",     cor: "#E05A4B", descricao: "Remoção de demanda contingente ao comportamento",     registros: [8,9,7,10,9,8,11,9,10,8] },
-  { id: "tangivel", nome: "Tangível", cor: "#EF9F27", descricao: "Acesso a item preferido contingente ao comportamento", registros: [3,2,3,4,2,3,2,3,2,3] },
-  { id: "controle", nome: "Controle", cor: "#1D9E75", descricao: "Acesso livre a reforçadores, sem demandas",           registros: [1,0,1,1,0,1,0,0,1,0] },
+  { id: "atencao", nome: "Atenção", cor: "#378ADD", descricao: "Atenção contingente ao comportamento-alvo", registros: [2, 3, 4, 3, 5, 4, 6, 5, 4, 3] },
+  { id: "fuga", nome: "Fuga", cor: "#E05A4B", descricao: "Remoção de demanda contingente ao comportamento", registros: [8, 9, 7, 10, 9, 8, 11, 9, 10, 8] },
+  { id: "tangivel", nome: "Tangível", cor: "#EF9F27", descricao: "Acesso a item preferido contingente ao comportamento", registros: [3, 2, 3, 4, 2, 3, 2, 3, 2, 3] },
+  { id: "controle", nome: "Controle", cor: "#1D9E75", descricao: "Acesso livre a reforçadores, sem demandas", registros: [1, 0, 1, 1, 0, 1, 0, 0, 1, 0] },
 ];
 
 const MOTIVOS_CONCLUSAO = [
@@ -98,17 +98,17 @@ const MOTIVOS_CONCLUSAO = [
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const STATUS_AVAL: Record<StatusAval, { label: string; cor: string; bg: string }> = {
-  nao_iniciada: { label: "Não iniciada", cor: "rgba(170,210,245,.88)", bg: "rgba(26,58,92,.2)"  },
-  em_andamento: { label: "Em andamento", cor: "#EF9F27",              bg: "rgba(239,159,39,.1)" },
-  concluida:    { label: "Concluída",    cor: "#1D9E75",              bg: "rgba(29,158,117,.1)" },
+  nao_iniciada: { label: "Não iniciada", cor: "rgba(170,210,245,.88)", bg: "rgba(26,58,92,.2)" },
+  em_andamento: { label: "Em andamento", cor: "#EF9F27", bg: "rgba(239,159,39,.1)" },
+  concluida: { label: "Concluída", cor: "#1D9E75", bg: "rgba(29,158,117,.1)" },
 };
 
 const FUNCAO_CONFIG: Record<FuncaoComport, { label: string; cor: string; descricao: string }> = {
-  atencao:    { label: "Atenção social",    cor: "#378ADD", descricao: "Comportamento mantido por atenção de outras pessoas" },
-  fuga:       { label: "Fuga/Esquiva",      cor: "#E05A4B", descricao: "Comportamento mantido pela remoção de estímulos aversivos" },
-  tangivel:   { label: "Acesso a tangível", cor: "#EF9F27", descricao: "Comportamento mantido por acesso a objetos/atividades" },
-  automatica: { label: "Automática",        cor: "#8B7FE8", descricao: "Comportamento mantido por estimulação sensorial intrínseca" },
-  indefinida: { label: "Indefinida",        cor: "rgba(160,200,235,.84)", descricao: "Função não determinada — mais dados necessários" },
+  atencao: { label: "Atenção social", cor: "#378ADD", descricao: "Comportamento mantido por atenção de outras pessoas" },
+  fuga: { label: "Fuga/Esquiva", cor: "#E05A4B", descricao: "Comportamento mantido pela remoção de estímulos aversivos" },
+  tangivel: { label: "Acesso a tangível", cor: "#EF9F27", descricao: "Comportamento mantido por acesso a objetos/atividades" },
+  automatica: { label: "Automática", cor: "#8B7FE8", descricao: "Comportamento mantido por estimulação sensorial intrínseca" },
+  indefinida: { label: "Indefinida", cor: "rgba(160,200,235,.84)", descricao: "Função não determinada — mais dados necessários" },
 };
 
 const ICONES: Record<string, string> = {
@@ -142,13 +142,13 @@ async function atualizarRepertorio(
       if (ehBarreira) {
         // Barreiras: pontuação invertida — 0=ausente (bom), max=presente (ruim)
         const intensidade =
-          pontuacao === 0                          ? "ausente"  :
-          pontuacao <= item.pontuacao_max * 0.4    ? "leve"     : 
-          pontuacao <= item.pontuacao_max * 0.7    ? "moderada" : "grave";
+          pontuacao === 0 ? "ausente" :
+            pontuacao <= item.pontuacao_max * 0.4 ? "leve" :
+              pontuacao <= item.pontuacao_max * 0.7 ? "moderada" : "grave";
 
         if (pontuacao > 0) {
           const { data: existente } = await supabase
-          
+
             .from("planos_comportamento_interferente")
             .select("id")
             .eq("crianca_id", sessaoAtiva.crianca_id)
@@ -159,11 +159,11 @@ async function atualizarRepertorio(
             const { error: insErr } = await supabase
               .from("planos_comportamento_interferente")
               .insert({
-                crianca_id:    sessaoAtiva.crianca_id,
+                crianca_id: sessaoAtiva.crianca_id,
                 comportamento: item.descricao,
                 intensidade,
-                status:        "monitorado",
-                fonte:         "vbmapp_barreiras",
+                status: "monitorado",
+                fonte: "vbmapp_barreiras",
               });
             if (insErr) console.error("Erro INSERT barreira:", insErr, item.descricao);
           } else {
@@ -180,9 +180,9 @@ async function atualizarRepertorio(
       // Habilidades — fluxo normal
       const scorePercent = Math.round((pontuacao / item.pontuacao_max) * 100);
       const status =
-        scorePercent === 0   ? "ausente"      :
-        scorePercent <= 40   ? "emergente"    :
-        scorePercent <= 79   ? "em_aquisicao" : "dominada";
+        scorePercent === 0 ? "ausente" :
+          scorePercent <= 40 ? "emergente" :
+            scorePercent <= 79 ? "em_aquisicao" : "dominada";
 
       const { data: existenteArr } = await supabase
         .from("repertorio_habilidades")
@@ -195,21 +195,23 @@ async function atualizarRepertorio(
       if (existente) {
         await supabase
           .from("repertorio_habilidades")
-          .update({ score: scorePercent, status, ultima_atualizacao: new Date().toISOString() })
+          .update({ score: scorePercent, status, ultima_atualizacao: new Date().toISOString(), fonte: protocoloSel.sigla?.toLowerCase() ?? "avaliacao" })
           .eq("id", existente.id);
       } else {
         await supabase
           .from("repertorio_habilidades")
           .insert({
-            crianca_id:    sessaoAtiva.crianca_id,
-            dominio:       dominio.dominio_radar ?? dominio.nome.toLowerCase(),
-            habilidade:    item.descricao,
-            operante:      null,
+            crianca_id: sessaoAtiva.crianca_id,
+            dominio: dominio.dominio_radar ?? dominio.nome.toLowerCase(),
+            habilidade: item.descricao,
+            operante: null,
             status,
-            score:         scorePercent,
+            score: scorePercent,
             independencia: 0,
+            fonte: protocoloSel.sigla?.toLowerCase() ?? "avaliacao",
+            avaliacao_item_id: item.id,
             generalizacao: 0,
-            manutencao:    0,
+            manutencao: 0,
           });
       }
     }
@@ -235,15 +237,15 @@ async function gerarRadarSnapshot(
   }
   const media = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
   const { error: radarError } = await supabase.from("radar_snapshots").insert({
-    crianca_id:          sessaoAtiva.crianca_id,
-    score_comunicacao:   media(dominioRadarScores["comunicacao"]   ?? []),
-    score_social:        media(dominioRadarScores["social"]        ?? []),
-    score_atencao:       media(dominioRadarScores["atencao"]       ?? []),
-    score_regulacao:     media(dominioRadarScores["regulacao"]     ?? []),
-    score_brincadeira:   media(dominioRadarScores["brincadeira"]   ?? []),
+    crianca_id: sessaoAtiva.crianca_id,
+    score_comunicacao: media(dominioRadarScores["comunicacao"] ?? []),
+    score_social: media(dominioRadarScores["social"] ?? []),
+    score_atencao: media(dominioRadarScores["atencao"] ?? []),
+    score_regulacao: media(dominioRadarScores["regulacao"] ?? []),
+    score_brincadeira: media(dominioRadarScores["brincadeira"] ?? []),
     score_flexibilidade: media(dominioRadarScores["flexibilidade"] ?? []),
-    score_autonomia:     media(dominioRadarScores["autonomia"]     ?? []),
-    score_motivacao:     media(dominioRadarScores["motivacao"]     ?? []),
+    score_autonomia: media(dominioRadarScores["autonomia"] ?? []),
+    score_motivacao: media(dominioRadarScores["motivacao"] ?? []),
   });
   if (radarError) console.error("Erro ao gerar radar:", radarError);
 }
@@ -287,8 +289,8 @@ async function atualizarJornada(
     // Determina fase do domínio baseada no score
     const fase =
       scoreAtual >= 85 ? "dominado" :
-      scoreAtual >= 60 ? "generalizacao" :
-      scoreAtual >= 30 ? "intervencao" : "avaliacao"
+        scoreAtual >= 60 ? "generalizacao" :
+          scoreAtual >= 30 ? "intervencao" : "avaliacao"
 
     const { data: existente } = await supabase
       .from("jornada_dominios")
@@ -332,12 +334,7 @@ async function gerarSugestoesProgramas(
   sessaoAtiva: SessaoAtiva,
   respostas: RespostaLocal
 ) {
-  console.log("gerarSugestoesProgramas iniciou", { 
-    protocolo: protocoloSel.sigla, 
-    sessaoId: sessaoAtiva.id,
-    criancaId: sessaoAtiva.crianca_id,
-    respostas 
-  })
+
   // 1. Para cada item com score abaixo do gatilho (79%)
   for (const dominio of protocoloSel.dominios) {
     if (dominio.tipo_dominio === "barreira") continue
@@ -367,24 +364,23 @@ async function gerarSugestoesProgramas(
           .eq("item_programa_id", prog.id)
           .in("status", ["pendente", "aprovado"])
           .maybeSingle()
-console.log("item", item.id, item.codigo, "score", scorePercent, "programas encontrados:", programasSugeridos?.length ?? 0)
         if (existente) continue // já existe, não duplica
 
         // 4. Cria sugestão
         await supabase.from("plano_sugestoes").insert({
-  crianca_id:          sessaoAtiva.crianca_id,
-  terapeuta_id:        (await supabase.auth.getUser()).data.user?.id ?? "",
-  avaliacao_sessao_id: sessaoAtiva.id,
-  avaliacao_item_id:   item.id,
-  item_programa_id:    prog.id,
-  nome_programa:       prog.nome,
-  dominio:             prog.dominio,
-  operante:            prog.operante,
-  tipo_registro:       prog.tipo_registro,
-  score_avaliado:      scorePercent,
-  score_gatilho:       prog.score_gatilho,
-  status:              "pendente",
-})
+          crianca_id: sessaoAtiva.crianca_id,
+          terapeuta_id: (await supabase.auth.getUser()).data.user?.id ?? "",
+          avaliacao_sessao_id: sessaoAtiva.id,
+          avaliacao_item_id: item.id,
+          item_programa_id: prog.id,
+          nome_programa: prog.nome,
+          dominio: prog.dominio,
+          operante: prog.operante,
+          tipo_registro: prog.tipo_registro,
+          score_avaliado: scorePercent,
+          score_gatilho: prog.score_gatilho,
+          status: "pendente",
+        })
       }
     }
   }
@@ -395,27 +391,27 @@ export default function AvaliacoesPage() {
   const { terapeuta } = useClinicContext();
   const acesso = useAcesso();
 
-  const [tab,              setTab]              = useState<TabAval>("protocolos");
-  const [tipoAF,           setTipoAF]           = useState<TipoAF>("indireta");
-  const [protocolos,       setProtocolos]       = useState<Protocolo[]>([]);
-  const [protocoloSel,     setProtocoloSel]     = useState<Protocolo | null>(null);
-  const [pacienteSel,      setPacienteSel]      = useState<string>("");
-  const [pacientesAval,    setPacientesAval]    = useState<{ id: string; nome: string }[]>([]);
-  const [sessaoAtiva,      setSessaoAtiva]      = useState<SessaoAtiva | null>(null);
-  const [respostas,        setRespostas]        = useState<RespostaLocal>({});
-  const [dominioAtivo,     setDominioAtivo]     = useState<string>("");
-  const [busca,            setBusca]            = useState("");
-  const [salvando,         setSalvando]         = useState<string | null>(null);
-  const [historico,        setHistorico]        = useState<any[]>([]);
-  const [abcNovo,          setAbcNovo]          = useState({ ant: "", comp: "", cons: "", dur: "", int: "moderada" as const });
-  const [loading,          setLoading]          = useState(true);
-  const [processando,      setProcessando]      = useState(false);
+  const [tab, setTab] = useState<TabAval>("protocolos");
+  const [tipoAF, setTipoAF] = useState<TipoAF>("indireta");
+  const [protocolos, setProtocolos] = useState<Protocolo[]>([]);
+  const [protocoloSel, setProtocoloSel] = useState<Protocolo | null>(null);
+  const [pacienteSel, setPacienteSel] = useState<string>("");
+  const [pacientesAval, setPacientesAval] = useState<{ id: string; nome: string }[]>([]);
+  const [sessaoAtiva, setSessaoAtiva] = useState<SessaoAtiva | null>(null);
+  const [respostas, setRespostas] = useState<RespostaLocal>({});
+  const [dominioAtivo, setDominioAtivo] = useState<string>("");
+  const [busca, setBusca] = useState("");
+  const [salvando, setSalvando] = useState<string | null>(null);
+  const [historico, setHistorico] = useState<any[]>([]);
+  const [abcNovo, setAbcNovo] = useState({ ant: "", comp: "", cons: "", dur: "", int: "moderada" as const });
+  const [loading, setLoading] = useState(true);
+  const [processando, setProcessando] = useState(false);
 
   // Modal de conclusão
-  const [modalConclusao,   setModalConclusao]   = useState(false);
-  const [motivoConclusao,  setMotivoConclusao]  = useState("");
-  const [outroMotivo,      setOutroMotivo]      = useState("");
-  const [tipoAvaliacao,    setTipoAvaliacao]    = useState<"pre_avaliacao" | "avaliacao_completa">("pre_avaliacao");
+  const [modalConclusao, setModalConclusao] = useState(false);
+  const [motivoConclusao, setMotivoConclusao] = useState("");
+  const [outroMotivo, setOutroMotivo] = useState("");
+  const [tipoAvaliacao, setTipoAvaliacao] = useState<"pre_avaliacao" | "avaliacao_completa">("pre_avaliacao");
 
   // ── Carregar protocolos ──────────────────────────────────────────────────
   useEffect(() => {
@@ -500,23 +496,23 @@ export default function AvaliacoesPage() {
     if (!terapeuta) return;
     async function carregar() {
       setLoading(true);
-// DEPOIS
-const { data: planos } = await supabase
-  .from("planos_com_crianca")
-  .select("crianca_id, crianca_nome")
-  .eq("terapeuta_id", terapeuta!.id)
-  .eq("status", "ativo");
+      // DEPOIS
+      const { data: planos } = await supabase
+        .from("planos_com_crianca")
+        .select("crianca_id, crianca_nome")
+        .eq("terapeuta_id", terapeuta!.id)
+        .eq("status", "ativo");
 
-if (planos) {
-  const map = new Map<string, string>();
-  for (const pl of planos) {
-    if (pl.crianca_id && !map.has(pl.crianca_id))
-      map.set(pl.crianca_id, pl.crianca_nome);
-  }
-  const lista = Array.from(map.entries()).map(([id, nome]) => ({ id, nome }));
-  setPacientesAval(lista);
-  if (lista.length > 0) setPacienteSel(lista[0].id);
-}
+      if (planos) {
+        const map = new Map<string, string>();
+        for (const pl of planos) {
+          if (pl.crianca_id && !map.has(pl.crianca_id))
+            map.set(pl.crianca_id, pl.crianca_nome);
+        }
+        const lista = Array.from(map.entries()).map(([id, nome]) => ({ id, nome }));
+        setPacientesAval(lista);
+        if (lista.length > 0) setPacienteSel(lista[0].id);
+      }
       const { data: hist } = await supabase
         .from("avaliacoes_sessoes")
         .select(`id, status, iniciada_em, concluida_em, observacoes,
@@ -532,7 +528,7 @@ if (planos) {
   }, [terapeuta]);
 
   // ── Iniciar ou retomar sessão ────────────────────────────────────────────
-   const dominiosFiltrados = useMemo(() => {
+  const dominiosFiltrados = useMemo(() => {
     if (!protocoloSel) return [];
     if (protocoloSel.sigla !== "PEAK") return protocoloSel.dominios;
     if (tipoAvaliacao === "avaliacao_completa") return protocoloSel.dominios.filter(d => d.nome.includes("Avaliação Completa"));
@@ -629,34 +625,34 @@ if (planos) {
 
   // ── Executar conclusão ───────────────────────────────────────────────────
   const executarConclusao = useCallback(async (justificativa: string) => {
-  if (!sessaoAtiva || !protocoloSel) return;
-  setProcessando(true);
-  setModalConclusao(false);
+    if (!sessaoAtiva || !protocoloSel) return;
+    setProcessando(true);
+    setModalConclusao(false);
 
-  const obs = justificativa || null;
+    const obs = justificativa || null;
 
-  await supabase
-    .from("avaliacoes_sessoes")
-    .update({ status: "concluida", concluida_em: new Date().toISOString(), observacoes: obs })
-    .eq("id", sessaoAtiva.id);
+    await supabase
+      .from("avaliacoes_sessoes")
+      .update({ status: "concluida", concluida_em: new Date().toISOString(), observacoes: obs })
+      .eq("id", sessaoAtiva.id);
 
-  await atualizarRepertorio(protocoloSel, sessaoAtiva, respostas);
-  await gerarRadarSnapshot(protocoloSel, sessaoAtiva, respostas);
-  await atualizarJornada(protocoloSel, sessaoAtiva, respostas); 
-  await gerarSugestoesProgramas(protocoloSel, sessaoAtiva, respostas)
+    await atualizarRepertorio(protocoloSel, sessaoAtiva, respostas);
+    await gerarRadarSnapshot(protocoloSel, sessaoAtiva, respostas);
+    await atualizarJornada(protocoloSel, sessaoAtiva, respostas);
+    await gerarSugestoesProgramas(protocoloSel, sessaoAtiva, respostas)
 
-  setProcessando(false);
-  setSessaoAtiva(null);
-  setRespostas({});
-  setProtocoloSel(null);
-  setMotivoConclusao("");
-  setOutroMotivo("");
-}, [sessaoAtiva, protocoloSel, respostas]);
+    setProcessando(false);
+    setSessaoAtiva(null);
+    setRespostas({});
+    setProtocoloSel(null);
+    setMotivoConclusao("");
+    setOutroMotivo("");
+  }, [sessaoAtiva, protocoloSel, respostas]);
 
   const funcaoIdent = useMemo(() => funcaoIdentificada(CONDICOES_EXPERIMENTAIS), []);
   const fc = FUNCAO_CONFIG[funcaoIdent];
 
-  
+
 
   const dominioAtivoObj = dominiosFiltrados.find(d => d.id === dominioAtivo);
   const itensFiltrados = useMemo(() => {
@@ -681,13 +677,13 @@ if (planos) {
   }, [protocoloSel, respostas]);
 
   const card: React.CSSProperties = { background: "rgba(13,32,53,.75)", border: "1px solid rgba(70,120,180,.5)", borderRadius: 14, backdropFilter: "blur(8px)" };
-  const lbl:  React.CSSProperties = { fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".09em", color: "rgba(170,210,245,.88)", marginBottom: 8 };
-  const inp:  React.CSSProperties = { background: "rgba(20,55,110,.55)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 8, padding: "9px 12px", color: "#e8f0f8", fontFamily: "var(--font-sans)", fontSize: ".82rem", outline: "none", width: "100%", boxSizing: "border-box" as const };
+  const lbl: React.CSSProperties = { fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".09em", color: "rgba(170,210,245,.88)", marginBottom: 8 };
+  const inp: React.CSSProperties = { background: "rgba(20,55,110,.55)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 8, padding: "9px 12px", color: "#e8f0f8", fontFamily: "var(--font-sans)", fontSize: ".82rem", outline: "none", width: "100%", boxSizing: "border-box" as const };
 
   const TABS = [
-    { id: "protocolos"        as TabAval, label: "Protocolos"        },
+    { id: "protocolos" as TabAval, label: "Protocolos" },
     { id: "analise-funcional" as TabAval, label: "Análise Funcional" },
-    { id: "historico"         as TabAval, label: "Histórico"         },
+    { id: "historico" as TabAval, label: "Histórico" },
   ];
 
   // ── TELA DE APLICAÇÃO ────────────────────────────────────────────────────
@@ -754,7 +750,7 @@ if (planos) {
         <div style={{ ...card, padding: "14px 20px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, borderLeft: `3px solid ${protocoloSel.cor}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={() => { setSessaoAtiva(null); setRespostas({}); }} style={{ background: "none", border: "none", color: "rgba(160,200,235,.7)", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-sans)", fontSize: ".75rem" }}>
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5"/></svg>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5" /></svg>
               Voltar
             </button>
             <div style={{ width: 1, height: 20, background: "rgba(26,58,92,.5)" }} />
@@ -814,7 +810,7 @@ if (planos) {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", minHeight: 0 }}>
             <div style={{ position: "relative", flexShrink: 0 }}>
               <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por código ou descrição..." style={{ ...inp, paddingLeft: 34 }} />
-              <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", opacity: .4 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e8f0f8" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", opacity: .4 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e8f0f8" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
             </div>
 
             {dominioAtivoObj && (
@@ -880,7 +876,7 @@ if (planos) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <button onClick={() => setProtocoloSel(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "rgba(160,200,235,.90)", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: ".78rem", padding: 0, alignSelf: "flex-start" }}>
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5"/></svg>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5" /></svg>
           Voltar
         </button>
         <div style={{ ...card, padding: 24, borderLeft: `3px solid ${p.cor}` }}>
@@ -916,11 +912,12 @@ if (planos) {
               <div style={{ ...lbl }}>Tipo de avaliação</div>
               <div style={{ display: "flex", gap: 8 }}>
                 {([
-                  { id: "pre_avaliacao" as const,      label: "Pré-Avaliação",      sub: "Triagem rápida — 64 itens por módulo" },
+                  { id: "pre_avaliacao" as const, label: "Pré-Avaliação", sub: "Triagem rápida — 64 itens por módulo" },
                   { id: "avaliacao_completa" as const, label: "Avaliação Completa", sub: "Mapeamento detalhado — 184 programas" },
                 ]).map(t => (
                   <button key={t.id} onClick={() => setTipoAvaliacao(t.id)}
-                    style={{ flex: 1, padding: "12px 14px", borderRadius: 10, textAlign: "left", cursor: "pointer", fontFamily: "var(--font-sans)",
+                    style={{
+                      flex: 1, padding: "12px 14px", borderRadius: 10, textAlign: "left", cursor: "pointer", fontFamily: "var(--font-sans)",
                       border: `1px solid ${tipoAvaliacao === t.id ? p.cor + "55" : "rgba(26,58,92,.4)"}`,
                       background: tipoAvaliacao === t.id ? p.cor + "12" : "rgba(26,58,92,.2)",
                     }}
@@ -975,10 +972,10 @@ if (planos) {
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10 }}>
         {[
-          { l: "Concluídas",            v: historico.filter((a: any) => a.status === "concluida").length,    c: "#1D9E75" },
-          { l: "Em andamento",          v: historico.filter((a: any) => a.status === "em_andamento").length, c: "#EF9F27" },
-          { l: "Protocolos disponíveis",v: protocolos.length,                                                c: "#378ADD" },
-          { l: "AFs realizadas",        v: 0,                                                                c: "#8B7FE8" },
+          { l: "Concluídas", v: historico.filter((a: any) => a.status === "concluida").length, c: "#1D9E75" },
+          { l: "Em andamento", v: historico.filter((a: any) => a.status === "em_andamento").length, c: "#EF9F27" },
+          { l: "Protocolos disponíveis", v: protocolos.length, c: "#378ADD" },
+          { l: "AFs realizadas", v: 0, c: "#8B7FE8" },
         ].map(k => (
           <div key={k.l} style={{ ...card, padding: "14px 16px" }}>
             <div style={{ fontSize: ".58rem", color: "rgba(170,210,245,.88)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>{k.l}</div>
@@ -1048,7 +1045,7 @@ if (planos) {
             </div>
           )}
           <div style={{ ...card, padding: 16, border: "1px solid rgba(55,138,221,.2)", background: "rgba(55,138,221,.04)", display: "flex", alignItems: "center", gap: 12 }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#378ADD" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 7v4M8 5h.01"/></svg>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#378ADD" strokeWidth="1.5"><circle cx="8" cy="8" r="6" /><path d="M8 7v4M8 5h.01" /></svg>
             <span style={{ fontSize: ".75rem", color: "rgba(160,200,235,.92)" }}>Os protocolos serão expandidos com os itens completos conforme o material clínico for integrado. Por enquanto, a estrutura de domínios já permite iniciar e registrar avaliações.</span>
           </div>
         </div>
@@ -1059,8 +1056,8 @@ if (planos) {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "flex", gap: 0, ...card, padding: 4, borderRadius: 12, alignSelf: "flex-start" }}>
             {([
-              { id: "indireta"     as TipoAF, label: "Indireta",     sub: "Via FractaCare" },
-              { id: "descritiva"   as TipoAF, label: "Descritiva",   sub: "ABC em sessão"  },
+              { id: "indireta" as TipoAF, label: "Indireta", sub: "Via FractaCare" },
+              { id: "descritiva" as TipoAF, label: "Descritiva", sub: "ABC em sessão" },
               { id: "experimental" as TipoAF, label: "Experimental", sub: "Condições ctrl" },
             ]).map(t => (
               <button key={t.id} onClick={() => setTipoAF(t.id)} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: tipoAF === t.id ? "rgba(29,158,117,.2)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
@@ -1080,9 +1077,9 @@ if (planos) {
                 <div style={{ ...lbl }}>Instrumentos disponíveis</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {[
-                    { sigla: "MAS",  nome: "Motivation Assessment Scale",        itens: 16, cor: "#1D9E75", descricao: "Avalia motivação por atenção, fuga, tangível e sensorial" },
+                    { sigla: "MAS", nome: "Motivation Assessment Scale", itens: 16, cor: "#1D9E75", descricao: "Avalia motivação por atenção, fuga, tangível e sensorial" },
                     { sigla: "FAST", nome: "Functional Analysis Screening Tool", itens: 27, cor: "#378ADD", descricao: "Triagem das possíveis funções do comportamento" },
-                    { sigla: "FAI",  nome: "Functional Assessment Interview",    itens: 11, cor: "#8B7FE8", descricao: "Entrevista estruturada sobre antecedentes e consequências" },
+                    { sigla: "FAI", nome: "Functional Assessment Interview", itens: 11, cor: "#8B7FE8", descricao: "Entrevista estruturada sobre antecedentes e consequências" },
                   ].map(inst => (
                     <div key={inst.sigla} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "rgba(26,58,92,.2)", borderRadius: 10, border: `1px solid ${inst.cor}22` }}>
                       <div style={{ width: 44, height: 44, borderRadius: 10, background: `${inst.cor}15`, border: `1px solid ${inst.cor}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -1108,7 +1105,7 @@ if (planos) {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".75rem" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid rgba(26,58,92,.4)" }}>
-                      {["Horário","Antecedente (A)","Comportamento (B)","Consequência (C)","Duração","Int."].map(h => (
+                      {["Horário", "Antecedente (A)", "Comportamento (B)", "Consequência (C)", "Duração", "Int."].map(h => (
                         <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontSize: ".6rem", color: "rgba(170,210,245,.88)", textTransform: "uppercase", letterSpacing: ".07em", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                       ))}
                     </tr>
@@ -1196,7 +1193,7 @@ if (planos) {
             const st = STATUS_AVAL[av.status as StatusAval] ?? STATUS_AVAL.em_andamento;
             const nome = crianca?.nome ?? "Paciente";
             const partes = nome.trim().split(" ");
-            const inic = partes.length >= 2 ? `${partes[0][0]}${partes[partes.length-1][0]}`.toUpperCase() : nome.slice(0,2).toUpperCase();
+            const inic = partes.length >= 2 ? `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase() : nome.slice(0, 2).toUpperCase();
             return (
               <div key={av.id} style={{ ...card, padding: 20 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
