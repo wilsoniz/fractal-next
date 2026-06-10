@@ -66,12 +66,12 @@ interface PerfilData {
 
 // ─── MOCK ─────────────────────────────────────────────────────────────────────
 const PERFIL_INICIAL: PerfilData = {
-  nome: "Carolina", sobrenome: "Amaral", iniciais: "CA",
+  nome: "", sobrenome: "", iniciais: "",
   titulo: "Analista do Comportamento · BCBA",
   nivel: "supervisor",
-  anosExperiencia: 8,
-  cidade: "São Paulo", estado: "SP",
-  bio: "Especialista em intervenção comportamental intensiva para crianças com TEA e TDAH. Formada em Psicologia pela USP com especialização em ABA pelo IBAC. Mais de 8 anos de experiência com crianças de 2 a 12 anos, com foco em comunicação funcional, habilidades sociais e redução de comportamentos desafiadores.\n\nTrabalho com abordagem baseada em evidências, integrando DTT, NET e Análise Funcional para construir programas personalizados que respeitam o ritmo e as necessidades de cada aprendiz.",
+  anosExperiencia: 0,
+  cidade: "", estado: "",
+  bio: "",
   especialidades: ["TEA", "TDAH", "Comunicação funcional", "Comportamentos desafiadores", "Habilidades sociais"],
   abordagens: ["DTT", "NET", "Análise Funcional", "Equivalência de Estímulos", "PRT"],
   modalidades: ["presencial", "domiciliar", "teleconsulta"],
@@ -369,7 +369,6 @@ export default function TerapeutaPerfilPage() {
     { id: "disponibilidade", label: "Disponibilidade" },
     { id: "avaliacoes", label: `Avaliações (${perfil.avaliacoes.length})` },
     { id: "configuracoes", label: "Configurações" },
-    { id: "supervisao", label: "Supervisão" },
   ];
 
   return (
@@ -905,6 +904,17 @@ export default function TerapeutaPerfilPage() {
             <div style={{ background: "rgba(55,138,221,.06)", border: "1px solid rgba(55,138,221,.15)", borderRadius: 9, padding: "10px 14px", fontSize: ".72rem", color: "rgba(160,200,235,.6)", lineHeight: 1.6 }}>
               O nível de certificação é validado pela equipe Fracta ou pelo seu supervisor. Para solicitar upgrade, entre em contato pelo suporte.
             </div>
+          </div>
+
+          {/* Link para supervisão */}
+          <div style={{ ...card, padding: 18, border: "1px solid rgba(139,127,232,.2)", background: "rgba(139,127,232,.04)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: ".82rem", fontWeight: 600, color: "#e8f0f8", marginBottom: 3 }}>Supervisão clínica</div>
+              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.5)" }}>Gerencie sua supervisão, equipe e histórico de horas</div>
+            </div>
+            <Link href="/clinic/supervisao" style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#8B7FE8,#6c63d4)", color: "#fff", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: ".78rem", textDecoration: "none", flexShrink: 0 }}>
+              Acessar →
+            </Link>
           </div>
 
           <button onClick={() => salvarPerfil(perfil)} style={{ padding: 14, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".9rem", cursor: "pointer" }}>
