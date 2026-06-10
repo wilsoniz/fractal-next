@@ -433,7 +433,9 @@ export default function TerapeutaPerfilPage() {
         {/* Tags de especialidade */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 16 }}>
           {perfil.especialidades.map(e => (
-            <span key={e} style={{ fontSize: ".68rem", background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", color: "#1D9E75", borderRadius: 20, padding: "3px 10px", fontWeight: 500 }}>{e}</span>
+            <span key={e} onClick={() => { setPerfil(p => ({ ...p, especialidades: p.especialidades.filter(x => x !== e) })); salvarPerfil({ especialidades: perfil.especialidades.filter(x => x !== e) }) }}
+              style={{ fontSize: ".68rem", background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", color: "#1D9E75", borderRadius: 20, padding: "3px 10px", fontWeight: 500, cursor: "pointer" }}
+              title="Clique para remover">{e} ×</span>
           ))}
           {perfil.modalidades.map(m => (
             <span key={m} style={{ fontSize: ".68rem", background: "rgba(55,138,221,.08)", border: "1px solid rgba(55,138,221,.2)", color: "#378ADD", borderRadius: 20, padding: "3px 10px" }}>
@@ -501,13 +503,47 @@ export default function TerapeutaPerfilPage() {
               )}
             </div>
 
-            {/* Abordagens */}
+            {/* Especialidades — edição */}
+            <div style={{ ...card, padding: 20 }}>
+              <div style={{ ...lbl }}>Especialidades clínicas</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                {perfil.especialidades.map(e => (
+                  <div key={e} onClick={() => { const nova = perfil.especialidades.filter(x => x !== e); setPerfil(p => ({ ...p, especialidades: nova })); salvarPerfil({ especialidades: nova }) }}
+                    style={{ padding: "6px 12px", background: "rgba(29,158,117,.08)", border: "1px solid rgba(29,158,117,.2)", borderRadius: 20, fontSize: ".75rem", color: "#1D9E75", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                    {e} <span style={{ opacity: .5, fontSize: ".7rem" }}>×</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input id="nova-esp" placeholder="Ex: TEA, TDAH, Comunicação funcional..."
+                  onKeyDown={e => { if (e.key === "Enter") { const v = (e.target as HTMLInputElement).value.trim(); if (v && !perfil.especialidades.includes(v)) { const nova = [...perfil.especialidades, v]; setPerfil(p => ({ ...p, especialidades: nova })); salvarPerfil({ especialidades: nova }); (e.target as HTMLInputElement).value = "" } } }}
+                  style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".75rem", fontFamily: "var(--font-sans)", outline: "none" }} />
+                <button onClick={() => { const inp = document.getElementById("nova-esp") as HTMLInputElement; const v = inp?.value.trim(); if (v && !perfil.especialidades.includes(v)) { const nova = [...perfil.especialidades, v]; setPerfil(p => ({ ...p, especialidades: nova })); salvarPerfil({ especialidades: nova }); inp.value = "" } }}
+                  style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".75rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  + Adicionar
+                </button>
+              </div>
+            </div>
+
+            {/* Abordagens — edição */}
             <div style={{ ...card, padding: 20 }}>
               <div style={{ ...lbl }}>Abordagens terapêuticas</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                 {perfil.abordagens.map(a => (
-                  <div key={a} style={{ padding: "8px 14px", background: "rgba(55,138,221,.08)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 9, fontSize: ".78rem", color: "#378ADD", fontWeight: 500 }}>{a}</div>
+                  <div key={a} onClick={() => { const nova = perfil.abordagens.filter(x => x !== a); setPerfil(p => ({ ...p, abordagens: nova })); salvarPerfil({ abordagens: nova }) }}
+                    style={{ padding: "6px 12px", background: "rgba(55,138,221,.08)", border: "1px solid rgba(55,138,221,.2)", borderRadius: 20, fontSize: ".75rem", color: "#378ADD", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                    {a} <span style={{ opacity: .5, fontSize: ".7rem" }}>×</span>
+                  </div>
                 ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input id="nova-abord" placeholder="Ex: DTT, NET, Análise Funcional, PRT..."
+                  onKeyDown={e => { if (e.key === "Enter") { const v = (e.target as HTMLInputElement).value.trim(); if (v && !perfil.abordagens.includes(v)) { const nova = [...perfil.abordagens, v]; setPerfil(p => ({ ...p, abordagens: nova })); salvarPerfil({ abordagens: nova }); (e.target as HTMLInputElement).value = "" } } }}
+                  style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".75rem", fontFamily: "var(--font-sans)", outline: "none" }} />
+                <button onClick={() => { const inp = document.getElementById("nova-abord") as HTMLInputElement; const v = inp?.value.trim(); if (v && !perfil.abordagens.includes(v)) { const nova = [...perfil.abordagens, v]; setPerfil(p => ({ ...p, abordagens: nova })); salvarPerfil({ abordagens: nova }); inp.value = "" } }}
+                  style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(55,138,221,.3)", background: "rgba(55,138,221,.08)", color: "#378ADD", fontSize: ".75rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  + Adicionar
+                </button>
               </div>
             </div>
 
