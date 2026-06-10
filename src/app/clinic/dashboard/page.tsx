@@ -35,26 +35,26 @@ const CORES_CARD = [
 ]
 function iniciais(nome: string) {
   const p = nome.trim().split(' ')
-  return p.length >= 2 ? `${p[0][0]}${p[p.length-1][0]}`.toUpperCase() : nome.slice(0,2).toUpperCase()
+  return p.length >= 2 ? `${p[0][0]}${p[p.length - 1][0]}`.toUpperCase() : nome.slice(0, 2).toUpperCase()
 }
 
 const NIVEL_BANNER: Record<SenioridadeNivel, { label: string; cor: string; bg: string; desc: string }> = {
-  abat:        { label: 'ABAT',           cor: '#1D9E75', bg: 'rgba(29,158,117,.12)',  desc: 'Modo guiado — aplica programas com suporte do supervisor' },
-  qasp_s:      { label: 'QASP-S',         cor: '#EF9F27', bg: 'rgba(239,159,39,.12)',  desc: 'Modo semi-guiado — atendimento e supervisão de casos' },
-  qba:         { label: 'QBA',            cor: '#8B7FE8', bg: 'rgba(139,127,232,.12)', desc: 'Modo livre — acesso completo e análise avançada' },
-  terapeuta:   { label: 'Terapeuta',      cor: '#1D9E75', bg: 'rgba(29,158,117,.12)',  desc: 'Modo guiado — programas e orientações detalhadas' },
-  coordenador: { label: 'Coord. de Caso', cor: '#EF9F27', bg: 'rgba(239,159,39,.12)',  desc: 'Modo semi-guiado — autonomia com suporte clínico' },
-  supervisor:  { label: 'Supervisor',     cor: '#8B7FE8', bg: 'rgba(139,127,232,.12)', desc: 'Modo livre — acesso completo ao sistema' },
+  abat: { label: 'ABAT', cor: '#1D9E75', bg: 'rgba(29,158,117,.12)', desc: 'Modo guiado — aplica programas com suporte do supervisor' },
+  qasp_s: { label: 'QASP-S', cor: '#EF9F27', bg: 'rgba(239,159,39,.12)', desc: 'Modo semi-guiado — atendimento e supervisão de casos' },
+  qba: { label: 'QBA', cor: '#8B7FE8', bg: 'rgba(139,127,232,.12)', desc: 'Modo livre — acesso completo e análise avançada' },
+  terapeuta: { label: 'Terapeuta', cor: '#1D9E75', bg: 'rgba(29,158,117,.12)', desc: 'Modo guiado — programas e orientações detalhadas' },
+  coordenador: { label: 'Coord. de Caso', cor: '#EF9F27', bg: 'rgba(239,159,39,.12)', desc: 'Modo semi-guiado — autonomia com suporte clínico' },
+  supervisor: { label: 'Supervisor', cor: '#8B7FE8', bg: 'rgba(139,127,232,.12)', desc: 'Modo livre — acesso completo ao sistema' },
 }
 
 export default function ClinicDashboard() {
   const { terapeuta } = useClinicContext()
-  const [sessoes,   setSessoes]   = useState<SessaoHoje[]>([])
+  const [sessoes, setSessoes] = useState<SessaoHoje[]>([])
   const [pacientes, setPacientes] = useState<PacienteEvolucao[]>([])
   const [programas, setProgramas] = useState<Programa[]>([])
-  const [alertas,   setAlertas]   = useState<AlertaEngine[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [isMobile,  setIsMobile]  = useState(false)
+  const [alertas, setAlertas] = useState<AlertaEngine[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024)
@@ -123,17 +123,17 @@ export default function ClinicDashboard() {
             criancasMap.get(c.id)!.planos.push(pl)
           }
           const criancasIds = Array.from(criancasMap.keys())
-// Mapa jornada clinica
-const { data: jornadas } = await supabase
-  .from("jornada_clinica")
-  .select("paciente_id, fase_atual, numero_ciclo, status")
-  .in("paciente_id", criancasIds)
-  .eq("status", "ativo")
+          // Mapa jornada clinica
+          const { data: jornadas } = await supabase
+            .from("jornada_clinica")
+            .select("paciente_id, fase_atual, numero_ciclo, status")
+            .in("paciente_id", criancasIds)
+            .eq("status", "ativo")
 
-const jornadaMap = new Map<string, any>()
-for (const j of (jornadas ?? [])) {
-  jornadaMap.set(j.paciente_id, j)
-}
+          const jornadaMap = new Map<string, any>()
+          for (const j of (jornadas ?? [])) {
+            jornadaMap.set(j.paciente_id, j)
+          }
 
           // 5. Radar
           const { data: radares } = await supabase
@@ -166,18 +166,18 @@ for (const j of (jornadas ?? [])) {
               }
               const dominiosFoco = radar
                 ? Object.entries(dominioNomes)
-                    .map(([k, v]) => ({ nome: v, val: radar[k] ?? 100 }))
-                    .sort((a, b) => a.val - b.val)
-                    .slice(0, 3).map(d => d.nome).join(' · ')
+                  .map(([k, v]) => ({ nome: v, val: radar[k] ?? 100 }))
+                  .sort((a, b) => a.val - b.val)
+                  .slice(0, 3).map(d => d.nome).join(' · ')
                 : 'Aguardando avaliação'
-              const cores = ['#1D9E75','#378ADD','#8B7FE8','#EF9F27','#E05A4B']
+              const cores = ['#1D9E75', '#378ADD', '#8B7FE8', '#EF9F27', '#E05A4B']
               return {
-                 id: c.id, nome: c.nome, iniciais: iniciais(c.nome),
-                  cor: CORES_CARD[i % CORES_CARD.length],
-                  dominios: dominiosFoco, pct,
-                  corBarra: cores[i % cores.length],
-                  jornada: jornadaMap.get(c.id) ?? null, // ← novo
-          }
+                id: c.id, nome: c.nome, iniciais: iniciais(c.nome),
+                cor: CORES_CARD[i % CORES_CARD.length],
+                dominios: dominiosFoco, pct,
+                corBarra: cores[i % cores.length],
+                jornada: jornadaMap.get(c.id) ?? null, // ← novo
+              }
             })
           setPacientes(pacs)
 
@@ -224,6 +224,29 @@ for (const j of (jornadas ?? [])) {
               als.push({ id: pl.id + '_aviso', tipo: 'aviso', texto: `<strong>${nome}</strong> atingiu ${score}% em ${prog.nome}. Pronto para progressão.`, tempo: 'hoje' })
             }
           }
+          // Sugestões de programas pendentes (PEAK Teaching Programs)
+          const { data: sugestoesPendentes } = await supabase
+            .from("plano_sugestoes")
+            .select("id, nome_programa, crianca_id, score_avaliado, peak_teaching_program_id")
+            .eq("terapeuta_id", terapeuta!.id)
+            .eq("status", "pendente")
+            .order("criado_em", { ascending: false })
+            .limit(5)
+
+          if (sugestoesPendentes && sugestoesPendentes.length > 0) {
+            const criancaNomes = new Map(planosData.map((pl: any) => [pl.crianca_id, pl.crianca_nome?.split(' ')[0] ?? '—']))
+            for (const s of sugestoesPendentes) {
+              const nome = criancaNomes.get(s.crianca_id) ?? '—'
+              const isPeak = !!s.peak_teaching_program_id
+              als.push({
+                id: 'sug_' + s.id,
+                tipo: 'aviso',
+                texto: `<strong>${nome}</strong> — programa sugerido${isPeak ? ' <span style="color:#8B7FE8;font-size:10px">PEAK TP</span>' : ''}: ${s.nome_programa} (avaliado: ${s.score_avaliado ?? '—'}%)`,
+                tempo: 'pendente',
+              })
+            }
+          }
+
           if (als.length === 0) {
             als.push({ id: 'ok_geral', tipo: 'ok', texto: 'Todos os casos dentro do esperado. Bom trabalho!', tempo: 'agora' })
           }
@@ -242,7 +265,7 @@ for (const j of (jornadas ?? [])) {
     carregar()
   }, [terapeuta])
 
-  const nivel  = terapeuta?.nivel ?? 'coordenador'
+  const nivel = terapeuta?.nivel ?? 'coordenador'
   const banner = NIVEL_BANNER[nivel]
 
   if (loading) return (
@@ -333,9 +356,9 @@ for (const j of (jornadas ?? [])) {
                       {p.jornada && (
                         <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>
                           Jornada {p.jornada.numero_ciclo} · {
-                            p.jornada.fase_atual === 'avaliacao'   ? 'Avaliação'   :
-                            p.jornada.fase_atual === 'intervencao' ? 'Intervenção' :
-                            p.jornada.fase_atual === 'reavaliacao' ? 'Reavaliação' : 'Alta'
+                            p.jornada.fase_atual === 'avaliacao' ? 'Avaliação' :
+                              p.jornada.fase_atual === 'intervencao' ? 'Intervenção' :
+                                p.jornada.fase_atual === 'reavaliacao' ? 'Reavaliação' : 'Alta'
                           }
                         </div>
                       )}
