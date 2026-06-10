@@ -114,11 +114,14 @@ const PERFIL_INICIAL: PerfilData = {
 };
 
 // ─── CONSTANTES ──────────────────────────────────────────────────────────────
-const NIVEL_CONFIG: Record<Nivel, { label: string; cor: string; bg: string; modo: string }> = {
-  terapeuta: { label: "Terapeuta / RBT", cor: "#1D9E75", bg: "rgba(29,158,117,.1)", modo: "Modo guiado" },
-  coordenador: { label: "Coordenador ABA", cor: "#EF9F27", bg: "rgba(239,159,39,.1)", modo: "Modo semi-guiado" },
-  senior: { label: "Terapeuta Sênior", cor: "#378ADD", bg: "rgba(55,138,221,.1)", modo: "Modo livre · atendimento" },
-  supervisor: { label: "Supervisor / BCBA", cor: "#8B7FE8", bg: "rgba(139,127,232,.1)", modo: "Modo livre · supervisão" },
+const NIVEL_CONFIG: Record<string, { label: string; cor: string; bg: string; modo: string }> = {
+  abat: { label: "ABAT — Atendimento Júnior", cor: "#1D9E75", bg: "rgba(29,158,117,.1)", modo: "Atendimento sob supervisão obrigatória" },
+  qasp_s: { label: "QASP-S — Pleno", cor: "#EF9F27", bg: "rgba(239,159,39,.1)", modo: "Atendimento + Coordenação de casos" },
+  qba: { label: "QBA — Sênior", cor: "#8B7FE8", bg: "rgba(139,127,232,.1)", modo: "Atendimento + Supervisão clínica" },
+  terapeuta: { label: "ABAT — Atendimento Júnior", cor: "#1D9E75", bg: "rgba(29,158,117,.1)", modo: "Atendimento sob supervisão obrigatória" },
+  coordenador: { label: "QASP-S — Pleno", cor: "#EF9F27", bg: "rgba(239,159,39,.1)", modo: "Atendimento + Coordenação de casos" },
+  senior: { label: "QBA — Sênior", cor: "#8B7FE8", bg: "rgba(139,127,232,.1)", modo: "Atendimento + Supervisão clínica" },
+  supervisor: { label: "QBA — Supervisor", cor: "#8B7FE8", bg: "rgba(139,127,232,.1)", modo: "Atendimento + Supervisão clínica" },
 }
 
 const TIPO_CERT_CONFIG = {
@@ -752,12 +755,8 @@ export default function TerapeutaPerfilPage() {
       {tab === "avaliacoes" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={() => setModalAvaliacao(true)}
-              style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(239,159,39,.3)", background: "rgba(239,159,39,.08)", color: "#EF9F27", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".75rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" /></svg>
-              Adicionar avaliação
-            </button>
+          <div style={{ padding: "8px 14px", background: "rgba(26,58,92,.2)", borderRadius: 9, fontSize: ".72rem", color: "rgba(160,200,235,.4)", lineHeight: 1.6 }}>
+            As avaliações são enviadas pelas famílias via FractaCare após as sessões realizadas.
           </div>
 
           {/* Resumo de nota */}
@@ -896,19 +895,15 @@ export default function TerapeutaPerfilPage() {
             </div>
           </div>
 
-          {/* Nível de senioridade */}
+          {/* Nível de senioridade — somente leitura */}
           <div style={{ ...card, padding: 20 }}>
-            <div style={{ ...lbl }}>Nível de senioridade</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {(Object.entries(NIVEL_CONFIG) as [Nivel, typeof NIVEL_CONFIG[Nivel]][]).map(([key, nc]) => (
-                <div key={key} style={{ padding: "12px 14px", background: perfil.nivel === key ? nc.bg : "rgba(26,58,92,.2)", border: `1px solid ${perfil.nivel === key ? nc.cor + "55" : "rgba(26,58,92,.4)"}`, borderRadius: 10 }}>
-                  <div style={{ fontSize: ".75rem", fontWeight: 700, color: perfil.nivel === key ? nc.cor : "rgba(160,200,235,.84)" }}>{nc.label}</div>
-                  <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 2 }}>{nc.modo}</div>
-                </div>
-              ))}
+            <div style={{ ...lbl }}>Certificação e nível de serviço</div>
+            <div style={{ padding: "14px 16px", background: NIVEL_CONFIG[perfil.nivel]?.bg ?? "rgba(26,58,92,.2)", border: `1px solid ${(NIVEL_CONFIG[perfil.nivel]?.cor ?? "#1D9E75") + "55"}`, borderRadius: 10, marginBottom: 12 }}>
+              <div style={{ fontSize: ".82rem", fontWeight: 700, color: NIVEL_CONFIG[perfil.nivel]?.cor ?? "#1D9E75" }}>{NIVEL_CONFIG[perfil.nivel]?.label ?? perfil.nivel}</div>
+              <div style={{ fontSize: ".68rem", color: "rgba(165,208,242,.85)", marginTop: 3 }}>{NIVEL_CONFIG[perfil.nivel]?.modo ?? "—"}</div>
             </div>
-            <div style={{ marginTop: 10, fontSize: ".72rem", color: "rgba(170,210,245,.88)" }}>
-              O nível é validado pela supervisão. Para avançar, solicite avaliação ao seu supervisor.
+            <div style={{ background: "rgba(55,138,221,.06)", border: "1px solid rgba(55,138,221,.15)", borderRadius: 9, padding: "10px 14px", fontSize: ".72rem", color: "rgba(160,200,235,.6)", lineHeight: 1.6 }}>
+              O nível de certificação é validado pela equipe Fracta ou pelo seu supervisor. Para solicitar upgrade, entre em contato pelo suporte.
             </div>
           </div>
 
