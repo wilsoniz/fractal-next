@@ -157,6 +157,39 @@ export default function TerapeutaPerfilPage() {
   const [editBio, setEditBio] = useState(false)
   const [bioDraft, setBioDraft] = useState("")
   const [salvando, setSalvando] = useState(false)
+  const [modalAvaliacao, setModalAvaliacao] = useState(false)
+  const [avalForm, setAvalForm] = useState({ familiaNome: "", pacienteIniciais: "", nota: 5, comentario: "" })
+  const [salvandoAval, setSalvandoAval] = useState(false)
+
+  async function salvarAvaliacao() {
+    if (!terapeutaCtx?.id || !avalForm.familiaNome.trim()) return
+    setSalvandoAval(true)
+    const { data } = await supabase.from("terapeuta_avaliacoes").insert({
+      terapeuta_id: terapeutaCtx.id,
+      familia_nome: avalForm.familiaNome,
+      paciente_iniciais: avalForm.pacienteIniciais || null,
+      nota: avalForm.nota,
+      comentario: avalForm.comentario || null,
+      verificada: false,
+    }).select().single()
+    if (data) {
+      setPerfil(prev => ({
+        ...prev,
+        avaliacoes: [{
+          id: data.id,
+          familiaNome: data.familia_nome,
+          pacienteIniciais: data.paciente_iniciais ?? "",
+          nota: data.nota,
+          comentario: data.comentario ?? "",
+          data: new Date(data.data_avaliacao).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }),
+          verificada: false,
+        }, ...prev.avaliacoes],
+      }))
+    }
+    setSalvandoAval(false)
+    setModalAvaliacao(false)
+    setAvalForm({ familiaNome: "", pacienteIniciais: "", nota: 5, comentario: "" })
+  }
   const [modalCert, setModalCert] = useState(false)
   const [editCert, setEditCert] = useState<Certificacao | null>(null)
   const [certForm, setCertForm] = useState({ titulo: "", instituicao: "", ano: new Date().getFullYear(), tipo: "certificacao" as "graduacao" | "especializacao" | "certificacao" | "curso", verificada: false, url: "" })
@@ -719,6 +752,14 @@ export default function TerapeutaPerfilPage() {
       {tab === "avaliacoes" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={() => setModalAvaliacao(true)}
+              style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(239,159,39,.3)", background: "rgba(239,159,39,.08)", color: "#EF9F27", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: ".75rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" /></svg>
+              Adicionar avaliação
+            </button>
+          </div>
+
           {/* Resumo de nota */}
           <div style={{ ...card, padding: 20, display: "flex", alignItems: "center", gap: 24 }}>
             <div style={{ textAlign: "center" }}>
@@ -878,6 +919,48 @@ export default function TerapeutaPerfilPage() {
       )}
 
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+
+      {/* Modal nova avaliação */}
+      {modalAvaliacao && (
+        <div onClick={() => setModalAvaliacao(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "rgba(13,32,53,.97)", border: "1px solid rgba(239,159,39,.3)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8" }}>Adicionar avaliação</div>
+            <div>
+              <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".07em", marginBottom: 5 }}>Nome da família *</div>
+              <input value={avalForm.familiaNome} onChange={e => setAvalForm(p => ({ ...p, familiaNome: e.target.value }))} placeholder="Ex: Família Silva"
+                style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(26,58,92,.5)", background: "rgba(20,55,110,.4)", color: "#e8f0f8", fontSize: ".82rem", fontFamily: "var(--font-sans)", outline: "none", boxSizing: "border-box" as const }} />
+            </div>
+            <div>
+              <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".07em", marginBottom: 5 }}>Iniciais do paciente</div>
+              <input value={avalForm.pacienteIniciais} onChange={e => setAvalForm(p => ({ ...p, pacienteIniciais: e.target.value }))} placeholder="Ex: JS" maxLength={3}
+                style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(26,58,92,.5)", background: "rgba(20,55,110,.4)", color: "#e8f0f8", fontSize: ".82rem", fontFamily: "var(--font-sans)", outline: "none", boxSizing: "border-box" as const }} />
+            </div>
+            <div>
+              <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".07em", marginBottom: 8 }}>Nota</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} onClick={() => setAvalForm(p => ({ ...p, nota: n }))}
+                    style={{ flex: 1, padding: "8px", borderRadius: 8, border: `1px solid ${avalForm.nota >= n ? "rgba(239,159,39,.5)" : "rgba(26,58,92,.4)"}`, background: avalForm.nota >= n ? "rgba(239,159,39,.15)" : "transparent", color: avalForm.nota >= n ? "#EF9F27" : "rgba(160,200,235,.3)", fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 700 }}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".07em", marginBottom: 5 }}>Comentário</div>
+              <textarea value={avalForm.comentario} onChange={e => setAvalForm(p => ({ ...p, comentario: e.target.value }))} rows={3} placeholder="Feedback da família..."
+                style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(26,58,92,.5)", background: "rgba(20,55,110,.4)", color: "#e8f0f8", fontSize: ".82rem", fontFamily: "var(--font-sans)", outline: "none", resize: "none" as const, boxSizing: "border-box" as const }} />
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setModalAvaliacao(false)} style={{ flex: 1, padding: "10px", borderRadius: 9, border: "1px solid rgba(70,120,180,.4)", background: "transparent", color: "rgba(160,200,235,.6)", fontSize: ".8rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancelar</button>
+              <button onClick={salvarAvaliacao} disabled={salvandoAval || !avalForm.familiaNome.trim()}
+                style={{ flex: 2, padding: "10px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#EF9F27,#d4890f)", color: "#07111f", fontSize: ".82rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", opacity: salvandoAval ? 0.7 : 1 }}>
+                {salvandoAval ? "Salvando..." : "Adicionar avaliação"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
