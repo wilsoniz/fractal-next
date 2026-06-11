@@ -280,6 +280,34 @@ export default function TerapeutaPerfilPage() {
         }))
       }
 
+      // Busca métricas reais
+      const { count: totalPacientes } = await supabase
+        .from("planos")
+        .select("*", { count: "exact", head: true })
+        .eq("terapeuta_id", terapeutaCtx.id)
+        .eq("status", "ativo")
+
+      const { data: sessoesData } = await supabase
+        .from("sessoes_v2")
+        .select("id, session_summary(taxa_geral)")
+        .eq("terapeuta_id", terapeutaCtx.id)
+        .eq("status", "finalizada")
+
+      const totalSessoes = sessoesData?.length ?? 0
+      const taxaMedia = sessoesData && sessoesData.length > 0
+        ? Math.round(sessoesData.reduce((acc: number, s: any) => {
+          const taxa = s.session_summary?.[0]?.taxa_geral ?? 0
+          return acc + taxa
+        }, 0) / sessoesData.length)
+        : 0
+
+      setPerfil(prev => ({
+        ...prev,
+        pacientesAtivos: totalPacientes ?? 0,
+        sessoesTotais: totalSessoes,
+        taxaSucesso: taxaMedia,
+      }))
+
       setLoading(false)
     }
     carregar()
