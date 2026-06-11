@@ -42,6 +42,7 @@ interface PerfilData {
   titulo: string;
   nivel: Nivel;
   anosExperiencia: number;
+  avatarUrl: string;
   cidade: string;
   estado: string;
   bio: string;
@@ -70,6 +71,7 @@ const PERFIL_INICIAL: PerfilData = {
   titulo: "Analista do Comportamento · BCBA",
   nivel: "supervisor",
   anosExperiencia: 0,
+  avatarUrl: "",
   cidade: "", estado: "",
   bio: "",
   especialidades: ["TEA", "TDAH", "Comunicação funcional", "Comportamentos desafiadores", "Habilidades sociais"],
@@ -160,6 +162,7 @@ export default function TerapeutaPerfilPage() {
   const [editBio, setEditBio] = useState(false)
   const [bioDraft, setBioDraft] = useState("")
   const [salvando, setSalvando] = useState(false)
+  const [uploadingFoto,  setUploadingFoto]  = useState(false)
   const [modalAvaliacao, setModalAvaliacao] = useState(false)
   const [avalForm, setAvalForm] = useState({ familiaNome: "", pacienteIniciais: "", nota: 5, comentario: "" })
   const [salvandoAval, setSalvandoAval] = useState(false)
@@ -193,6 +196,21 @@ export default function TerapeutaPerfilPage() {
     setModalAvaliacao(false)
     setAvalForm({ familiaNome: "", pacienteIniciais: "", nota: 5, comentario: "" })
   }
+
+  async function uploadFoto(file: File) {
+    if (!terapeutaCtx?.id) return
+    setUploadingFoto(true)
+    const ext  = file.name.split(".").pop()
+    const path = `${terapeutaCtx.id}/avatar.${ext}`
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path)
+      const url = urlData.publicUrl
+      await supabase.from("profiles").update({ avatar_url: url }).eq("id", terapeutaCtx.id)
+      setPerfil(p => ({ ...p, avatarUrl: url }))
+    }
+    setUploadingFoto(false)
+  }
   const [modalCert, setModalCert] = useState(false)
   const [editCert, setEditCert] = useState<Certificacao | null>(null)
   const [certForm, setCertForm] = useState({ titulo: "", instituicao: "", ano: new Date().getFullYear(), tipo: "certificacao" as "graduacao" | "especializacao" | "certificacao" | "curso", verificada: false, url: "" })
@@ -219,6 +237,7 @@ export default function TerapeutaPerfilPage() {
           visivel: data.visivel_fractacare ?? false, destaque: data.destaque ?? false,
           disponibilidade: data.disponibilidade?.length > 0 ? data.disponibilidade : prev.disponibilidade,
           conselhoProfissional: data.conselho_profissional ?? "",
+          avatarUrl: data.avatar_url ?? "",
           registroProfissional: data.registro_profissional ?? "",
         }))
         setBioDraft(data.bio ?? "")
