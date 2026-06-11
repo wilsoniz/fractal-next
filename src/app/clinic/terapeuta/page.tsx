@@ -162,7 +162,6 @@ export default function TerapeutaPerfilPage() {
   const [editBio, setEditBio] = useState(false)
   const [bioDraft, setBioDraft] = useState("")
   const [salvando, setSalvando] = useState(false)
-  const [uploadingFoto,  setUploadingFoto]  = useState(false)
   const [modalAvaliacao, setModalAvaliacao] = useState(false)
   const [avalForm, setAvalForm] = useState({ familiaNome: "", pacienteIniciais: "", nota: 5, comentario: "" })
   const [salvandoAval, setSalvandoAval] = useState(false)
@@ -195,21 +194,6 @@ export default function TerapeutaPerfilPage() {
     setSalvandoAval(false)
     setModalAvaliacao(false)
     setAvalForm({ familiaNome: "", pacienteIniciais: "", nota: 5, comentario: "" })
-  }
-
-  async function uploadFoto(file: File) {
-    if (!terapeutaCtx?.id) return
-    setUploadingFoto(true)
-    const ext  = file.name.split(".").pop()
-    const path = `${terapeutaCtx.id}/avatar.${ext}`
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
-    if (!error) {
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path)
-      const url = urlData.publicUrl
-      await supabase.from("profiles").update({ avatar_url: url }).eq("id", terapeutaCtx.id)
-      setPerfil(p => ({ ...p, avatarUrl: url }))
-    }
-    setUploadingFoto(false)
   }
   const [modalCert, setModalCert] = useState(false)
   const [editCert, setEditCert] = useState<Certificacao | null>(null)
@@ -399,12 +383,17 @@ export default function TerapeutaPerfilPage() {
 
           {/* Avatar */}
           <div style={{ position: "relative", flexShrink: 0 }}>
-            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,#1D9E75,#378ADD)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", fontWeight: 800, color: "#fff" }}>
-              {perfil.iniciais}
+            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,#1D9E75,#378ADD)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", fontWeight: 800, color: "#fff", overflow: "hidden" }}>
+              {perfil.avatarUrl
+                ? <img src={perfil.avatarUrl} alt={perfil.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : perfil.iniciais}
             </div>
-            {perfil.visivel && (
-              <div style={{ position: "absolute", bottom: 2, right: 2, width: 14, height: 14, borderRadius: "50%", background: "#1D9E75", border: "2px solid #07111f" }} title="Visível no FractaCare" />
-            )}
+            <label style={{ position: "absolute", bottom: 2, right: 2, width: 20, height: 20, borderRadius: "50%", background: uploadingFoto ? "rgba(29,158,117,.5)" : "#1D9E75", border: "2px solid #07111f", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} title="Alterar foto">
+              {uploadingFoto
+                ? <div style={{ width: 8, height: 8, borderRadius: "50%", border: "2px solid #fff", borderTopColor: "transparent", animation: "spin .6s linear infinite" }} />
+                : <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M8 3v10M3 8h10" /></svg>}
+              <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) uploadFoto(f) }} />
+            </label>
           </div>
 
           {/* Info principal */}
