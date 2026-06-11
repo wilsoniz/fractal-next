@@ -162,6 +162,7 @@ export default function TerapeutaPerfilPage() {
   const [editBio, setEditBio] = useState(false)
   const [bioDraft, setBioDraft] = useState("")
   const [salvando, setSalvando] = useState(false)
+  const [uploadingFoto, setUploadingFoto] = useState(false)
   const [modalAvaliacao, setModalAvaliacao] = useState(false)
   const [avalForm, setAvalForm] = useState({ familiaNome: "", pacienteIniciais: "", nota: 5, comentario: "" })
   const [salvandoAval, setSalvandoAval] = useState(false)
@@ -194,6 +195,21 @@ export default function TerapeutaPerfilPage() {
     setSalvandoAval(false)
     setModalAvaliacao(false)
     setAvalForm({ familiaNome: "", pacienteIniciais: "", nota: 5, comentario: "" })
+  }
+
+  async function uploadFoto(file: File) {
+    if (!terapeutaCtx?.id) return
+    setUploadingFoto(true)
+    const ext = file.name.split(".").pop()
+    const path = `${terapeutaCtx.id}/avatar.${ext}`
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path)
+      const url = urlData.publicUrl
+      await supabase.from("profiles").update({ avatar_url: url }).eq("id", terapeutaCtx.id)
+      setPerfil(p => ({ ...p, avatarUrl: url }))
+    }
+    setUploadingFoto(false)
   }
   const [modalCert, setModalCert] = useState(false)
   const [editCert, setEditCert] = useState<Certificacao | null>(null)
