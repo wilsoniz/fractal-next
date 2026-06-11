@@ -927,6 +927,10 @@ export default function TerapeutaPerfilPage() {
                 <label style={{ ...lbl }}>Tempo de resposta</label>
                 <input value={perfil.tempoResposta} onChange={e => setPerfil(p => ({ ...p, tempoResposta: e.target.value }))} style={inp} />
               </div>
+              <div>
+                <label style={{ ...lbl }}>Anos de experiência</label>
+                <input type="number" min={0} max={50} value={perfil.anosExperiencia} onChange={e => setPerfil(p => ({ ...p, anosExperiencia: Number(e.target.value) }))} style={inp} />
+              </div>
             </div>
           </div>
 
