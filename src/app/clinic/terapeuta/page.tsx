@@ -931,9 +931,26 @@ export default function TerapeutaPerfilPage() {
                 <label style={{ ...lbl }}>Anos de experiência</label>
                 <input type="number" min={0} max={50} value={perfil.anosExperiencia} onChange={e => setPerfil(p => ({ ...p, anosExperiencia: Number(e.target.value) }))} style={inp} />
               </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ ...lbl }}>Modalidades de atendimento</label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, marginTop: 4 }}>
+                  {(["presencial", "domiciliar", "teleconsulta"] as const).map(m => {
+                    const ativo = perfil.modalidades.includes(m)
+                    const label = m === "presencial" ? "Presencial" : m === "domiciliar" ? "Domiciliar" : "Teleconsulta"
+                    return (
+                      <button key={m} onClick={() => {
+                        const nova = ativo ? perfil.modalidades.filter(x => x !== m) : [...perfil.modalidades, m]
+                        setPerfil(p => ({ ...p, modalidades: nova }))
+                      }}
+                        style={{ padding: "7px 16px", borderRadius: 20, border: `1px solid ${ativo ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: ativo ? "rgba(55,138,221,.12)" : "transparent", color: ativo ? "#378ADD" : "rgba(160,200,235,.4)", fontSize: ".75rem", fontWeight: ativo ? 600 : 400, cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all .15s" }}>
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
           </div>
-
           {/* Nível de senioridade — somente leitura */}
           <div style={{ ...card, padding: 20 }}>
             <div style={{ ...lbl }}>Certificação e nível de serviço</div>
