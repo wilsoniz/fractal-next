@@ -946,6 +946,15 @@ function SessaoInner() {
         p_analise_clinica: analiseClinica || null,
         p_decisao_proxima: decisaoProxima.length > 0 ? decisaoProxima : null,
         p_nota_decisao: notaDecisao || null,
+        p_comportamentos_json: comportamentosComProtocolo.length > 0
+          ? JSON.stringify(comportamentosComProtocolo.map(cv => ({
+            comportamento_interferente_id: cv.comportamento_interferente_id,
+            protocolo_id: cv.protocolo_id,
+            tipo_registro: cv.protocolos_conduta?.tipo_registro ?? "frequencia",
+            valor: tallyContadores[`comp_${cv.id}`] ?? 0,
+            unidade: cv.protocolos_conduta?.unidade_registro ?? "ocorrências",
+          })))
+          : null,
       })
 
       if (rpcError) throw rpcError
