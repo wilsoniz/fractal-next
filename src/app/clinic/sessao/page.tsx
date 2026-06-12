@@ -956,6 +956,7 @@ function SessaoInner() {
         p_analise_clinica: analiseClinica || null,
         p_decisao_proxima: decisaoProxima.length > 0 ? decisaoProxima : null,
         p_nota_decisao: notaDecisao || null,
+        ...(console.log("DEBUG comportamentos:", comportamentosComProtocolo, "tally:", tallyContadores) as any),
         p_comportamentos_json: comportamentosComProtocolo.length > 0
           ? comportamentosComProtocolo.map(cv => ({
             comportamento_interferente_id: cv.comportamento_interferente_id,
