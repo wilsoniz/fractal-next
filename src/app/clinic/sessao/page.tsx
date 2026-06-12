@@ -434,13 +434,17 @@ function SessaoInner() {
             id,
             comportamento_interferente_id,
             protocolo_id,
-            protocolos_conduta ( id, nome, tipo_registro, unidade_registro ),
-            planos_comportamento_interferente ( id, comportamento, intensidade )
+            protocolos_conduta ( id, nome, tipo_registro, unidade_registro )
           `)
           .in("plano_id", planoIds)
           .eq("status", "ativo")
         if (protVinculados && protVinculados.length > 0) {
-          setComportamentosComProtocolo(protVinculados)
+          // Enriquece com nome do comportamento dos dados já carregados
+          const enriched = protVinculados.map((pv: any) => ({
+            ...pv,
+            comportamento_nome: comps?.find((c: any) => c.id === pv.comportamento_interferente_id)?.comportamento ?? "Comportamento",
+          }))
+          setComportamentosComProtocolo(enriched)
         }
       }
 
@@ -1303,13 +1307,12 @@ function SessaoInner() {
 
     // Comportamentos interferentes com protocolos vinculados
     for (const cv of comportamentosComProtocolo) {
-      const comp = cv.planos_comportamento_interferente
-      const prot = cv.protocolos_conduta
-      if (comp?.comportamento && !dominiosAdicionados.has(cv.id)) {
+      if (!dominiosAdicionados.has(cv.id)) {
         dominiosAdicionados.add(cv.id)
+        const nomeComp = cv.comportamento_nome ?? cv.comportamento_interferente_id?.slice(0, 8) ?? "Comp."
         tallyItens.push({
           chave: `comp_${cv.id}`,
-          label: comp.comportamento.slice(0, 25) + (comp.comportamento.length > 25 ? "..." : ""),
+          label: nomeComp.slice(0, 25) + (nomeComp.length > 25 ? "..." : ""),
           cor: "#E05A4B",
         })
       }
