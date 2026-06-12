@@ -344,6 +344,7 @@ function SessaoInner() {
 
   // ── Tally ────────────────────────────────────────────────────────────────────
   const [tallyContadores, setTallyContadores] = useState<Record<string, number>>({})
+  const [comportamentosComProtocolo, setComportamentosComProtocolo] = useState<any[]>([])
   const [tallyRegistros, setTallyRegistros] = useState<{ chave: string; label: string; ts: number }[]>([])
 
   const [tallyCriterios, setTallyCriterios] = useState<{
@@ -424,6 +425,24 @@ function SessaoInner() {
         .eq("status", "ativo")
 
       const planoIds = (planosAtivos ?? []).map((p: any) => p.id)
+
+      // 2b. Busca comportamentos interferentes com protocolos vinculados
+      if (planoIds.length > 0) {
+        const { data: protVinculados } = await supabase
+          .from("plano_protocolos")
+          .select(`
+            id,
+            comportamento_interferente_id,
+            protocolo_id,
+            protocolos_conduta ( id, nome, tipo_registro, unidade_registro ),
+            planos_comportamento_interferente ( id, comportamento, intensidade )
+          `)
+          .in("plano_id", planoIds)
+          .eq("status", "ativo")
+        if (protVinculados && protVinculados.length > 0) {
+          setComportamentosComProtocolo(protVinculados)
+        }
+      }
 
       // 3. Busca programas do plano (só se houver planos)
       const planejados: LibItem[] = []
@@ -1273,7 +1292,20 @@ function SessaoInner() {
       }
     }
 
-    // Mínimo padrão se não houver avaliação ativa
+    // Comportamentos interferentes com protocolos vinculados
+    for (const cv of comportamentosComProtocolo) {
+      const comp = cv.planos_comportamento_interferente
+      const prot = cv.protocolos_conduta
+      if (comp?.comportamento && !dominiosAdicionados.has(cv.id)) {
+        dominiosAdicionados.add(cv.id)
+        tallyItens.push({
+          chave: `comp_${cv.id}`,
+          label: comp.comportamento.slice(0, 25) + (comp.comportamento.length > 25 ? "..." : ""),
+          cor: "#E05A4B",
+        })
+      }
+    }
+    // Mínimo padrão se não houver avaliação ativa e não houver comportamentos
     if (tallyItens.length === 0) {
       tallyItens.push({ chave: "mando_esp", label: "Mando esp.", cor: "#1D9E75" })
       tallyItens.push({ chave: "comp_int", label: "Comp. interf.", cor: "#E05A4B" })
