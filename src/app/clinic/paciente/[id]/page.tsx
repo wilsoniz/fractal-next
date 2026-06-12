@@ -625,6 +625,7 @@ export default function PerfilPacientePage() {
 
 
   const [sugestoes, setSugestoes] = useState<any[]>([])
+  const [planoIdAtivo, setPlanoIdAtivo] = useState<string | null>(null)
   const [aprovando, setAprovando] = useState<string | null>(null)
 
 
@@ -642,7 +643,12 @@ export default function PerfilPacientePage() {
   const [salvandoHab, setSalvandoHab] = useState(false);
 
   // Modal de adicionar comportamento
-  const [modalComp, setModalComp] = useState(false);
+  const [modalComp, setModalComp] = useState(false)
+  const [modalProtocolo, setModalProtocolo] = useState(false)
+  const [compSelecionado, setCompSelecionado] = useState<string | null>(null)
+  const [protocolosLib, setProtocolosLib] = useState<any[]>([])
+  const [vinculando, setVinculando] = useState(false)
+  const [protocolosVinculados, setProtocolosVinculados] = useState<Record<string, any[]>>({})
   const [dominiosExpandidos, setDominiosExpandidos] = useState<string[]>([]);
   const [novoComp, setNovoComp] = useState({ nome: "", topografia: "", funcao: "fuga", intensidade: "leve", contexto: "" });
   const [salvandoComp, setSalvandoComp] = useState(false);
@@ -672,7 +678,9 @@ export default function PerfilPacientePage() {
           .from("planos")
           .select("id, status, score_atual, programas ( id, nome, dominio )")
           .eq("crianca_id", criancaId)
-          .order("criado_em", { ascending: false });
+          .order("criado_em", { ascending: false })
+        const planoAtivoId = planos?.find((p: any) => p.status === "ativo")?.id ?? planos?.[0]?.id ?? null
+        setPlanoIdAtivo(planoAtivoId)
 
         // 4. Responsáveis vinculados
         const { data: vinculos } = await supabase
@@ -710,7 +718,35 @@ export default function PerfilPacientePage() {
           .select("*")
           .eq("crianca_id", criancaId)
           .order("intensidade");
-        setComportamentos(comps ?? []);
+        setComportamentos(comps ?? [])
+
+        // Carrega protocolos da biblioteca
+        const { data: prots } = await supabase
+          .from("protocolos_conduta")
+          .select("id, nome, hipotese_funcional, tipo_registro")
+          .eq("ativo", true)
+          .order("nome")
+        setProtocolosLib(prots ?? [])
+
+        // Carrega vínculos existentes
+        if (comps && comps.length > 0) {
+          const { data: vinculos } = await supabase
+            .from("plano_protocolos")
+            .select("*, protocolos_conduta(id, nome, hipotese_funcional)")
+            .eq("plano_id", planoAtivoId ?? "")
+            .eq("status", "ativo")
+          if (vinculos) {
+            const porComp: Record<string, any[]> = {}
+            for (const v of vinculos) {
+              const cid = v.comportamento_interferente_id
+              if (cid) {
+                if (!porComp[cid]) porComp[cid] = []
+                porComp[cid].push(v)
+              }
+            }
+            setProtocolosVinculados(porComp)
+          }
+        }
 
         // 7. Variáveis clínicas
         const { data: vars } = await supabase
@@ -1026,6 +1062,26 @@ export default function PerfilPacientePage() {
     setAprovando(null)
   }
 
+  async function vincularProtocolo(protocoloId: string) {
+    if (!planoIdAtivo || !compSelecionado) return
+    setVinculando(true)
+    const { data } = await supabase.from("plano_protocolos").insert({
+      plano_id: planoIdAtivo,
+      protocolo_id: protocoloId,
+      comportamento_interferente_id: compSelecionado,
+      status: "ativo",
+    }).select("*, protocolos_conduta(id, nome, hipotese_funcional)").single()
+    if (data) {
+      setProtocolosVinculados(prev => ({
+        ...prev,
+        [compSelecionado]: [...(prev[compSelecionado] ?? []), data],
+      }))
+    }
+    setVinculando(false)
+    setModalProtocolo(false)
+    setCompSelecionado(null)
+  }
+
   async function rejeitarSugestao(id: string) {
     await supabase
       .from("plano_sugestoes")
@@ -1247,16 +1303,26 @@ export default function PerfilPacientePage() {
                     <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", background: "rgba(26,58,92,.2)", borderRadius: 10, border: `1px solid ${st.cor}22` }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: st.cor, flexShrink: 0, marginTop: 4 }} />
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                           <span style={{ fontSize: ".82rem", fontWeight: 600, color: "#e8f0f8" }}>{c.comportamento ?? c.nome}</span>
                           <span style={{ fontSize: ".62rem", color: st.cor, background: st.cor + "15", borderRadius: 20, padding: "1px 7px", fontWeight: 600 }}>{st.label}</span>
                           {c.intensidade && <span style={{ fontSize: ".62rem", color: "rgba(160,200,235,.4)" }}>{c.intensidade}</span>}
                         </div>
-                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
                           {c.topografia && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Topografia: {c.topografia}</span>}
                           {c.funcao && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Função: {c.funcao}</span>}
                           {c.contexto && <span style={{ fontSize: ".68rem", color: "rgba(160,200,235,.5)" }}>Contexto: {c.contexto}</span>}
                         </div>
+                        {/* Protocolos vinculados */}
+                        {(protocolosVinculados[c.id] ?? []).map((v: any) => (
+                          <span key={v.id} style={{ fontSize: ".62rem", color: "#E05A4B", background: "rgba(224,90,75,.08)", border: "1px solid rgba(224,90,75,.2)", borderRadius: 20, padding: "2px 8px", marginRight: 6, display: "inline-block" }}>
+                            {v.protocolos_conduta?.nome ?? "Protocolo"}
+                          </span>
+                        ))}
+                        <button onClick={() => { setCompSelecionado(c.id); setModalProtocolo(true) }}
+                          style={{ fontSize: ".62rem", color: "rgba(224,90,75,.6)", background: "transparent", border: "1px solid rgba(224,90,75,.2)", borderRadius: 20, padding: "2px 8px", cursor: "pointer", fontFamily: "var(--font-sans)", marginTop: 4 }}>
+                          + Vincular protocolo
+                        </button>
                       </div>
                     </div>
                   );
@@ -1632,6 +1698,34 @@ export default function PerfilPacientePage() {
       )}
 
       {/* Modal adicionar comportamento */}
+      {/* Modal vincular protocolo */}
+      {modalProtocolo && (
+        <div onClick={() => setModalProtocolo(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(4px)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "rgba(7,17,31,.97)", border: "1px solid rgba(224,90,75,.3)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 480, maxHeight: "80vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>Vincular protocolo de conduta</div>
+            <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.5)", marginBottom: 8 }}>Selecione o protocolo mais adequado para este comportamento</div>
+            {protocolosLib.map(p => {
+              const jaVinculado = (protocolosVinculados[compSelecionado ?? ""] ?? []).some((v: any) => v.protocolo_id === p.id)
+              return (
+                <button key={p.id} onClick={() => !jaVinculado && vincularProtocolo(p.id)} disabled={vinculando || jaVinculado}
+                  style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${jaVinculado ? "rgba(29,158,117,.3)" : "rgba(224,90,75,.2)"}`, background: jaVinculado ? "rgba(29,158,117,.06)" : "rgba(224,90,75,.04)", cursor: jaVinculado ? "default" : "pointer", textAlign: "left", fontFamily: "var(--font-sans)", opacity: vinculando ? 0.7 : 1 }}>
+                  <div style={{ fontSize: ".82rem", fontWeight: 600, color: jaVinculado ? "#1D9E75" : "#e8f0f8", marginBottom: 3 }}>
+                    {jaVinculado ? "✓ " : ""}{p.nome}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {p.hipotese_funcional && <span style={{ fontSize: ".62rem", color: "rgba(160,200,235,.4)" }}>Função: {p.hipotese_funcional}</span>}
+                    {p.tipo_registro && <span style={{ fontSize: ".62rem", color: "rgba(160,200,235,.4)" }}>{p.tipo_registro}</span>}
+                  </div>
+                </button>
+              )
+            })}
+            <button onClick={() => setModalProtocolo(false)} style={{ padding: 10, borderRadius: 9, border: "1px solid rgba(70,120,180,.3)", background: "transparent", color: "rgba(160,200,235,.5)", fontSize: ".8rem", cursor: "pointer", fontFamily: "var(--font-sans)", marginTop: 4 }}>
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
       {modalComp && (
         <div onClick={() => setModalComp(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
           <div onClick={e => e.stopPropagation()} style={{ ...card, padding: 28, width: "100%", maxWidth: 440, border: "1px solid rgba(224,90,75,.2)" }}>
