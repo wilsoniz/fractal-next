@@ -649,6 +649,8 @@ export default function PerfilPacientePage() {
   const [protocolosLib, setProtocolosLib] = useState<any[]>([])
   const [vinculando, setVinculando] = useState(false)
   const [protocolosVinculados, setProtocolosVinculados] = useState<Record<string, any[]>>({})
+  const [registrosComp, setRegistrosComp] = useState<Record<string, any[]>>({})
+  const [compExpandido, setCompExpandido] = useState<string | null>(null)
   const [dominiosExpandidos, setDominiosExpandidos] = useState<string[]>([]);
   const [novoComp, setNovoComp] = useState({ nome: "", topografia: "", funcao: "fuga", intensidade: "leve", contexto: "" });
   const [salvandoComp, setSalvandoComp] = useState(false);
@@ -727,6 +729,26 @@ export default function PerfilPacientePage() {
           .eq("ativo", true)
           .order("nome")
         setProtocolosLib(prots ?? [])
+
+        // Carrega registros históricos de comportamento
+        if (comps && comps.length > 0) {
+          const compIds = comps.map((c: any) => c.id)
+          const { data: regs } = await supabase
+            .from("registros_comportamento")
+            .select("comportamento_interferente_id, valor, data_sessao, tipo_registro")
+            .eq("crianca_id", criancaId)
+            .in("comportamento_interferente_id", compIds)
+            .order("data_sessao", { ascending: true })
+          if (regs) {
+            const porComp: Record<string, any[]> = {}
+            for (const r of regs) {
+              const cid = r.comportamento_interferente_id
+              if (!porComp[cid]) porComp[cid] = []
+              porComp[cid].push(r)
+            }
+            setRegistrosComp(porComp)
+          }
+        }
 
         // Carrega vínculos existentes
         if (comps && comps.length > 0) {
@@ -1319,10 +1341,44 @@ export default function PerfilPacientePage() {
                             {v.protocolos_conduta?.nome ?? "Protocolo"}
                           </span>
                         ))}
-                        <button onClick={() => { setCompSelecionado(c.id); setModalProtocolo(true) }}
-                          style={{ fontSize: ".62rem", color: "rgba(224,90,75,.6)", background: "transparent", border: "1px solid rgba(224,90,75,.2)", borderRadius: 20, padding: "2px 8px", cursor: "pointer", fontFamily: "var(--font-sans)", marginTop: 4 }}>
-                          + Vincular protocolo
-                        </button>
+                        <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                          <button onClick={() => { setCompSelecionado(c.id); setModalProtocolo(true) }}
+                            style={{ fontSize: ".62rem", color: "rgba(224,90,75,.6)", background: "transparent", border: "1px solid rgba(224,90,75,.2)", borderRadius: 20, padding: "2px 8px", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                            + Vincular protocolo
+                          </button>
+                          {(registrosComp[c.id]?.length ?? 0) > 0 && (
+                            <button onClick={() => setCompExpandido(compExpandido === c.id ? null : c.id)}
+                              style={{ fontSize: ".62rem", color: "rgba(55,138,221,.6)", background: "transparent", border: "1px solid rgba(55,138,221,.2)", borderRadius: 20, padding: "2px 8px", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                              {compExpandido === c.id ? "Ocultar gráfico" : `Ver gráfico (${registrosComp[c.id].length} sessões)`}
+                            </button>
+                          )}
+                        </div>
+                        {/* Gráfico de redução */}
+                        {compExpandido === c.id && (registrosComp[c.id]?.length ?? 0) > 0 && (
+                          <div style={{ marginTop: 12, background: "rgba(13,32,53,.6)", borderRadius: 10, padding: "12px 8px" }}>
+                            <div style={{ fontSize: ".6rem", color: "rgba(224,90,75,.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
+                              Frequência por sessão
+                            </div>
+                            <LineChart width={340} height={120} data={registrosComp[c.id].map((r: any, i: number) => ({
+                              sessao: `S${i + 1}`,
+                              valor: r.valor,
+                              data: new Date(r.data_sessao).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+                            }))} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(70,120,180,.15)" />
+                              <XAxis dataKey="sessao" tick={{ fontSize: 9, fill: "rgba(160,200,235,.4)" }} />
+                              <YAxis tick={{ fontSize: 9, fill: "rgba(160,200,235,.4)" }} />
+                              <Tooltip
+                                contentStyle={{ background: "rgba(13,32,53,.95)", border: "1px solid rgba(70,120,180,.3)", borderRadius: 8, fontSize: 11 }}
+                                formatter={(v: any) => [v, "ocorrências"]}
+                                labelFormatter={(l: any, payload: any) => payload?.[0]?.payload?.data ?? l}
+                              />
+                              <Line type="monotone" dataKey="valor" stroke="#E05A4B" strokeWidth={2} dot={{ r: 3, fill: "#E05A4B" }} activeDot={{ r: 5 }} />
+                            </LineChart>
+                            <div style={{ fontSize: ".65rem", color: "rgba(160,200,235,.3)", marginTop: 4, textAlign: "center" }}>
+                              Tendência de redução — {registrosComp[c.id].length} sessão(ões) registrada(s)
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
