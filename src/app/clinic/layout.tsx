@@ -30,23 +30,24 @@ const NAV_ITEMS_COMPLETO = [
   {
     section: 'Clínico',
     items: [
-      { href: '/clinic/dashboard', label: 'Dashboard',    icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z' },
-      { href: '/clinic/pacientes', label: 'Pacientes',    icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM2 18c0-3 2.7-5 6-5s6 2 6 5' },
-      { href: '/clinic/programas', label: 'Programas',    icon: 'M2 4h12M2 8h9M2 12h6' },
-      { href: '/clinic/matrizes',  label: 'Matrizes',     icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z' },
-      { href: '/clinic/planos',    label: 'Planos',        icon: 'M2 4h12M2 8h9M2 12h6' },
-      { href: '/clinic/sessao',    label: 'Sessão ativa', icon: 'M8 2a6 6 0 100 12A6 6 0 008 2zM8 5v3l2 1.5' },
-      { href: '/clinic/avaliacoes', label: 'Avaliações',   icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
-      { href: '/clinic/evolucao',  label: 'Evolução',     icon: 'M1 11l4-5 3 3 3-5 4 3M1 13h14' },
-      { href: '/clinic/analise',   label: 'Análise',      icon: 'M2 12h2v2H2zM5 8h2v6H5zM8 10h2v4H8zM11 5h2v9h-2zM14 2h2v12h-2z' },
-      { href: '/clinic/agenda',    label: 'Agenda',       icon: 'M2 3h12a1 1 0 011 1v10a1 1 0 01-1 1H2a1 1 0 01-1-1V4a1 1 0 011-1zM5 3V1M11 3V1M1 7h14' },
+      { href: '/clinic/dashboard', label: 'Dashboard', icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z' },
+      { href: '/clinic/pacientes', label: 'Pacientes', icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM2 18c0-3 2.7-5 6-5s6 2 6 5' },
+      { href: '/clinic/programas', label: 'Programas', icon: 'M2 4h12M2 8h9M2 12h6' },
+      { href: '/clinic/protocolos', label: 'Protocolos', icon: 'M9 12h6M9 8h6M5 4h10a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1zM7 8h.01M7 12h.01' },
+      { href: '/clinic/matrizes', label: 'Matrizes', icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z' },
+      { href: '/clinic/planos', label: 'Planos', icon: 'M2 4h12M2 8h9M2 12h6' },
+      { href: '/clinic/sessao', label: 'Sessão ativa', icon: 'M8 2a6 6 0 100 12A6 6 0 008 2zM8 5v3l2 1.5' },
+      { href: '/clinic/avaliacoes', label: 'Avaliações', icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+      { href: '/clinic/evolucao', label: 'Evolução', icon: 'M1 11l4-5 3 3 3-5 4 3M1 13h14' },
+      { href: '/clinic/analise', label: 'Análise', icon: 'M2 12h2v2H2zM5 8h2v6H5zM8 10h2v4H8zM11 5h2v9h-2zM14 2h2v12h-2z' },
+      { href: '/clinic/agenda', label: 'Agenda', icon: 'M2 3h12a1 1 0 011 1v10a1 1 0 01-1 1H2a1 1 0 01-1-1V4a1 1 0 011-1zM5 3V1M11 3V1M1 7h14' },
     ],
   },
   {
     section: 'Desenvolvimento',
     items: [
-      { href: '/clinic/education',   label: 'Education',    icon: 'M8 1l1.5 3 3.5.5-2.5 2.5.6 3.5L8 9l-3.1 1.5.6-3.5L3 4.5z' },
-      { href: '/clinic/supervisao',  label: 'Supervisão',   icon: 'M1 5h14v9a1 1 0 01-1 1H2a1 1 0 01-1-1V5zM5 5V4a3 3 0 016 0v1' },
+      { href: '/clinic/education', label: 'Education', icon: 'M8 1l1.5 3 3.5.5-2.5 2.5.6 3.5L8 9l-3.1 1.5.6-3.5L3 4.5z' },
+      { href: '/clinic/supervisao', label: 'Supervisão', icon: 'M1 5h14v9a1 1 0 01-1 1H2a1 1 0 01-1-1V5zM5 5V4a3 3 0 016 0v1' },
     ],
   },
   {
@@ -58,12 +59,12 @@ const NAV_ITEMS_COMPLETO = [
 ]
 
 const NIVEL_CONFIG: Record<SenioridadeNivel, { label: string; cor: string; bg: string; modo: string }> = {
-  abat:         { label: 'ABAT',              cor: '#1D9E75', bg: 'rgba(29,158,117,.15)',  modo: 'Modo guiado'      },
-  qasp_s:       { label: 'QASP-S',            cor: '#EF9F27', bg: 'rgba(239,159,39,.15)',  modo: 'Modo semi-guiado' },
-  qba:          { label: 'QBA',               cor: '#8B7FE8', bg: 'rgba(139,127,232,.15)', modo: 'Modo livre'       },
-  terapeuta:    { label: 'Terapeuta',         cor: '#1D9E75', bg: 'rgba(29,158,117,.15)',  modo: 'Modo guiado'      },
-  coordenador:  { label: 'Coord. de caso',    cor: '#EF9F27', bg: 'rgba(239,159,39,.15)',  modo: 'Modo semi-guiado' },
-  supervisor:   { label: 'Supervisor',        cor: '#E05A4B', bg: 'rgba(224,90,75,.15)',   modo: 'Modo livre'       },
+  abat: { label: 'ABAT — Atendimento Jr', cor: '#1D9E75', bg: 'rgba(29,158,117,.15)', modo: 'Atendimento sob supervisão' },
+  qasp_s: { label: 'QASP-S — Pleno', cor: '#EF9F27', bg: 'rgba(239,159,39,.15)', modo: 'Atendimento + Coordenação' },
+  qba: { label: 'QBA — Sênior', cor: '#8B7FE8', bg: 'rgba(139,127,232,.15)', modo: 'Atendimento + Supervisão' },
+  terapeuta: { label: 'ABAT — Atendimento Jr', cor: '#1D9E75', bg: 'rgba(29,158,117,.15)', modo: 'Atendimento sob supervisão' },
+  coordenador: { label: 'QASP-S — Pleno', cor: '#EF9F27', bg: 'rgba(239,159,39,.15)', modo: 'Atendimento + Coordenação' },
+  supervisor: { label: 'QBA — Sênior', cor: '#8B7FE8', bg: 'rgba(139,127,232,.15)', modo: 'Atendimento + Supervisão' },
 }
 
 // ── PERMISSÕES POR NÍVEL ─────────────────────────────────────────────────────
@@ -78,12 +79,12 @@ export const PERMISSOES: Record<SenioridadeNivel, {
   modoSessao: 'guiado' | 'semi_guiado' | 'livre'
   precisaSupervisor: boolean
 }> = {
-  abat:        { podeEditarProgramas: false, podeAcessarMatrizes: false, podeCriarAvaliacoes: false, podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'guiado',      precisaSupervisor: true  },
-  qasp_s:      { podeEditarProgramas: true,  podeAcessarMatrizes: true,  podeCriarAvaliacoes: true,  podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'semi_guiado', precisaSupervisor: false },
-  qba:         { podeEditarProgramas: true,  podeAcessarMatrizes: true,  podeCriarAvaliacoes: true,  podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'livre',       precisaSupervisor: false },
-  terapeuta:   { podeEditarProgramas: false, podeAcessarMatrizes: false, podeCriarAvaliacoes: false, podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'guiado',      precisaSupervisor: true  },
-  coordenador: { podeEditarProgramas: true,  podeAcessarMatrizes: true,  podeCriarAvaliacoes: true,  podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'semi_guiado', precisaSupervisor: false },
-  supervisor:  { podeEditarProgramas: true,  podeAcessarMatrizes: true,  podeCriarAvaliacoes: true,  podeVerPlanos: true,  podeEnviarSpark: true,  modoSessao: 'livre',       precisaSupervisor: false },
+  abat: { podeEditarProgramas: false, podeAcessarMatrizes: false, podeCriarAvaliacoes: false, podeVerPlanos: true, podeEnviarSpark: true, modoSessao: 'guiado', precisaSupervisor: true },
+  qasp_s: { podeEditarProgramas: true, podeAcessarMatrizes: true, podeCriarAvaliacoes: true, podeVerPlanos: true, podeEnviarSpark: true, modoSessao: 'semi_guiado', precisaSupervisor: false },
+  qba: { podeEditarProgramas: true, podeAcessarMatrizes: true, podeCriarAvaliacoes: true, podeVerPlanos: true, podeEnviarSpark: true, modoSessao: 'livre', precisaSupervisor: false },
+  terapeuta: { podeEditarProgramas: false, podeAcessarMatrizes: false, podeCriarAvaliacoes: false, podeVerPlanos: true, podeEnviarSpark: true, modoSessao: 'guiado', precisaSupervisor: true },
+  coordenador: { podeEditarProgramas: true, podeAcessarMatrizes: true, podeCriarAvaliacoes: true, podeVerPlanos: true, podeEnviarSpark: true, modoSessao: 'semi_guiado', precisaSupervisor: false },
+  supervisor: { podeEditarProgramas: true, podeAcessarMatrizes: true, podeCriarAvaliacoes: true, podeVerPlanos: true, podeEnviarSpark: true, modoSessao: 'livre', precisaSupervisor: false },
 }
 
 export function useAcesso() {
@@ -103,7 +104,7 @@ function ParticlesCanvas() {
     let animId: number
 
     const resize = () => {
-      canvas.width  = window.innerWidth
+      canvas.width = window.innerWidth
       canvas.height = window.innerHeight
     }
     resize()
@@ -167,9 +168,9 @@ function ParticlesCanvas() {
 // ── SIDEBAR ──────────────────────────────────────────────────────────────────
 function Sidebar({ terapeuta }: { terapeuta: TerapeutaAtivo | null }) {
   const pathname = usePathname()
-  const router   = useRouter()
+  const router = useRouter()
   const nivel = terapeuta?.nivel ?? 'coordenador'
-  const cfg   = NIVEL_CONFIG[nivel]
+  const cfg = NIVEL_CONFIG[nivel]
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -194,19 +195,19 @@ function Sidebar({ terapeuta }: { terapeuta: TerapeutaAtivo | null }) {
 
       {/* Logo */}
       <Link href="/clinic/dashboard" style={{
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  padding: '20px 16px',
-  borderBottom: '1px solid rgba(26,58,92,.4)',
-  textDecoration: 'none',
-}}>
-        <Image 
-  src="/logo-fractaclinic.png" 
-  alt="FractaClinic" 
-  width={180} 
-  height={56} 
-  style={{ objectFit: 'contain', width: '100%', height: 'auto', maxHeight: 56 }} 
-  loading="eager" 
-/>
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px 16px',
+        borderBottom: '1px solid rgba(26,58,92,.4)',
+        textDecoration: 'none',
+      }}>
+        <Image
+          src="/logo-fractaclinic.png"
+          alt="FractaClinic"
+          width={180}
+          height={56}
+          style={{ objectFit: 'contain', width: '100%', height: 'auto', maxHeight: 56 }}
+          loading="eager"
+        />
       </Link>
 
       {/* Nav */}
@@ -278,8 +279,8 @@ function Sidebar({ terapeuta }: { terapeuta: TerapeutaAtivo | null }) {
           textDecoration: 'none',
           transition: 'background .15s',
         }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(20,65,120,.6)')}
-        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(20,65,120,.6)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           <div style={{
             width: 32, height: 32, borderRadius: '50%',
@@ -299,7 +300,7 @@ function Sidebar({ terapeuta }: { terapeuta: TerapeutaAtivo | null }) {
             </div>
           </div>
           <svg width='13' height='13' viewBox='0 0 16 16' fill='none' stroke='rgba(138,168,200,.7)' strokeWidth='1.5'>
-            <path d='M11 8H5M8 5l3 3-3 3'/>
+            <path d='M11 8H5M8 5l3 3-3 3' />
           </svg>
         </Link>
         <button onClick={handleLogout} style={{
@@ -310,11 +311,11 @@ function Sidebar({ terapeuta }: { terapeuta: TerapeutaAtivo | null }) {
           fontFamily: 'var(--font-sans)', fontSize: 12,
           transition: 'background .15s',
         }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(224,90,75,.08)')}
-        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(224,90,75,.08)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           <svg width='13' height='13' viewBox='0 0 16 16' fill='none' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round'>
-            <path d='M10 3h3a1 1 0 011 1v8a1 1 0 01-1 1h-3M7 11l-4-3 4-3M3 8h8'/>
+            <path d='M10 3h3a1 1 0 011 1v8a1 1 0 01-1 1h-3M7 11l-4-3 4-3M3 8h8' />
           </svg>
           Sair
         </button>
@@ -327,39 +328,39 @@ function Sidebar({ terapeuta }: { terapeuta: TerapeutaAtivo | null }) {
 // ── LAYOUT ────────────────────────────────────────────────────────────────────
 export default function ClinicDashboardLayout({ children }: { children: React.ReactNode }) {
   const [terapeuta, setTerapeuta] = useState<TerapeutaAtivo | null>(null)
-  const [isMobile,   setIsMobile]   = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const [menuMaisAberto, setMenuMaisAberto] = useState(false)
-  const [avatarOpen,     setAvatarOpen]     = useState(false)
+  const [avatarOpen, setAvatarOpen] = useState(false)
   const [seletorPaciente, setSeletorPaciente] = useState(false)
-  const [pacientesNav,    setPacientesNav]    = useState<{id:string;nome:string}[]>([])
-  const [sessaoAtiva, setSessaoAtiva] = useState<{ 
-  pacienteNome: string
-  pacienteId: string  // ← adicionar
-  segundos: number 
-} | null>(null)
+  const [pacientesNav, setPacientesNav] = useState<{ id: string; nome: string }[]>([])
+  const [sessaoAtiva, setSessaoAtiva] = useState<{
+    pacienteNome: string
+    pacienteId: string  // ← adicionar
+    segundos: number
+  } | null>(null)
 
   // Monitora localStorage para detectar sessão ativa
-useEffect(() => {
-  function checarSessao() {
-    try {
-      const saved = localStorage.getItem("fracta_sessao_ativa")
-      if (!saved) { setSessaoAtiva(null); return }
-      const s = JSON.parse(saved)
-      if (s.fase === "sessao" && s.sessaoDbId) {
-        setSessaoAtiva({ 
-          pacienteNome: s.pacienteId ?? "Paciente", 
-          pacienteId: s.pacienteId,  // ← adicionar
-          segundos: s.segundos ?? 0 
-            })
-      } else {
-        setSessaoAtiva(null)
-      }
-    } catch { setSessaoAtiva(null) }
-  }
-  checarSessao()
-  const interval = setInterval(checarSessao, 3000)
-  return () => clearInterval(interval)
-}, [])
+  useEffect(() => {
+    function checarSessao() {
+      try {
+        const saved = localStorage.getItem("fracta_sessao_ativa")
+        if (!saved) { setSessaoAtiva(null); return }
+        const s = JSON.parse(saved)
+        if (s.fase === "sessao" && s.sessaoDbId) {
+          setSessaoAtiva({
+            pacienteNome: s.pacienteId ?? "Paciente",
+            pacienteId: s.pacienteId,  // ← adicionar
+            segundos: s.segundos ?? 0
+          })
+        } else {
+          setSessaoAtiva(null)
+        }
+      } catch { setSessaoAtiva(null) }
+    }
+    checarSessao()
+    const interval = setInterval(checarSessao, 3000)
+    return () => clearInterval(interval)
+  }, [])
 
   const router = useRouter()
   async function handleLogout() {
@@ -417,24 +418,24 @@ useEffect(() => {
     }
     carregarTerapeuta()
   }, [])
-useEffect(() => {
-  if (!terapeuta) return
-  async function carregarPacientes() {
-    const { data: planos } = await supabase
-      .from('planos_com_crianca')
-      .select('crianca_id, crianca_nome')
-      .eq('terapeuta_id', terapeuta!.id)
-      .eq('status', 'ativo')
-    if (!planos) return
-    const map = new Map<string, string>()
-    for (const pl of planos) {
-      if (pl.crianca_id && !map.has(pl.crianca_id))
-        map.set(pl.crianca_id, pl.crianca_nome)
+  useEffect(() => {
+    if (!terapeuta) return
+    async function carregarPacientes() {
+      const { data: planos } = await supabase
+        .from('planos_com_crianca')
+        .select('crianca_id, crianca_nome')
+        .eq('terapeuta_id', terapeuta!.id)
+        .eq('status', 'ativo')
+      if (!planos) return
+      const map = new Map<string, string>()
+      for (const pl of planos) {
+        if (pl.crianca_id && !map.has(pl.crianca_id))
+          map.set(pl.crianca_id, pl.crianca_nome)
+      }
+      setPacientesNav(Array.from(map.entries()).map(([id, nome]) => ({ id, nome })))
     }
-    setPacientesNav(Array.from(map.entries()).map(([id, nome]) => ({ id, nome })))
-  }
-  carregarPacientes()
-}, [terapeuta])
+    carregarPacientes()
+  }, [terapeuta])
   return (
     <ClinicContext.Provider value={{ terapeuta }}>
       <div style={{
@@ -499,44 +500,44 @@ useEffect(() => {
                 }}
               >
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/>
+                  <circle cx="7" cy="7" r="5" /><path d="M11 11l3 3" />
                 </svg>
                 Buscar paciente
               </button>}
 
-<div style={{ position: 'relative', display: isMobile ? 'none' : 'block' }}>
-  <button onClick={() => setSeletorPaciente(v => !v)} style={{
-    display: 'flex', alignItems: 'center', gap: 6,
-    padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
-    background: '#1D9E75', color: '#fff',
-    border: 'none', fontSize: 12, fontWeight: 500,
-    fontFamily: 'var(--font-sans)',
-  }}>
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/>
-    </svg>
-    Nova sessão
-  </button>
-  {seletorPaciente && (
-    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, background: 'rgba(10,24,40,.98)', border: '1px solid rgba(26,58,92,.6)', borderRadius: 12, padding: 12, minWidth: 220, zIndex: 50, boxShadow: '0 8px 32px rgba(0,0,0,.4)' }}>
-      <div style={{ fontSize: 11, color: 'rgba(160,200,235,.4)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>Selecionar paciente</div>
-      {pacientesNav.length === 0
-        ? <div style={{ fontSize: 12, color: 'rgba(160,200,235,.3)', padding: '8px 0' }}>Nenhum paciente vinculado</div>
-        : pacientesNav.map(p => (
-          <Link key={p.id} href={`/clinic/sessao?pacienteId=${p.id}`} onClick={() => setSeletorPaciente(false)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, textDecoration: 'none', color: '#e8f0f8', fontSize: 13, cursor: 'pointer' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,58,92,.5)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          >
-            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#1D9E75,#378ADD)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
-              {p.nome.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase()}
-            </div>
-            {p.nome}
-          </Link>
-        ))
-      }
-    </div>
-  )}
-</div>
+              <div style={{ position: 'relative', display: isMobile ? 'none' : 'block' }}>
+                <button onClick={() => setSeletorPaciente(v => !v)} style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
+                  background: '#1D9E75', color: '#fff',
+                  border: 'none', fontSize: 12, fontWeight: 500,
+                  fontFamily: 'var(--font-sans)',
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="8" cy="8" r="6" /><path d="M8 5v6M5 8h6" />
+                  </svg>
+                  Nova sessão
+                </button>
+                {seletorPaciente && (
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, background: 'rgba(10,24,40,.98)', border: '1px solid rgba(26,58,92,.6)', borderRadius: 12, padding: 12, minWidth: 220, zIndex: 50, boxShadow: '0 8px 32px rgba(0,0,0,.4)' }}>
+                    <div style={{ fontSize: 11, color: 'rgba(160,200,235,.4)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>Selecionar paciente</div>
+                    {pacientesNav.length === 0
+                      ? <div style={{ fontSize: 12, color: 'rgba(160,200,235,.3)', padding: '8px 0' }}>Nenhum paciente vinculado</div>
+                      : pacientesNav.map(p => (
+                        <Link key={p.id} href={`/clinic/sessao?pacienteId=${p.id}`} onClick={() => setSeletorPaciente(false)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, textDecoration: 'none', color: '#e8f0f8', fontSize: 13, cursor: 'pointer' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,58,92,.5)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#1D9E75,#378ADD)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                            {p.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
+                          </div>
+                          {p.nome}
+                        </Link>
+                      ))
+                    }
+                  </div>
+                )}
+              </div>
               {/* Avatar dropdown */}
               <div style={{ position: 'relative' }}>
                 <button onClick={() => setAvatarOpen(v => !v)} style={{
@@ -574,10 +575,10 @@ useEffect(() => {
                         borderRadius: 8, textDecoration: 'none', color: '#c8e4f8', fontSize: 13,
                         transition: 'background .15s',
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(26,58,92,.5)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(26,58,92,.5)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                       >
-                        <svg width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' strokeWidth='1.5'><circle cx='8' cy='6' r='3'/><path d='M2 14c0-3 2.7-5 6-5s6 2 6 5'/></svg>
+                        <svg width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' strokeWidth='1.5'><circle cx='8' cy='6' r='3' /><path d='M2 14c0-3 2.7-5 6-5s6 2 6 5' /></svg>
                         Meu perfil
                       </Link>
                       <div style={{ height: 1, background: 'rgba(55,90,130,.3)', margin: '4px 8px' }} />
@@ -587,10 +588,10 @@ useEffect(() => {
                         color: '#E05A4B', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)',
                         transition: 'background .15s',
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(224,90,75,.1)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(224,90,75,.1)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                       >
-                        <svg width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round'><path d='M10 3h3a1 1 0 011 1v8a1 1 0 01-1 1h-3M7 11l-4-3 4-3M3 8h8'/></svg>
+                        <svg width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round'><path d='M10 3h3a1 1 0 011 1v8a1 1 0 01-1 1h-3M7 11l-4-3 4-3M3 8h8' /></svg>
                         Sair
                       </button>
                     </div>
@@ -608,192 +609,198 @@ useEffect(() => {
         </div>
       </div>
 
-        {/* ── PILL SESSÃO ATIVA ── */}
-{sessaoAtiva && pathname !== '/clinic/sessao' && (
-  <Link href={`/clinic/sessao?pacienteId=${sessaoAtiva.pacienteId}`} style={{
-    position: 'fixed', bottom: isMobile ? 70 : 20, 
-    left: isMobile ? '50%' : 'auto',
-    right: isMobile ? 'auto' : 20,
-    transform: isMobile ? 'translateX(-50%)' : 'none',
-    zIndex: 60,
-    display: 'flex', alignItems: 'center', gap: 10,
-    padding: '10px 16px',
-    background: 'rgba(7,17,31,.97)',
-    border: '1px solid rgba(29,158,117,.5)',
-    borderRadius: 40,
-    textDecoration: 'none',
-    boxShadow: '0 4px 24px rgba(0,0,0,.5)',
-    backdropFilter: 'blur(12px)',
-  }}>
-    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1D9E75', boxShadow: '0 0 6px #1D9E75' }} />
-    <span style={{ fontSize: 13, fontWeight: 600, color: '#e8f0f8' }}>Sessão em andamento</span>
-    <span style={{ fontSize: 12, color: '#1D9E75', fontFamily: 'monospace', fontWeight: 700 }}>
-      {Math.floor((sessaoAtiva.segundos) / 60).toString().padStart(2,'0')}:{((sessaoAtiva.segundos) % 60).toString().padStart(2,'0')}
-    </span>
-    <span style={{ fontSize: 11, color: 'rgba(160,200,235,.5)' }}>→ voltar</span>
-  </Link>
-)}        
+      {/* ── PILL SESSÃO ATIVA ── */}
+      {sessaoAtiva && pathname !== '/clinic/sessao' && (
+        <Link href={`/clinic/sessao?pacienteId=${sessaoAtiva.pacienteId}`} style={{
+          position: 'fixed', bottom: isMobile ? 70 : 20,
+          left: isMobile ? '50%' : 'auto',
+          right: isMobile ? 'auto' : 20,
+          transform: isMobile ? 'translateX(-50%)' : 'none',
+          zIndex: 60,
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 16px',
+          background: 'rgba(7,17,31,.97)',
+          border: '1px solid rgba(29,158,117,.5)',
+          borderRadius: 40,
+          textDecoration: 'none',
+          boxShadow: '0 4px 24px rgba(0,0,0,.5)',
+          backdropFilter: 'blur(12px)',
+        }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1D9E75', boxShadow: '0 0 6px #1D9E75' }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#e8f0f8' }}>Sessão em andamento</span>
+          <span style={{ fontSize: 12, color: '#1D9E75', fontFamily: 'monospace', fontWeight: 700 }}>
+            {Math.floor((sessaoAtiva.segundos) / 60).toString().padStart(2, '0')}:{((sessaoAtiva.segundos) % 60).toString().padStart(2, '0')}
+          </span>
+          <span style={{ fontSize: 11, color: 'rgba(160,200,235,.5)' }}>→ voltar</span>
+        </Link>
+      )}
 
-        {/* ── TAB BAR MOBILE ── */}
-        {isMobile && (
-          <nav style={{
-            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
-            background: 'rgba(7,17,31,.97)',
-            borderTop: '1px solid rgba(55,100,150,.4)',
-            backdropFilter: 'blur(20px)',
-            display: 'flex', alignItems: 'stretch',
-            paddingBottom: 'env(safe-area-inset-bottom)',
-          }}>
-            {/* 4 itens principais */}
-            {[
-              { href: '/clinic/dashboard', label: 'Início',    icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H9z' },
-              { href: '/clinic/pacientes', label: 'Pacientes', icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM2 18c0-3 2.7-5 6-5s6 2 6 5' },
-            ].map(item => {
-              const active = pathname === item.href || (item.href !== '/clinic/dashboard' && pathname.startsWith(item.href))
-              return (
-                <Link key={item.href} href={item.href} style={{
-                  flex: 1, display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center',
-                  padding: '10px 4px 8px', textDecoration: 'none',
-                  color: active ? '#23c48f' : 'rgba(160,200,235,.65)', gap: 4, position: 'relative',
-                }}>
-                  {active && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: '#23c48f', borderRadius: '0 0 2px 2px' }} />}
-                  <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                    <path d={item.icon} />
-                  </svg>
-                  <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{item.label}</span>
-                </Link>
-              )
-            })}
-            {/* Botão central — Nova sessão */}
-            <div style={{ position: 'relative', flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <button onClick={() => setSeletorPaciente(v => !v)} style={{
-                width: 48, height: 48, borderRadius: '50%', border: 'none',
-                background: 'linear-gradient(135deg,#1D9E75,#0f8f7a)',
-                color: '#07111f', cursor: 'pointer', display: 'flex',
+      {/* ── TAB BAR MOBILE ── */}
+      {isMobile && (
+        <nav style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+          background: 'rgba(7,17,31,.97)',
+          borderTop: '1px solid rgba(55,100,150,.4)',
+          backdropFilter: 'blur(20px)',
+          display: 'flex', alignItems: 'stretch',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}>
+          {/* 4 itens principais */}
+          {[
+            { href: '/clinic/dashboard', label: 'Início', icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H9z' },
+            { href: '/clinic/pacientes', label: 'Pacientes', icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM2 18c0-3 2.7-5 6-5s6 2 6 5' },
+          ].map(item => {
+            const active = pathname === item.href || (item.href !== '/clinic/dashboard' && pathname.startsWith(item.href))
+            return (
+              <Link key={item.href} href={item.href} style={{
+                flex: 1, display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 12px rgba(29,158,117,.5)',
-                marginBottom: 8,
+                padding: '10px 4px 8px', textDecoration: 'none',
+                color: active ? '#23c48f' : 'rgba(160,200,235,.65)', gap: 4, position: 'relative',
               }}>
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M8 3v10M3 8h10"/>
+                {active && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: '#23c48f', borderRadius: '0 0 2px 2px' }} />}
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={item.icon} />
                 </svg>
-              </button>
-              <span style={{ position: 'absolute', bottom: 0, fontSize: 10, color: 'rgba(160,200,235,.5)', fontFamily: 'var(--font-sans)' }}>Sessão</span>
-              {seletorPaciente && (
-                <div style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 12, background: 'rgba(10,24,40,.98)', border: '1px solid rgba(26,58,92,.6)', borderRadius: 12, padding: 12, minWidth: 220, zIndex: 50, boxShadow: '0 8px 32px rgba(0,0,0,.4)' }}>
-                  <div style={{ fontSize: 11, color: 'rgba(160,200,235,.4)', marginBottom: 8, textTransform: 'uppercase' as const, letterSpacing: '.06em' }}>Selecionar paciente</div>
-                  {pacientesNav.length === 0
-                    ? <div style={{ fontSize: 12, color: 'rgba(160,200,235,.3)', padding: '8px 0' }}>Nenhum paciente vinculado</div>
-                    : pacientesNav.map((p: any) => (
-                      <Link key={p.id} href={`/clinic/sessao?pacienteId=${p.id}`} onClick={() => setSeletorPaciente(false)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, textDecoration: 'none', color: '#e8f0f8', fontSize: 13 }}>
-                        <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#1D9E75,#378ADD)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
-                          {p.nome.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase()}
-                        </div>
-                        {p.nome}
-                      </Link>
-                    ))
-                  }
-                </div>
-              )}
-            </div>
-
-            {/* Agenda e Mais */}
-            {[
-              { href: '/clinic/agenda', label: 'Agenda', icon: 'M2 3h12a1 1 0 011 1v10a1 1 0 01-1 1H2a1 1 0 01-1-1V4a1 1 0 011-1zM5 3V1M11 3V1M1 7h14' },
-            ].map(item => {
-              const active = pathname === item.href || (item.href !== '/clinic/dashboard' && pathname.startsWith(item.href))
-              return (
-                <Link key={item.href} href={item.href} style={{
-                  flex: 1, display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center',
-                  padding: '10px 4px 8px', textDecoration: 'none',
-                  color: active ? '#23c48f' : 'rgba(160,200,235,.65)', gap: 4, position: 'relative',
-                }}>
-                  {active && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: '#23c48f', borderRadius: '0 0 2px 2px' }} />}
-                  <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                    <path d={item.icon} />
-                  </svg>
-                  <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{item.label}</span>
-                </Link>
-              )
-            })}
-
-            {/* Botão MAIS */}
-            <button onClick={() => setMenuMaisAberto(v => !v)} style={{
-              flex: 1, display: 'flex', flexDirection: 'column',
+                <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{item.label}</span>
+              </Link>
+            )
+          })}
+          {/* Botão central — Nova sessão */}
+          <div style={{ position: 'relative', flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <button onClick={() => setSeletorPaciente(v => !v)} style={{
+              width: 48, height: 48, borderRadius: '50%', border: 'none',
+              background: 'linear-gradient(135deg,#1D9E75,#0f8f7a)',
+              color: '#07111f', cursor: 'pointer', display: 'flex',
               alignItems: 'center', justifyContent: 'center',
-              padding: '10px 4px 8px', background: 'none', border: 'none',
-              color: menuMaisAberto ? '#23c48f' : 'rgba(160,200,235,.65)', gap: 4, cursor: 'pointer',
-              fontFamily: 'var(--font-sans)', position: 'relative',
+              boxShadow: '0 2px 12px rgba(29,158,117,.5)',
+              marginBottom: 8,
             }}>
-              {menuMaisAberto && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: '#23c48f', borderRadius: '0 0 2px 2px' }} />}
-              <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="4" cy="8" r="1.2" fill="currentColor" stroke="none"/>
-                <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none"/>
-                <circle cx="12" cy="8" r="1.2" fill="currentColor" stroke="none"/>
+              <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M8 3v10M3 8h10" />
               </svg>
-              <span style={{ fontSize: 10, fontWeight: menuMaisAberto ? 600 : 400 }}>Mais</span>
             </button>
-
-            {/* Drawer MAIS */}
-            {menuMaisAberto && (
-              <>
-                {/* Overlay */}
-                <div onClick={() => setMenuMaisAberto(false)} style={{ position: 'fixed', inset: 0, bottom: 60, background: 'rgba(0,0,0,.5)', zIndex: 48 }} />
-                {/* Painel */}
-                <div style={{
-                  position: 'fixed', left: 0, right: 0, bottom: 60, zIndex: 49,
-                  background: 'rgba(10,24,40,.97)', borderTop: '1px solid rgba(55,100,150,.4)',
-                  backdropFilter: 'blur(20px)', borderRadius: '16px 16px 0 0',
-                  padding: '16px 0 8px',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-                    <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(80,130,180,.4)' }} />
-                  </div>
-                  {[
-                    { section: 'Clínico', items: [
-                      { href: '/clinic/programas',  label: 'Programas',   icon: 'M2 4h12M2 8h9M2 12h6' },
-                      { href: '/clinic/avaliacoes', label: 'Avaliações',  icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
-                      { href: '/clinic/evolucao',   label: 'Evolução',    icon: 'M1 11l4-5 3 3 3-5 4 3M1 13h14' },
-                      { href: '/clinic/analise',    label: 'Análise',     icon: 'M2 12h2v2H2zM5 8h2v6H5zM8 10h2v4H8zM11 5h2v9h-2zM14 2h2v12h-2z' },
-                    ]},
-                      { section: 'Desenvolvimento', items: [
-                      { href: '/clinic/education',  label: 'Education',   icon: 'M8 1l1.5 3 3.5.5-2.5 2.5.6 3.5L8 9l-3.1 1.5.6-3.5L3 4.5z' },
-                      { href: '/clinic/supervisao', label: 'Supervisão',  icon: 'M1 5h14v9a1 1 0 01-1 1H2a1 1 0 01-1-1V5zM5 5V4a3 3 0 016 0v1' },
-                    ]},
-                    { section: 'Financeiro & Perfil', items: [
-                      { href: '/clinic/wallet',     label: 'Clinic Wallet', icon: 'M8 2a6 6 0 100 12A6 6 0 008 2zM8 5v1.5M8 9.5V11M6 7.5c0-.8.9-1.5 2-1.5s2 .7 2 1.5-2 1.5-2 1.5' },
-                      { href: '/clinic/terapeuta',  label: 'Meu Perfil',    icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM4 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H4z' },
-                    ]},
-                  ].map(group => (
-                    <div key={group.section}>
-                      <div style={{ padding: '6px 20px 4px', fontSize: 9, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(160,195,230,.5)' }}>{group.section}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', padding: '4px 8px' }}>
-                        {group.items.map(item => {
-                          const active = pathname === item.href || pathname.startsWith(item.href)
-                          return (
-                            <Link key={item.href} href={item.href} onClick={() => setMenuMaisAberto(false)} style={{
-                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                              padding: '12px 8px', borderRadius: 10, textDecoration: 'none',
-                              color: active ? '#23c48f' : 'rgba(160,200,235,.8)',
-                              background: active ? 'rgba(29,158,117,.1)' : 'transparent',
-                            }}>
-                              <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                                <path d={item.icon} />
-                              </svg>
-                              <span style={{ fontSize: 11, fontWeight: active ? 600 : 400, textAlign: 'center' }}>{item.label}</span>
-                            </Link>
-                          )
-                        })}
+            <span style={{ position: 'absolute', bottom: 0, fontSize: 10, color: 'rgba(160,200,235,.5)', fontFamily: 'var(--font-sans)' }}>Sessão</span>
+            {seletorPaciente && (
+              <div style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 12, background: 'rgba(10,24,40,.98)', border: '1px solid rgba(26,58,92,.6)', borderRadius: 12, padding: 12, minWidth: 220, zIndex: 50, boxShadow: '0 8px 32px rgba(0,0,0,.4)' }}>
+                <div style={{ fontSize: 11, color: 'rgba(160,200,235,.4)', marginBottom: 8, textTransform: 'uppercase' as const, letterSpacing: '.06em' }}>Selecionar paciente</div>
+                {pacientesNav.length === 0
+                  ? <div style={{ fontSize: 12, color: 'rgba(160,200,235,.3)', padding: '8px 0' }}>Nenhum paciente vinculado</div>
+                  : pacientesNav.map((p: any) => (
+                    <Link key={p.id} href={`/clinic/sessao?pacienteId=${p.id}`} onClick={() => setSeletorPaciente(false)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, textDecoration: 'none', color: '#e8f0f8', fontSize: 13 }}>
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#1D9E75,#378ADD)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                        {p.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </>
+                      {p.nome}
+                    </Link>
+                  ))
+                }
+              </div>
             )}
-          </nav>
-        )}
+          </div>
+
+          {/* Agenda e Mais */}
+          {[
+            { href: '/clinic/agenda', label: 'Agenda', icon: 'M2 3h12a1 1 0 011 1v10a1 1 0 01-1 1H2a1 1 0 01-1-1V4a1 1 0 011-1zM5 3V1M11 3V1M1 7h14' },
+          ].map(item => {
+            const active = pathname === item.href || (item.href !== '/clinic/dashboard' && pathname.startsWith(item.href))
+            return (
+              <Link key={item.href} href={item.href} style={{
+                flex: 1, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                padding: '10px 4px 8px', textDecoration: 'none',
+                color: active ? '#23c48f' : 'rgba(160,200,235,.65)', gap: 4, position: 'relative',
+              }}>
+                {active && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: '#23c48f', borderRadius: '0 0 2px 2px' }} />}
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={item.icon} />
+                </svg>
+                <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{item.label}</span>
+              </Link>
+            )
+          })}
+
+          {/* Botão MAIS */}
+          <button onClick={() => setMenuMaisAberto(v => !v)} style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '10px 4px 8px', background: 'none', border: 'none',
+            color: menuMaisAberto ? '#23c48f' : 'rgba(160,200,235,.65)', gap: 4, cursor: 'pointer',
+            fontFamily: 'var(--font-sans)', position: 'relative',
+          }}>
+            {menuMaisAberto && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: '#23c48f', borderRadius: '0 0 2px 2px' }} />}
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="4" cy="8" r="1.2" fill="currentColor" stroke="none" />
+              <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none" />
+              <circle cx="12" cy="8" r="1.2" fill="currentColor" stroke="none" />
+            </svg>
+            <span style={{ fontSize: 10, fontWeight: menuMaisAberto ? 600 : 400 }}>Mais</span>
+          </button>
+
+          {/* Drawer MAIS */}
+          {menuMaisAberto && (
+            <>
+              {/* Overlay */}
+              <div onClick={() => setMenuMaisAberto(false)} style={{ position: 'fixed', inset: 0, bottom: 60, background: 'rgba(0,0,0,.5)', zIndex: 48 }} />
+              {/* Painel */}
+              <div style={{
+                position: 'fixed', left: 0, right: 0, bottom: 60, zIndex: 49,
+                background: 'rgba(10,24,40,.97)', borderTop: '1px solid rgba(55,100,150,.4)',
+                backdropFilter: 'blur(20px)', borderRadius: '16px 16px 0 0',
+                padding: '16px 0 8px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                  <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(80,130,180,.4)' }} />
+                </div>
+                {[
+                  {
+                    section: 'Clínico', items: [
+                      { href: '/clinic/programas', label: 'Programas', icon: 'M2 4h12M2 8h9M2 12h6' },
+                      { href: '/clinic/avaliacoes', label: 'Avaliações', icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+                      { href: '/clinic/evolucao', label: 'Evolução', icon: 'M1 11l4-5 3 3 3-5 4 3M1 13h14' },
+                      { href: '/clinic/analise', label: 'Análise', icon: 'M2 12h2v2H2zM5 8h2v6H5zM8 10h2v4H8zM11 5h2v9h-2zM14 2h2v12h-2z' },
+                    ]
+                  },
+                  {
+                    section: 'Desenvolvimento', items: [
+                      { href: '/clinic/education', label: 'Education', icon: 'M8 1l1.5 3 3.5.5-2.5 2.5.6 3.5L8 9l-3.1 1.5.6-3.5L3 4.5z' },
+                      { href: '/clinic/supervisao', label: 'Supervisão', icon: 'M1 5h14v9a1 1 0 01-1 1H2a1 1 0 01-1-1V5zM5 5V4a3 3 0 016 0v1' },
+                    ]
+                  },
+                  {
+                    section: 'Financeiro & Perfil', items: [
+                      { href: '/clinic/wallet', label: 'Clinic Wallet', icon: 'M8 2a6 6 0 100 12A6 6 0 008 2zM8 5v1.5M8 9.5V11M6 7.5c0-.8.9-1.5 2-1.5s2 .7 2 1.5-2 1.5-2 1.5' },
+                      { href: '/clinic/terapeuta', label: 'Meu Perfil', icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM4 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H4z' },
+                    ]
+                  },
+                ].map(group => (
+                  <div key={group.section}>
+                    <div style={{ padding: '6px 20px 4px', fontSize: 9, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(160,195,230,.5)' }}>{group.section}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', padding: '4px 8px' }}>
+                      {group.items.map(item => {
+                        const active = pathname === item.href || pathname.startsWith(item.href)
+                        return (
+                          <Link key={item.href} href={item.href} onClick={() => setMenuMaisAberto(false)} style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                            padding: '12px 8px', borderRadius: 10, textDecoration: 'none',
+                            color: active ? '#23c48f' : 'rgba(160,200,235,.8)',
+                            background: active ? 'rgba(29,158,117,.1)' : 'transparent',
+                          }}>
+                            <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                              <path d={item.icon} />
+                            </svg>
+                            <span style={{ fontSize: 11, fontWeight: active ? 600 : 400, textAlign: 'center' }}>{item.label}</span>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </nav>
+      )}
 
     </ClinicContext.Provider>
   )
@@ -801,18 +808,18 @@ useEffect(() => {
 
 function getPageTitle(pathname: string): string {
   const map: Record<string, string> = {
-    '/clinic/dashboard':  'Dashboard',
-    '/clinic/pacientes':  'Pacientes',
-    '/clinic/programas':  'Programas',
-    '/clinic/sessao':     'Sessão ativa',
-    '/clinic/evolucao':   'Evolução',
-    '/clinic/analise':    'Análise Longitudinal',
-    '/clinic/agenda':     'Agenda',
-    '/clinic/education':  'FractaEducation',
+    '/clinic/dashboard': 'Dashboard',
+    '/clinic/pacientes': 'Pacientes',
+    '/clinic/programas': 'Programas',
+    '/clinic/sessao': 'Sessão ativa',
+    '/clinic/evolucao': 'Evolução',
+    '/clinic/analise': 'Análise Longitudinal',
+    '/clinic/agenda': 'Agenda',
+    '/clinic/education': 'FractaEducation',
     '/clinic/supervisao': 'Supervisão',
-    '/clinic/wallet':     'Clinic Wallet',
+    '/clinic/wallet': 'Clinic Wallet',
     '/clinic/avaliacoes': 'Avaliações',
-    '/clinic/terapeuta':  'Meu Perfil',
+    '/clinic/terapeuta': 'Meu Perfil',
   }
   return map[pathname] ?? 'FractaClinic'
 }
