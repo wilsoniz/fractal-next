@@ -426,6 +426,12 @@ function SessaoInner() {
 
       const planoIds = (planosAtivos ?? []).map((p: any) => p.id)
 
+      // Busca comportamentos interferentes para enriquecer os nomes
+      const { data: comps } = await supabase
+        .from("planos_comportamento_interferente")
+        .select("id, comportamento")
+        .eq("crianca_id", pacienteId)
+
       // 2b. Busca comportamentos interferentes com protocolos vinculados
       if (planoIds.length > 0) {
         const { data: protVinculados } = await supabase
