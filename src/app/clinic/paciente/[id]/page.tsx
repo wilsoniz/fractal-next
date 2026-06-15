@@ -650,6 +650,7 @@ export default function PerfilPacientePage() {
   const [vinculando, setVinculando] = useState(false)
   const [protocolosVinculados, setProtocolosVinculados] = useState<Record<string, any[]>>({})
   const [registrosComp, setRegistrosComp] = useState<Record<string, any[]>>({})
+  const [fasesProgramas, setFasesProgramas] = useState<Record<string, any>>({})
   const [compExpandido, setCompExpandido] = useState<string | null>(null)
   const [dominiosExpandidos, setDominiosExpandidos] = useState<string[]>([]);
   const [novoComp, setNovoComp] = useState({ nome: "", topografia: "", funcao: "fuga", intensidade: "leve", contexto: "" });
@@ -683,6 +684,20 @@ export default function PerfilPacientePage() {
           .order("criado_em", { ascending: false })
         const planoAtivoId = planos?.find((p: any) => p.status === "ativo")?.id ?? planos?.[0]?.id ?? null
         setPlanoIdAtivo(planoAtivoId)
+
+        // Carrega fases ativas dos programas
+        const { data: fases } = await supabase
+          .from("programa_fases")
+          .select("*")
+          .eq("crianca_id", criancaId)
+          .eq("status", "ativa")
+        if (fases) {
+          const porPrograma: Record<string, any> = {}
+          for (const f of fases) {
+            porPrograma[f.programa_id] = f
+          }
+          setFasesProgramas(porPrograma)
+        }
 
         // 4. Responsáveis vinculados
         const { data: vinculos } = await supabase
@@ -1080,8 +1095,41 @@ export default function PerfilPacientePage() {
       })
       .eq("id", sugestao.id)
 
+    // Cria fase baseline inicial para o novo programa
+    if (planoProg?.id && programaId) {
+      await supabase.rpc("iniciar_baseline_programa", {
+        p_programa_id: programaId,
+        p_plano_programa_id: planoProg.id,
+        p_crianca_id: params.id,
+        p_terapeuta_id: terapeuta?.id,
+      })
+    }
+
     setSugestoes(prev => prev.filter(s => s.id !== sugestao.id))
     setAprovando(null)
+  }
+
+  async function avancarFase(faseId: string, programaId: string) {
+    if (!terapeuta?.id) return
+    const motivo = window.prompt("Motivo da transição de fase (opcional):") ?? ""
+    const { data: novaFaseId, error } = await supabase.rpc("avancar_fase_programa", {
+      p_fase_id: faseId,
+      p_aprovado_por: terapeuta.id,
+      p_motivo: motivo || null,
+    })
+    if (error) {
+      console.error("Erro ao avançar fase:", error)
+      return
+    }
+    // Recarrega a fase do programa
+    const { data: novaFase } = await supabase
+      .from("programa_fases")
+      .select("*")
+      .eq("id", novaFaseId)
+      .single()
+    if (novaFase) {
+      setFasesProgramas(prev => ({ ...prev, [programaId]: novaFase }))
+    }
   }
 
   async function vincularProtocolo(protocoloId: string) {
@@ -1518,12 +1566,96 @@ export default function PerfilPacientePage() {
                     </div>
                     <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)" }}>{p.domain}</div>
                   </div>
-                  {nivel !== "terapeuta" && (
-                    <Link href={`/clinic/sessao?pacienteId=${data.id}&programaId=${p.id}`} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".72rem", fontWeight: 600, textDecoration: "none" }}>
-                      Executar →
-                    </Link>
-                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {/* Badge da fase atual */}
+                    {fasesProgramas[p.id] && (
+                      <span style={{ fontSize: ".65rem", fontWeight: 700, color: fasesProgramas[p.id].tipo === "baseline" ? "#EF9F27" : fasesProgramas[p.id].tipo === "intervention" ? "#1D9E75" : "#378ADD", background: fasesProgramas[p.id].tipo === "baseline" ? "rgba(239,159,39,.12)" : fasesProgramas[p.id].tipo === "intervention" ? "rgba(29,158,117,.12)" : "rgba(55,138,221,.12)", borderRadius: 20, padding: "3px 10px" }}>
+                        {fasesProgramas[p.id].rotulo} · {fasesProgramas[p.id].tipo === "baseline" ? "Linha de base" : fasesProgramas[p.id].tipo === "intervention" ? "Intervenção" : fasesProgramas[p.id].tipo === "maintenance" ? "Manutenção" : fasesProgramas[p.id].tipo === "generalization" ? "Generalização" : fasesProgramas[p.id].tipo}
+                      </span>
+                    )}
+                    {nivel !== "terapeuta" && (
+                      <Link href={`/clinic/sessao?pacienteId=${data.id}&programaId=${p.id}`} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".72rem", fontWeight: 600, textDecoration: "none" }}>
+                        Executar →
+                      </Link>
+                    )}
+                  </div>
                 </div>
+
+                {/* Painel de métricas da baseline */}
+                {fasesProgramas[p.id] && fasesProgramas[p.id].tipo === "baseline" && (
+                  <div style={{ background: "rgba(239,159,39,.04)", border: "1px solid rgba(239,159,39,.15)", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <span style={{ fontSize: ".68rem", fontWeight: 700, color: "#EF9F27", textTransform: "uppercase", letterSpacing: ".06em" }}>
+                        Linha de base {fasesProgramas[p.id].rotulo}
+                      </span>
+                      <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.5)" }}>
+                        {fasesProgramas[p.id].sessoes_coletadas ?? 0} sessões coletadas
+                      </span>
+                    </div>
+
+                    {(fasesProgramas[p.id].sessoes_coletadas ?? 0) > 0 ? (
+                      <>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 10 }}>
+                          {[
+                            { l: "Média", v: fasesProgramas[p.id].media ?? "—" },
+                            { l: "CV", v: fasesProgramas[p.id].coeficiente_variacao != null ? `${fasesProgramas[p.id].coeficiente_variacao}%` : "—" },
+                            { l: "Tendência", v: fasesProgramas[p.id].tendencia_slope != null ? (Math.abs(fasesProgramas[p.id].tendencia_slope) < 0.5 ? "estável" : fasesProgramas[p.id].tendencia_slope > 0 ? "↑" : "↓") : "—" },
+                            { l: "Estabilidade", v: fasesProgramas[p.id].estabilidade_pct != null ? `${fasesProgramas[p.id].estabilidade_pct}%` : "—" },
+                          ].map(m => (
+                            <div key={m.l} style={{ textAlign: "center" }}>
+                              <div style={{ fontSize: ".88rem", fontWeight: 700, color: "#e8f0f8" }}>{m.v}</div>
+                              <div style={{ fontSize: ".58rem", color: "rgba(160,200,235,.5)", textTransform: "uppercase", letterSpacing: ".05em", marginTop: 2 }}>{m.l}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Sugestão do sistema */}
+                        {fasesProgramas[p.id].sistema_sugeriu_avanco ? (
+                          <div style={{ background: "rgba(29,158,117,.08)", border: "1px solid rgba(29,158,117,.25)", borderRadius: 8, padding: "10px 12px" }}>
+                            <div style={{ fontSize: ".72rem", fontWeight: 600, color: "#1D9E75", marginBottom: 6 }}>
+                              Baseline estável — sistema sugere iniciar intervenção
+                            </div>
+                            <div style={{ fontSize: ".66rem", color: "rgba(160,200,235,.6)", marginBottom: 10, lineHeight: 1.5 }}>
+                              {fasesProgramas[p.id].sistema_motivo}
+                            </div>
+                            {nivel !== "terapeuta" && (
+                              <button onClick={() => avancarFase(fasesProgramas[p.id].id, p.id)}
+                                style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".72rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                                Iniciar intervenção →
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)", fontStyle: "italic" }}>
+                            {(fasesProgramas[p.id].sessoes_coletadas ?? 0) < 3
+                              ? `Colete pelo menos 3 sessões para avaliar a estabilidade da baseline (${fasesProgramas[p.id].sessoes_coletadas ?? 0}/3)`
+                              : "Baseline ainda não estável — continue coletando ou inicie intervenção manualmente"}
+                            {nivel !== "terapeuta" && (fasesProgramas[p.id].sessoes_coletadas ?? 0) >= 1 && (
+                              <button onClick={() => avancarFase(fasesProgramas[p.id].id, p.id)}
+                                style={{ display: "block", marginTop: 8, padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(239,159,39,.3)", background: "transparent", color: "#EF9F27", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                                Iniciar intervenção manualmente →
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.4)", fontStyle: "italic" }}>
+                        Nenhuma sessão de linha de base coletada ainda. Execute o programa para começar a coletar dados.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Botão de avançar fase para intervenção/outras */}
+                {fasesProgramas[p.id] && fasesProgramas[p.id].tipo === "intervention" && nivel !== "terapeuta" && (
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                    <button onClick={() => avancarFase(fasesProgramas[p.id].id, p.id)}
+                      style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(55,138,221,.3)", background: "transparent", color: "#378ADD", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                      Avançar para manutenção →
+                    </button>
+                  </div>
+                )}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                   {[{ l: "Taxa de sucesso", v: p.success }, { l: "Independência", v: p.independence }].map(m => (
                     <div key={m.l}>
