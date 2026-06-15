@@ -1096,13 +1096,15 @@ export default function PerfilPacientePage() {
       .eq("id", sugestao.id)
 
     // Cria fase baseline inicial para o novo programa
+    console.log("planoProg:", planoProg, "programaId:", programaId, "params.id:", params.id, "terapeuta:", terapeuta?.id)
     if (planoProg?.id && programaId) {
-      await supabase.rpc("iniciar_baseline_programa", {
+      const { data: faseData, error: faseError } = await supabase.rpc("iniciar_baseline_programa", {
         p_programa_id: programaId,
         p_plano_programa_id: planoProg.id,
         p_crianca_id: params.id,
         p_terapeuta_id: terapeuta?.id,
       })
+      console.log("faseData:", faseData, "faseError:", faseError)
     }
 
     setSugestoes(prev => prev.filter(s => s.id !== sugestao.id))
