@@ -933,8 +933,6 @@ function SessaoInner() {
       const eventosJson = eventos.map(e => ({
         tipo: e.tipo, label: EVENT_CFG[e.tipo].label, timestamp: e.timestamp
       }))
-
-      console.log("COMP:", comportamentosComProtocolo.length, JSON.stringify(tallyContadores))
       const { error: rpcError } = await supabase.rpc("finalizar_sessao", {
         p_sessao_id: sessaoDbId,
         p_segundos: segundos,
