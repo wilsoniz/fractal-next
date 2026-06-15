@@ -934,6 +934,7 @@ function SessaoInner() {
         tipo: e.tipo, label: EVENT_CFG[e.tipo].label, timestamp: e.timestamp
       }))
 
+      console.log("COMP:", comportamentosComProtocolo.length, JSON.stringify(tallyContadores))
       const { error: rpcError } = await supabase.rpc("finalizar_sessao", {
         p_sessao_id: sessaoDbId,
         p_segundos: segundos,
@@ -956,8 +957,6 @@ function SessaoInner() {
         p_analise_clinica: analiseClinica || null,
         p_decisao_proxima: decisaoProxima.length > 0 ? decisaoProxima : null,
         p_nota_decisao: notaDecisao || null,
-
-        ...(console.log("COMP:", comportamentosComProtocolo.length, "TALLY:", JSON.stringify(tallyContadores)) as any),
         p_comportamentos_json: comportamentosComProtocolo.length > 0
           ? comportamentosComProtocolo.map(cv => ({
             comportamento_interferente_id: cv.comportamento_interferente_id,
