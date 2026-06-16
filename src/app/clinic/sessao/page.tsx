@@ -968,8 +968,9 @@ function SessaoInner() {
 
       if (rpcError) throw rpcError
 
-    } catch (err) {
-      console.error("Erro no encerramento:", err)
+    } catch (err: any) {
+      console.error("Erro no encerramento:", err?.message ?? err, err?.details ?? "", err?.hint ?? "")
+      alert("Erro ao encerrar: " + (err?.message ?? JSON.stringify(err)))
     }
     setSalvandoEnc(false)
     setShowEncModal(false)
