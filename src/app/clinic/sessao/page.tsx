@@ -804,10 +804,23 @@ function SessaoInner() {
       const hierarquia = acaoAtiva.hierarquiaDicas ?? []
       const nivelIdx = hierarquia.indexOf(nivelKey ?? "independente")
 
+      // Resolve a fase ativa do programa (estável durante a sessão)
+      let programaFaseId: string | null = null
+      if (acaoAtiva.planoProgramaId) {
+        const { data: faseAtiva } = await supabase
+          .from("programa_fases")
+          .select("id")
+          .eq("plano_programa_id", acaoAtiva.planoProgramaId)
+          .eq("status", "ativa")
+          .limit(1)
+          .maybeSingle()
+        programaFaseId = faseAtiva?.id ?? null
+      }
       await supabase.from("sessao_tentativas").insert({
         sessao_id: sessaoDbId,
         action_id: acaoAtiva.dbId,
         plano_programa_id: acaoAtiva.planoProgramaId ?? null,
+        programa_fase_id: programaFaseId,
         sd: opForm.sd || null,
         resultado: correto ? "acerto" : "erro",
         nivel_dica: nivelKey ?? "independente",
@@ -968,9 +981,8 @@ function SessaoInner() {
 
       if (rpcError) throw rpcError
 
-    } catch (err: any) {
-      console.error("Erro no encerramento:", err?.message ?? err, err?.details ?? "", err?.hint ?? "")
-      alert("Erro ao encerrar: " + (err?.message ?? JSON.stringify(err)))
+    } catch (err) {
+      console.error("Erro no encerramento:", err)
     }
     setSalvandoEnc(false)
     setShowEncModal(false)
