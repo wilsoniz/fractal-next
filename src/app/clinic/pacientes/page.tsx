@@ -6,7 +6,7 @@ import { useClinicContext } from "../layout";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type StatusPaciente = "ativo" | "alerta" | "pausado";
-type FiltroAtivo    = "todos" | "alerta" | "hoje" | "pausado";
+type FiltroAtivo = "todos" | "alerta" | "hoje" | "pausado";
 interface Paciente {
   id: string;
   nome: string;
@@ -44,9 +44,9 @@ const DOMINIO_LABELS: Record<string, string> = {
 }
 const RADAR_KEYS = [
   { key: "score_comunicacao", label: "Com" },
-  { key: "score_social",      label: "Soc" },
-  { key: "score_atencao",     label: "Ate" },
-  { key: "score_regulacao",   label: "Reg" },
+  { key: "score_social", label: "Soc" },
+  { key: "score_atencao", label: "Ate" },
+  { key: "score_regulacao", label: "Reg" },
 ]
 function iniciais(nome: string) {
   const p = nome.trim().split(" ")
@@ -70,77 +70,83 @@ function ultimaSessaoLabel(data: string | null) {
 // ─── COMPONENTE ───────────────────────────────────────────────────────────────
 export default function PacientesPage() {
   const { terapeuta } = useClinicContext();
-  const [busca,     setBusca]     = useState("");
-  const [filtro,    setFiltro]    = useState<FiltroAtivo>("todos");
-  const [pacientes,      setPacientes]      = useState<Paciente[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [encerrando,     setEncerrando]     = useState<string | null>(null);
-  const [confirmEncerrar,setConfirmEncerrar]= useState<Paciente | null>(null);
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState<FiltroAtivo>("todos");
+  const [pacientes, setPacientes] = useState<Paciente[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [encerrando, setEncerrando] = useState<string | null>(null);
+  const [confirmEncerrar, setConfirmEncerrar] = useState<Paciente | null>(null);
 
   async function encerrarVinculo(p: Paciente) {
     if (!p.planoId) return
     setEncerrando(p.id)
-    await supabase.from("planos").update({
-      status: "encerrado",
+    const { error } = await supabase.from("planos").update({
+      status: "cancelado",
       atualizado_em: new Date().toISOString(),
     }).eq("id", p.planoId)
+    if (error) {
+      console.error("Erro ao encerrar vínculo:", error)
+      alert("Não foi possível encerrar o vínculo. Tente novamente.")
+      setEncerrando(null)
+      return
+    }
     setPacientes(prev => prev.filter(x => x.id !== p.id))
     setEncerrando(null)
     setConfirmEncerrar(null)
   }
-  const [modalFFS,      setModalFFS]      = useState(false);
-  const [modalVinculo,  setModalVinculo]  = useState(false);
-  const [salvando,      setSalvando]      = useState(false);
+  const [modalFFS, setModalFFS] = useState(false);
+  const [modalVinculo, setModalVinculo] = useState(false);
+  const [salvando, setSalvando] = useState(false);
   const [codigoConvite, setCodigoConvite] = useState('');
-  const [msgVinculo,    setMsgVinculo]    = useState('');
-  const [vinculando,    setVinculando]    = useState(false);
-  const [msgFFS,        setMsgFFS]        = useState('');
-  const [novoNome,      setNovoNome]      = useState('');
-  const [novoNasc,      setNovoNasc]      = useState('');
-  const [novoGenero,    setNovoGenero]    = useState('');
-  const [novoDiag,      setNovoDiag]      = useState('');
-  const [novoResp,      setNovoResp]      = useState('');
-  const [novoEmail,     setNovoEmail]     = useState('');
+  const [msgVinculo, setMsgVinculo] = useState('');
+  const [vinculando, setVinculando] = useState(false);
+  const [msgFFS, setMsgFFS] = useState('');
+  const [novoNome, setNovoNome] = useState('');
+  const [novoNasc, setNovoNasc] = useState('');
+  const [novoGenero, setNovoGenero] = useState('');
+  const [novoDiag, setNovoDiag] = useState('');
+  const [novoResp, setNovoResp] = useState('');
+  const [novoEmail, setNovoEmail] = useState('');
 
   useEffect(() => {
     if (!terapeuta) return;
     async function carregar() {
-  setLoading(true);
-  try {
-    // 1. Busca planos simples — sem join
-    const { data: planos, error: erroPlanos } = await supabase
-      .from("planos")
-      .select("id, status, score_atual, criado_em, crianca_id")
-      .eq("terapeuta_id", terapeuta!.id)
-      .eq("status", "ativo")
+      setLoading(true);
+      try {
+        // 1. Busca planos simples — sem join
+        const { data: planos, error: erroPlanos } = await supabase
+          .from("planos")
+          .select("id, status, score_atual, criado_em, crianca_id")
+          .eq("terapeuta_id", terapeuta!.id)
+          .eq("status", "ativo")
 
-    console.log('planos:', planos, 'erro:', erroPlanos)
+        console.log('planos:', planos, 'erro:', erroPlanos)
 
-    if (!planos || planos.length === 0) {
-      setPacientes([]);
-      setLoading(false);
-      return;
-    }
+        if (!planos || planos.length === 0) {
+          setPacientes([]);
+          setLoading(false);
+          return;
+        }
 
-    // 2. Busca criancas separadamente
-    // linha 111 — mude o nome
-const criancaIdsFromPlanos = [...new Set(planos.map((pl: any) => pl.crianca_id))]
-const { data: criancas } = await supabase
-  .from("criancas")
-  .select("id, nome, data_nascimento, diagnostico")
-  .in("id", criancaIdsFromPlanos)
+        // 2. Busca criancas separadamente
+        // linha 111 — mude o nome
+        const criancaIdsFromPlanos = [...new Set(planos.map((pl: any) => pl.crianca_id))]
+        const { data: criancas } = await supabase
+          .from("criancas")
+          .select("id, nome, data_nascimento, diagnostico")
+          .in("id", criancaIdsFromPlanos)
 
-    const criancaById = new Map((criancas ?? []).map((c: any) => [c.id, c]))
+        const criancaById = new Map((criancas ?? []).map((c: any) => [c.id, c]))
 
-    // 3. Monta mapa crianca → planos
-    const criancaMap = new Map<string, { crianca: any; planos: any[] }>();
-    for (const pl of planos) {
-      const c = criancaById.get(pl.crianca_id)
-      if (!c) continue;
-      if (!criancaMap.has(c.id)) criancaMap.set(c.id, { crianca: c, planos: [] });
-      criancaMap.get(c.id)!.planos.push(pl);
-    }
-    // O resto continua igual...
+        // 3. Monta mapa crianca → planos
+        const criancaMap = new Map<string, { crianca: any; planos: any[] }>();
+        for (const pl of planos) {
+          const c = criancaById.get(pl.crianca_id)
+          if (!c) continue;
+          if (!criancaMap.has(c.id)) criancaMap.set(c.id, { crianca: c, planos: [] });
+          criancaMap.get(c.id)!.planos.push(pl);
+        }
+        // O resto continua igual...
 
         const { data: radares } = await supabase
           .from("radar_snapshots")
@@ -167,7 +173,7 @@ const { data: criancas } = await supabase
         }
 
         const result: Paciente[] = Array.from(criancaMap.values()).map(({ crianca, planos: cPlanos }, i) => {
-          const radar  = radarMap.get(crianca.id);
+          const radar = radarMap.get(crianca.id);
           const ultima = ultimaSessaoMap.get(crianca.id) ?? null;
           const avaliado = !!radar;
 
@@ -178,16 +184,16 @@ const { data: criancas } = await supabase
 
           const dominiosFoco = radar
             ? Object.entries(DOMINIO_LABELS)
-                .map(([k, v]) => ({ nome: v, val: radar[`score_${k}`] ?? 100 }))
-                .sort((a, b) => a.val - b.val)
-                .slice(0, 3)
-                .map(d => d.nome)
+              .map(([k, v]) => ({ nome: v, val: radar[`score_${k}`] ?? 100 }))
+              .sort((a, b) => a.val - b.val)
+              .slice(0, 3)
+              .map(d => d.nome)
             : [];
 
           const alertas: { nivel: "high" | "medium" | "low"; texto: string }[] = [];
           for (const pl of cPlanos) {
             const score = pl.score_atual ?? 0;
-            const prog  = pl.programas as any;
+            const prog = pl.programas as any;
             if (!prog) continue;
             if (score > 0 && score < 50) {
               alertas.push({ nivel: "high", texto: `Score baixo em ${prog.nome} (${score}%)` });
@@ -197,34 +203,34 @@ const { data: criancas } = await supabase
           }
 
           const temAlertaHigh = alertas.some(a => a.nivel === "high");
-          const pausado       = cPlanos.every(pl => pl.status === "pausado");
+          const pausado = cPlanos.every(pl => pl.status === "pausado");
           const status: StatusPaciente = pausado ? "pausado" : temAlertaHigh ? "alerta" : "ativo";
 
-          const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0,0,0,0);
+          const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0, 0, 0, 0);
           const sessoesMes = (sessoes ?? []).filter(s =>
             s.crianca_id === crianca.id && new Date(s.criado_em) >= inicioMes
           ).length;
 
           return {
-            id:              crianca.id,
-            nome:            crianca.nome,
-            iniciais:        iniciais(crianca.nome),
-            gradient:        GRADIENTS[i % GRADIENTS.length],
-            idade:           crianca.data_nascimento ? idadeAnos(crianca.data_nascimento) : 0,
-            diagnostico:     crianca.diagnostico ?? "Não informado",
+            id: crianca.id,
+            nome: crianca.nome,
+            iniciais: iniciais(crianca.nome),
+            gradient: GRADIENTS[i % GRADIENTS.length],
+            idade: crianca.data_nascimento ? idadeAnos(crianca.data_nascimento) : 0,
+            diagnostico: crianca.diagnostico ?? "Não informado",
             taxaGeral,
             avaliado,
             sessoesMes,
             programasAtivos: cPlanos.filter(pl => pl.status === "ativo").length,
-            dominios:        dominiosFoco,
-            ultimaSessao:    ultimaSessaoLabel(ultima),
-            proximaSessao:   null,
+            dominios: dominiosFoco,
+            ultimaSessao: ultimaSessaoLabel(ultima),
+            proximaSessao: null,
             status,
             alertas,
-            radarMini:       RADAR_KEYS.map(k => ({ label: k.label, val: radar?.[k.key] ?? 0 })),
-            semSupervisor:   false,
-            cuidadorAtivo:   true,
-            planoId:         cPlanos.find(pl => pl.status === "ativo")?.id ?? "",
+            radarMini: RADAR_KEYS.map(k => ({ label: k.label, val: radar?.[k.key] ?? 0 })),
+            semSupervisor: false,
+            cuidadorAtivo: true,
+            planoId: cPlanos.find(pl => pl.status === "ativo")?.id ?? "",
           };
         });
 
@@ -244,18 +250,18 @@ const { data: criancas } = await supabase
         p.diagnostico.toLowerCase().includes(busca.toLowerCase()) ||
         p.dominios.some(d => d.toLowerCase().includes(busca.toLowerCase()));
       const matchFiltro =
-        filtro === "todos"   ? true :
-        filtro === "alerta"  ? p.alertas.some(a => a.nivel === "high" || a.nivel === "medium") :
-        filtro === "hoje"    ? p.ultimaSessao === "hoje" :
-        filtro === "pausado" ? p.status === "pausado" : true;
+        filtro === "todos" ? true :
+          filtro === "alerta" ? p.alertas.some(a => a.nivel === "high" || a.nivel === "medium") :
+            filtro === "hoje" ? p.ultimaSessao === "hoje" :
+              filtro === "pausado" ? p.status === "pausado" : true;
       return matchBusca && matchFiltro;
     });
   }, [busca, filtro, pacientes]);
 
   const stats = useMemo(() => ({
-    total:    pacientes.length,
-    alertas:  pacientes.filter(p => p.alertas.some(a => a.nivel === "high")).length,
-    hoje:     pacientes.filter(p => p.ultimaSessao === "hoje").length,
+    total: pacientes.length,
+    alertas: pacientes.filter(p => p.alertas.some(a => a.nivel === "high")).length,
+    hoje: pacientes.filter(p => p.ultimaSessao === "hoje").length,
     pausados: pacientes.filter(p => p.status === "pausado").length,
   }), [pacientes]);
 
@@ -311,9 +317,9 @@ const { data: criancas } = await supabase
       {/* ── STATS ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
         {[
-          { label: "Total",    val: stats.total,    cor: "#378ADD", filtroId: "todos"   },
-          { label: "Alertas",  val: stats.alertas,  cor: "#E05A4B", filtroId: "alerta"  },
-          { label: "Hoje",     val: stats.hoje,     cor: "#1D9E75", filtroId: "hoje"    },
+          { label: "Total", val: stats.total, cor: "#378ADD", filtroId: "todos" },
+          { label: "Alertas", val: stats.alertas, cor: "#E05A4B", filtroId: "alerta" },
+          { label: "Hoje", val: stats.hoje, cor: "#1D9E75", filtroId: "hoje" },
           { label: "Pausados", val: stats.pausados, cor: "#EF9F27", filtroId: "pausado" },
         ].map(s => (
           <button
@@ -336,7 +342,7 @@ const { data: criancas } = await supabase
           style={{ width: "100%", padding: "11px 16px 11px 38px", borderRadius: 10, border: "1px solid rgba(70,120,180,.3)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".82rem", fontFamily: "var(--font-sans)", boxSizing: "border-box", outline: "none" }}
         />
         <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: .4 }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e8f0f8" strokeWidth="2" strokeLinecap="round">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       </div>
 
@@ -353,102 +359,102 @@ const { data: criancas } = await supabase
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {pacientesFiltrados.map(p => (
             <div key={p.id} style={{ position: "relative" }}>
-            <Link href={`/clinic/paciente/${p.id}`} style={{ textDecoration: "none", display: "block" }}>
-              <div
-                style={{ ...card, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s" }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(55,138,221,.5)")}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(70,120,180,.5)")}
-              >
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-                  {/* Avatar */}
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: p.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-                    {p.iniciais}
-                  </div>
+              <Link href={`/clinic/paciente/${p.id}`} style={{ textDecoration: "none", display: "block" }}>
+                <div
+                  style={{ ...card, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s" }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(55,138,221,.5)")}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(70,120,180,.5)")}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+                    {/* Avatar */}
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: p.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                      {p.iniciais}
+                    </div>
 
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
-                      <span style={{ fontSize: ".9rem", fontWeight: 700, color: "#e8f0f8" }}>{p.nome}</span>
-                      <span style={{ fontSize: ".7rem", color: "rgba(138,168,200,.5)" }}>
-                        {p.idade > 0 ? `${p.idade} anos · ` : ''}{p.diagnostico}
-                      </span>
-                      <span style={{
-                        fontSize: ".65rem", fontWeight: 700, padding: "2px 8px", borderRadius: 6,
-                        background: p.status === "alerta" ? "rgba(224,90,75,.15)" : p.status === "pausado" ? "rgba(239,159,39,.12)" : "rgba(29,158,117,.12)",
-                        color:      p.status === "alerta" ? "#E05A4B"              : p.status === "pausado" ? "#EF9F27"              : "#1D9E75",
-                        border:     `1px solid ${p.status === "alerta" ? "#E05A4B33" : p.status === "pausado" ? "#EF9F2733" : "#1D9E7533"}`,
-                      }}>
-                        {p.status === "alerta" ? "Atenção" : p.status === "pausado" ? "Pausado" : "Ativo"}
-                      </span>
-                      {!p.avaliado && (
-                        <span style={{ fontSize: ".65rem", fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: "rgba(139,127,232,.12)", color: "#8B7FE8", border: "1px solid rgba(139,127,232,.25)" }}>
-                          Aguardando avaliação
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+                        <span style={{ fontSize: ".9rem", fontWeight: 700, color: "#e8f0f8" }}>{p.nome}</span>
+                        <span style={{ fontSize: ".7rem", color: "rgba(138,168,200,.5)" }}>
+                          {p.idade > 0 ? `${p.idade} anos · ` : ''}{p.diagnostico}
                         </span>
+                        <span style={{
+                          fontSize: ".65rem", fontWeight: 700, padding: "2px 8px", borderRadius: 6,
+                          background: p.status === "alerta" ? "rgba(224,90,75,.15)" : p.status === "pausado" ? "rgba(239,159,39,.12)" : "rgba(29,158,117,.12)",
+                          color: p.status === "alerta" ? "#E05A4B" : p.status === "pausado" ? "#EF9F27" : "#1D9E75",
+                          border: `1px solid ${p.status === "alerta" ? "#E05A4B33" : p.status === "pausado" ? "#EF9F2733" : "#1D9E7533"}`,
+                        }}>
+                          {p.status === "alerta" ? "Atenção" : p.status === "pausado" ? "Pausado" : "Ativo"}
+                        </span>
+                        {!p.avaliado && (
+                          <span style={{ fontSize: ".65rem", fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: "rgba(139,127,232,.12)", color: "#8B7FE8", border: "1px solid rgba(139,127,232,.25)" }}>
+                            Aguardando avaliação
+                          </span>
+                        )}
+                      </div>
+
+                      {p.dominios.length > 0 && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                          {p.dominios.map(d => (
+                            <span key={d} style={{ fontSize: ".65rem", padding: "2px 8px", borderRadius: 5, background: "rgba(55,138,221,.1)", color: "rgba(138,168,200,.8)", border: "1px solid rgba(55,138,221,.2)" }}>{d}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {p.alertas.slice(0, 2).map((a, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                          <div style={{ width: 5, height: 5, borderRadius: "50%", background: a.nivel === "high" ? "#E05A4B" : a.nivel === "medium" ? "#EF9F27" : "#1D9E75", flexShrink: 0 }} />
+                          <span style={{ fontSize: ".72rem", color: "rgba(200,220,240,.6)" }}>{a.texto}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Métricas direita */}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+                      {p.avaliado ? (
+                        <div style={{ fontSize: "1.3rem", fontWeight: 800, color: p.taxaGeral >= 70 ? "#1D9E75" : p.taxaGeral >= 50 ? "#EF9F27" : "#E05A4B" }}>
+                          {p.taxaGeral}%
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: ".7rem", fontWeight: 600, color: "rgba(139,127,232,.7)", textAlign: "right", lineHeight: 1.4 }}>
+                          Não<br />avaliado
+                        </div>
+                      )}
+                      <div style={{ fontSize: ".65rem", color: "rgba(138,168,200,.4)", textAlign: "right" }}>
+                        {p.programasAtivos} programas · {p.sessoesMes} sessões/mês
+                      </div>
+                      <div style={{ fontSize: ".65rem", color: "rgba(138,168,200,.4)" }}>
+                        Última: {p.ultimaSessao}
+                      </div>
+                      {p.avaliado && (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {p.radarMini.map(r => (
+                            <div key={r.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                              <div style={{ width: 4, height: 28, background: "rgba(255,255,255,.08)", borderRadius: 2, position: "relative", overflow: "hidden" }}>
+                                <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${r.val}%`, background: r.val >= 70 ? "#1D9E75" : r.val >= 50 ? "#EF9F27" : "#E05A4B", borderRadius: 2 }} />
+                              </div>
+                              <span style={{ fontSize: ".55rem", color: "rgba(138,168,200,.4)" }}>{r.label}</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-
-                    {p.dominios.length > 0 && (
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-                        {p.dominios.map(d => (
-                          <span key={d} style={{ fontSize: ".65rem", padding: "2px 8px", borderRadius: 5, background: "rgba(55,138,221,.1)", color: "rgba(138,168,200,.8)", border: "1px solid rgba(55,138,221,.2)" }}>{d}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    {p.alertas.slice(0, 2).map((a, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                        <div style={{ width: 5, height: 5, borderRadius: "50%", background: a.nivel === "high" ? "#E05A4B" : a.nivel === "medium" ? "#EF9F27" : "#1D9E75", flexShrink: 0 }} />
-                        <span style={{ fontSize: ".72rem", color: "rgba(200,220,240,.6)" }}>{a.texto}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Métricas direita */}
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
-                    {p.avaliado ? (
-                      <div style={{ fontSize: "1.3rem", fontWeight: 800, color: p.taxaGeral >= 70 ? "#1D9E75" : p.taxaGeral >= 50 ? "#EF9F27" : "#E05A4B" }}>
-                        {p.taxaGeral}%
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: ".7rem", fontWeight: 600, color: "rgba(139,127,232,.7)", textAlign: "right", lineHeight: 1.4 }}>
-                        Não<br/>avaliado
-                      </div>
-                    )}
-                    <div style={{ fontSize: ".65rem", color: "rgba(138,168,200,.4)", textAlign: "right" }}>
-                      {p.programasAtivos} programas · {p.sessoesMes} sessões/mês
-                    </div>
-                    <div style={{ fontSize: ".65rem", color: "rgba(138,168,200,.4)" }}>
-                      Última: {p.ultimaSessao}
-                    </div>
-                    {p.avaliado && (
-                      <div style={{ display: "flex", gap: 6 }}>
-                        {p.radarMini.map(r => (
-                          <div key={r.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                            <div style={{ width: 4, height: 28, background: "rgba(255,255,255,.08)", borderRadius: 2, position: "relative", overflow: "hidden" }}>
-                              <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${r.val}%`, background: r.val >= 70 ? "#1D9E75" : r.val >= 50 ? "#EF9F27" : "#E05A4B", borderRadius: 2 }} />
-                            </div>
-                            <span style={{ fontSize: ".55rem", color: "rgba(138,168,200,.4)" }}>{r.label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
-              </div>
-            </Link>
-            <button
-              onClick={e => { e.stopPropagation(); setConfirmEncerrar(p); }}
-              style={{
-                position: "absolute", top: 10, right: 10,
-                padding: "4px 10px", borderRadius: 6,
-                border: "1px solid rgba(224,90,75,.25)",
-                background: "rgba(13,32,53,.9)",
-                color: "rgba(224,90,75,.6)",
-                fontSize: ".62rem", fontWeight: 600,
-                cursor: "pointer", fontFamily: "var(--font-sans)",
-              }}
-            >
-              Encerrar
-            </button>
+              </Link>
+              <button
+                onClick={e => { e.stopPropagation(); setConfirmEncerrar(p); }}
+                style={{
+                  position: "absolute", top: 10, right: 10,
+                  padding: "4px 10px", borderRadius: 6,
+                  border: "1px solid rgba(224,90,75,.25)",
+                  background: "rgba(13,32,53,.9)",
+                  color: "rgba(224,90,75,.6)",
+                  fontSize: ".62rem", fontWeight: 600,
+                  cursor: "pointer", fontFamily: "var(--font-sans)",
+                }}
+              >
+                Encerrar
+              </button>
             </div>
           ))}
         </div>
