@@ -750,7 +750,7 @@ export default function PerfilPacientePage() {
           const compIds = comps.map((c: any) => c.id)
           const { data: regs } = await supabase
             .from("registros_comportamento")
-            .select("comportamento_interferente_id, valor, data_sessao, tipo_registro")
+            .select("comportamento_interferente_id, valor, data_sessao, tipo_registro, sessao_id, sessoes_v2(duracao_segundos)")
             .eq("crianca_id", criancaId)
             .in("comportamento_interferente_id", compIds)
             .order("data_sessao", { ascending: true })
@@ -758,8 +758,14 @@ export default function PerfilPacientePage() {
             const porComp: Record<string, any[]> = {}
             for (const r of regs) {
               const cid = r.comportamento_interferente_id
+              // Taxa (resp/min) só faz sentido para frequência; usa duração real da sessão
+              const dur = (r as any).sessoes_v2?.duracao_segundos ?? null
+              const taxa = r.tipo_registro === "frequencia" && dur && dur > 0
+                ? Math.round((r.valor / (dur / 60)) * 100) / 100
+                : null
+              const enriquecido = { ...r, taxa }
               if (!porComp[cid]) porComp[cid] = []
-              porComp[cid].push(r)
+              porComp[cid].push(enriquecido)
             }
             setRegistrosComp(porComp)
           }
