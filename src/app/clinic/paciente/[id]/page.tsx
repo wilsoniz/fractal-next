@@ -1411,22 +1411,25 @@ export default function PerfilPacientePage() {
                         {compExpandido === c.id && (registrosComp[c.id]?.length ?? 0) > 0 && (
                           <div style={{ marginTop: 12, background: "rgba(13,32,53,.6)", borderRadius: 10, padding: "12px 8px" }}>
                             <div style={{ fontSize: ".6rem", color: "rgba(224,90,75,.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
-                              Frequência por sessão
+                              Frequência (ocorrências) · Taxa (resp/min)
                             </div>
                             <LineChart width={340} height={120} data={registrosComp[c.id].map((r: any, i: number) => ({
                               sessao: `S${i + 1}`,
                               valor: r.valor,
+                              taxa: r.taxa ?? null,
                               data: new Date(r.data_sessao).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
                             }))} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(70,120,180,.15)" />
                               <XAxis dataKey="sessao" tick={{ fontSize: 9, fill: "rgba(160,200,235,.4)" }} />
-                              <YAxis tick={{ fontSize: 9, fill: "rgba(160,200,235,.4)" }} />
+                              <YAxis yAxisId="freq" tick={{ fontSize: 9, fill: "rgba(160,200,235,.4)" }} />
+                              <YAxis yAxisId="taxa" orientation="right" tick={{ fontSize: 9, fill: "rgba(120,180,140,.4)" }} />
                               <Tooltip
                                 contentStyle={{ background: "rgba(13,32,53,.95)", border: "1px solid rgba(70,120,180,.3)", borderRadius: 8, fontSize: 11 }}
-                                formatter={(v: any) => [v, "ocorrências"]}
+                                formatter={(v: any, name: any) => name === "taxa" ? [v, "resp/min"] : [v, "ocorrências"]}
                                 labelFormatter={(l: any, payload: any) => payload?.[0]?.payload?.data ?? l}
                               />
-                              <Line type="monotone" dataKey="valor" stroke="#E05A4B" strokeWidth={2} dot={{ r: 3, fill: "#E05A4B" }} activeDot={{ r: 5 }} />
+                              <Line yAxisId="freq" type="monotone" dataKey="valor" stroke="#E05A4B" strokeWidth={2} dot={{ r: 3, fill: "#E05A4B" }} activeDot={{ r: 5 }} />
+                              <Line yAxisId="taxa" type="monotone" dataKey="taxa" stroke="#5BA874" strokeWidth={1.5} strokeDasharray="4 2" dot={{ r: 2, fill: "#5BA874" }} connectNulls={false} />
                             </LineChart>
                             <div style={{ fontSize: ".65rem", color: "rgba(160,200,235,.3)", marginTop: 4, textAlign: "center" }}>
                               Tendência de redução — {registrosComp[c.id].length} sessão(ões) registrada(s)
