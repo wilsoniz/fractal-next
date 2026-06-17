@@ -28,18 +28,18 @@ type Protocolo = {
 }
 
 const FUNCAO_CONFIG: Record<string, { label: string; cor: string; bg: string }> = {
-  atencao:   { label: "Atenção",    cor: "#378ADD", bg: "rgba(55,138,221,.12)"  },
-  fuga:      { label: "Fuga",       cor: "#EF9F27", bg: "rgba(239,159,39,.12)"  },
-  acesso:    { label: "Acesso",     cor: "#8B7FE8", bg: "rgba(139,127,232,.12)" },
-  automatico:{ label: "Automático", cor: "#1D9E75", bg: "rgba(29,158,117,.12)"  },
-  misto:     { label: "Misto",      cor: "#E05A4B", bg: "rgba(224,90,75,.12)"   },
+  atencao: { label: "Atenção", cor: "#378ADD", bg: "rgba(55,138,221,.12)" },
+  fuga: { label: "Fuga", cor: "#EF9F27", bg: "rgba(239,159,39,.12)" },
+  acesso: { label: "Acesso", cor: "#8B7FE8", bg: "rgba(139,127,232,.12)" },
+  automatico: { label: "Automático", cor: "#1D9E75", bg: "rgba(29,158,117,.12)" },
+  misto: { label: "Misto", cor: "#E05A4B", bg: "rgba(224,90,75,.12)" },
 }
 
 const REGISTRO_CONFIG: Record<string, { label: string; cor: string }> = {
-  frequencia: { label: "Frequência",  cor: "#378ADD" },
-  duracao:    { label: "Duração",     cor: "#8B7FE8" },
-  intervalo:  { label: "Intervalo",   cor: "#EF9F27" },
-  intensidade:{ label: "Intensidade", cor: "#E05A4B" },
+  frequencia: { label: "Frequência", cor: "#378ADD" },
+  duracao: { label: "Duração", cor: "#8B7FE8" },
+  intervalo: { label: "Intervalo", cor: "#EF9F27" },
+  intensidade: { label: "Intensidade", cor: "#E05A4B" },
 }
 
 const ESTADO_INICIAL: Omit<Protocolo, "id" | "plano_da_plataforma" | "ativo" | "criado_por"> = {
@@ -61,17 +61,17 @@ export default function ProtocolosPage() {
   const { terapeuta } = useClinicContext()
   const acesso = useAcesso()
 
-  const [protocolos,    setProtocolos]    = useState<Protocolo[]>([])
-  const [loading,       setLoading]       = useState(true)
-  const [busca,         setBusca]         = useState("")
-  const [filtroFuncao,  setFiltroFuncao]  = useState("todos")
-  const [filtroAba,     setFiltroAba]     = useState<"plataforma" | "meus">("plataforma")
-  const [expandido,     setExpandido]     = useState<string | null>(null)
-  const [modalAberto,   setModalAberto]   = useState(false)
-  const [editando,      setEditando]      = useState<Protocolo | null>(null)
-  const [form,          setForm]          = useState(ESTADO_INICIAL)
-  const [salvando,      setSalvando]      = useState(false)
-  const [excluindo,     setExcluindo]     = useState<string | null>(null)
+  const [protocolos, setProtocolos] = useState<Protocolo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busca, setBusca] = useState("")
+  const [filtroFuncao, setFiltroFuncao] = useState("todos")
+  const [filtroAba, setFiltroAba] = useState<"plataforma" | "meus">("plataforma")
+  const [expandido, setExpandido] = useState<string | null>(null)
+  const [modalAberto, setModalAberto] = useState(false)
+  const [editando, setEditando] = useState<Protocolo | null>(null)
+  const [form, setForm] = useState(ESTADO_INICIAL)
+  const [salvando, setSalvando] = useState(false)
+  const [excluindo, setExcluindo] = useState<string | null>(null)
 
   useEffect(() => { carregar() }, [terapeuta?.id, filtroAba])
 
@@ -123,17 +123,29 @@ export default function ProtocolosPage() {
     if (!terapeuta?.id || !form.nome.trim()) return
     setSalvando(true)
     if (editando) {
-      await supabase.from("protocolos_conduta").update({
+      const { error } = await supabase.from("protocolos_conduta").update({
         ...form, ativo: true,
       }).eq("id", editando.id)
+      if (error) {
+        console.error("Erro ao atualizar protocolo:", error)
+        alert("Não foi possível atualizar o protocolo: " + error.message)
+        setSalvando(false)
+        return
+      }
       setProtocolos(prev => prev.map(p => p.id === editando.id ? { ...p, ...form } : p))
     } else {
-      const { data } = await supabase.from("protocolos_conduta").insert({
+      const { data, error } = await supabase.from("protocolos_conduta").insert({
         ...form,
         criado_por: terapeuta.id,
         plano_da_plataforma: false,
         ativo: true,
       }).select().single()
+      if (error) {
+        console.error("Erro ao salvar protocolo:", error)
+        alert("Não foi possível salvar o protocolo: " + error.message)
+        setSalvando(false)
+        return
+      }
       if (data) setProtocolos(prev => [...prev, data])
     }
     setSalvando(false)
@@ -196,7 +208,7 @@ export default function ProtocolosPage() {
             fontSize: ".82rem", cursor: "pointer",
             display: "flex", alignItems: "center", gap: 6,
           }}>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M8 3v10M3 8h10"/></svg>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M8 3v10M3 8h10" /></svg>
             Novo protocolo
           </button>
         )}
@@ -249,7 +261,7 @@ export default function ProtocolosPage() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {filtrados.map(p => {
-            const funcao = FUNCAO_CONFIG[p.hipotese_funcional ?? ""] 
+            const funcao = FUNCAO_CONFIG[p.hipotese_funcional ?? ""]
             const registro = REGISTRO_CONFIG[p.tipo_registro ?? ""]
             const aberto = expandido === p.id
             const ehMeu = p.criado_por === terapeuta?.id && !p.plano_da_plataforma
@@ -301,7 +313,7 @@ export default function ProtocolosPage() {
                     )}
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(160,200,235,.4)" strokeWidth="1.5"
                       style={{ transform: aberto ? "rotate(180deg)" : "rotate(0)", transition: "transform .2s" }}>
-                      <path d="M3 6l5 5 5-5"/>
+                      <path d="M3 6l5 5 5-5" />
                     </svg>
                   </div>
                 </button>
