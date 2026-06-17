@@ -92,7 +92,7 @@ export default function HomePage() {
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-            <Link href="/clinic/login" style={{ ...ctaStyle, color: '#378ADD', borderColor: 'rgba(55,138,221,0.3)' }}>
+            <Link href="/login" style={{ ...ctaStyle, color: '#378ADD', borderColor: 'rgba(55,138,221,0.3)' }}>
               Acessar FractaClinic
             </Link>
             <Link href="/clinic-landing" style={{ ...saibaMaisStyle, color: 'rgba(55,138,221,0.7)' }}>

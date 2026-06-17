@@ -174,7 +174,7 @@ function Sidebar({ terapeuta }: { terapeuta: TerapeutaAtivo | null }) {
 
   async function handleLogout() {
     await supabase.auth.signOut()
-    router.replace('/clinic/login')
+    router.replace('/login')
   }
 
   const isActive = (href: string) => pathname === href || (href !== '/clinic/dashboard' && pathname.startsWith(href))
@@ -412,7 +412,7 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
           registro_profissional: data.registro_profissional ?? '',
         })
       } else {
-        router.replace('/clinic/login')
+        router.replace('/login')
         return
       }
     }
