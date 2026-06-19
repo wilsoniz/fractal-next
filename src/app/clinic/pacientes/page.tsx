@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useClinicContext } from "../layout";
+import { Modal } from "@/components/fracta/Modal"
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type StatusPaciente = "ativo" | "alerta" | "pausado";
@@ -534,11 +535,9 @@ export default function PacientesPage() {
       )}
 
       {/* ── Modal confirmar encerramento ── */}
-      {confirmEncerrar && (
-        <div onClick={() => setConfirmEncerrar(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background: "rgba(13,32,53,.97)", border: "1px solid rgba(224,90,75,.3)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 400 }}>
+      <Modal aberto={!!confirmEncerrar} onFechar={() => setConfirmEncerrar(null)}>
+        {confirmEncerrar && (
+          <div style={{ background: "rgba(13,32,53,.97)", border: "1px solid rgba(224,90,75,.3)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 400 }}>
             <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 8 }}>Encerrar vínculo</div>
             <div style={{ fontSize: ".82rem", color: "rgba(160,200,235,.6)", marginBottom: 6, lineHeight: 1.6 }}>
               Tem certeza que deseja encerrar o vínculo com <strong style={{ color: "#e8f0f8" }}>{confirmEncerrar.nome}</strong>?
@@ -558,8 +557,8 @@ export default function PacientesPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* ── Modal vinculação por código ── */}
       {modalVinculo && (
