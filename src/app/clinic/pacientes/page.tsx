@@ -27,6 +27,7 @@ interface Paciente {
   semSupervisor: boolean;
   cuidadorAtivo: boolean;
   planoId: string;
+  statusPlano: string;
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -76,6 +77,8 @@ export default function PacientesPage() {
   const [loading, setLoading] = useState(true);
   const [encerrando, setEncerrando] = useState<string | null>(null);
   const [confirmEncerrar, setConfirmEncerrar] = useState<Paciente | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<"ativos" | "inativos" | "todos">("ativos");
+  const [reativando, setReativando] = useState<string | null>(null);
 
   async function encerrarVinculo(p: Paciente) {
     if (!p.planoId) return
@@ -93,6 +96,22 @@ export default function PacientesPage() {
     setPacientes(prev => prev.filter(x => x.id !== p.id))
     setEncerrando(null)
     setConfirmEncerrar(null)
+  }
+  async function reativarVinculo(p: Paciente) {
+    if (!p.planoId) return
+    setReativando(p.id)
+    const { error } = await supabase.from("planos").update({
+      status: "ativo",
+      atualizado_em: new Date().toISOString(),
+    }).eq("id", p.planoId)
+    if (error) {
+      console.error("Erro ao reativar vínculo:", error)
+      alert("Não foi possível reativar o vínculo. Tente novamente.")
+      setReativando(null)
+      return
+    }
+    setPacientes(prev => prev.filter(x => x.id !== p.id))
+    setReativando(null)
   }
   const [modalFFS, setModalFFS] = useState(false);
   const [modalVinculo, setModalVinculo] = useState(false);
@@ -118,7 +137,10 @@ export default function PacientesPage() {
           .from("planos")
           .select("id, status, score_atual, criado_em, crianca_id")
           .eq("terapeuta_id", terapeuta!.id)
-          .eq("status", "ativo")
+          .in("status",
+            filtroStatus === "ativos" ? ["ativo"] :
+              filtroStatus === "inativos" ? ["pausado", "cancelado", "concluido"] :
+                ["ativo", "pausado", "cancelado", "concluido"])
 
         console.log('planos:', planos, 'erro:', erroPlanos)
 
@@ -205,6 +227,7 @@ export default function PacientesPage() {
           const temAlertaHigh = alertas.some(a => a.nivel === "high");
           const pausado = cPlanos.every(pl => pl.status === "pausado");
           const status: StatusPaciente = pausado ? "pausado" : temAlertaHigh ? "alerta" : "ativo";
+          const statusPlano: string = cPlanos[0]?.status ?? "ativo";
 
           const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0, 0, 0, 0);
           const sessoesMes = (sessoes ?? []).filter(s =>
@@ -230,7 +253,8 @@ export default function PacientesPage() {
             radarMini: RADAR_KEYS.map(k => ({ label: k.label, val: radar?.[k.key] ?? 0 })),
             semSupervisor: false,
             cuidadorAtivo: true,
-            planoId: cPlanos.find(pl => pl.status === "ativo")?.id ?? "",
+            planoId: cPlanos.find(pl => pl.status === "ativo")?.id ?? cPlanos[0]?.id ?? "",
+            statusPlano: cPlanos[0]?.status ?? "ativo",
           };
         });
 
@@ -241,7 +265,7 @@ export default function PacientesPage() {
       setLoading(false);
     }
     carregar();
-  }, [terapeuta]);
+  }, [terapeuta, filtroStatus]);
 
   const pacientesFiltrados = useMemo(() => {
     return pacientes.filter(p => {
@@ -332,7 +356,26 @@ export default function PacientesPage() {
           </button>
         ))}
       </div>
-
+      {/* ── ABAS DE STATUS ── */}
+      <div style={{ display: "flex", gap: 8 }}>
+        {([
+          { id: "ativos", label: "Ativos" },
+          { id: "inativos", label: "Inativos" },
+          { id: "todos", label: "Todos" },
+        ] as const).map(t => (
+          <button key={t.id}
+            onClick={() => setFiltroStatus(t.id)}
+            style={{
+              padding: "7px 16px", borderRadius: 8, cursor: "pointer", fontFamily: "var(--font-sans)",
+              fontSize: ".78rem", fontWeight: filtroStatus === t.id ? 700 : 400,
+              border: `1px solid ${filtroStatus === t.id ? "rgba(29,158,117,.5)" : "rgba(70,120,180,.3)"}`,
+              background: filtroStatus === t.id ? "rgba(29,158,117,.15)" : "transparent",
+              color: filtroStatus === t.id ? "#1D9E75" : "rgba(160,200,235,.5)",
+            }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
       {/* ── BUSCA ── */}
       <div style={{ position: "relative" }}>
         <input
@@ -441,20 +484,50 @@ export default function PacientesPage() {
                   </div>
                 </div>
               </Link>
-              <button
-                onClick={e => { e.stopPropagation(); setConfirmEncerrar(p); }}
-                style={{
-                  position: "absolute", top: 10, right: 10,
-                  padding: "4px 10px", borderRadius: 6,
-                  border: "1px solid rgba(224,90,75,.25)",
-                  background: "rgba(13,32,53,.9)",
-                  color: "rgba(224,90,75,.6)",
-                  fontSize: ".62rem", fontWeight: 600,
-                  cursor: "pointer", fontFamily: "var(--font-sans)",
-                }}
-              >
-                Encerrar
-              </button>
+              {p.statusPlano === "ativo" ? (
+                <button
+                  onClick={e => { e.stopPropagation(); setConfirmEncerrar(p); }}
+                  style={{
+                    position: "absolute", top: 10, right: 10,
+                    padding: "4px 10px", borderRadius: 6,
+                    border: "1px solid rgba(224,90,75,.25)",
+                    background: "rgba(13,32,53,.9)",
+                    color: "rgba(224,90,75,.6)",
+                    fontSize: ".62rem", fontWeight: 600,
+                    cursor: "pointer", fontFamily: "var(--font-sans)",
+                  }}
+                >
+                  Encerrar
+                </button>
+              ) : (
+                <div style={{ position: "absolute", top: 10, right: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{
+                    padding: "3px 8px", borderRadius: 6,
+                    border: "1px solid rgba(160,200,235,.2)",
+                    background: "rgba(13,32,53,.9)",
+                    color: "rgba(160,200,235,.55)",
+                    fontSize: ".6rem", fontWeight: 600, textTransform: "capitalize",
+                  }}>
+                    {p.statusPlano}
+                  </span>
+                  <button
+                    onClick={e => { e.stopPropagation(); reativarVinculo(p); }}
+                    disabled={reativando === p.id}
+                    style={{
+                      padding: "4px 10px", borderRadius: 6,
+                      border: "1px solid rgba(29,158,117,.3)",
+                      background: "rgba(13,32,53,.9)",
+                      color: "rgba(29,158,117,.75)",
+                      fontSize: ".62rem", fontWeight: 600,
+                      cursor: reativando === p.id ? "default" : "pointer",
+                      opacity: reativando === p.id ? .5 : 1,
+                      fontFamily: "var(--font-sans)",
+                    }}
+                  >
+                    {reativando === p.id ? "..." : "Reativar"}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
