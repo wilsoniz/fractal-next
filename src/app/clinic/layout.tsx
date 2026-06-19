@@ -92,6 +92,18 @@ export function useAcesso() {
   const nivel = (terapeuta?.nivel ?? 'coordenador') as SenioridadeNivel
   return PERMISSOES[nivel] ?? PERMISSOES['coordenador']
 }
+function filtrarNav(nivel: SenioridadeNivel, excluir: string[] = []) {
+  const permissoes = PERMISSOES[nivel] ?? PERMISSOES['coordenador']
+  return NAV_ITEMS_COMPLETO.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      if (excluir.includes(item.href)) return false
+      if (item.href === '/clinic/programas') return permissoes.podeEditarProgramas
+      if (item.href === '/clinic/matrizes') return permissoes.podeAcessarMatrizes
+      return true
+    })
+  })).filter(group => group.items.length > 0)
+}
 
 // ── CANVAS PARTÍCULAS ────────────────────────────────────────────────────────
 function ParticlesCanvas() {
@@ -212,18 +224,7 @@ function Sidebar({ terapeuta }: { terapeuta: TerapeutaAtivo | null }) {
 
       {/* Nav */}
       <div style={{ flex: 1, overflowY: 'auto', paddingTop: 8 }}>
-        {(() => {
-          const nivel = (terapeuta?.nivel ?? 'coordenador') as SenioridadeNivel
-          const permissoes = PERMISSOES[nivel] ?? PERMISSOES['coordenador']
-          return NAV_ITEMS_COMPLETO.map(group => ({
-            ...group,
-            items: group.items.filter(item => {
-              if (item.href === '/clinic/programas') return permissoes.podeEditarProgramas
-              if (item.href === '/clinic/matrizes') return permissoes.podeAcessarMatrizes
-              return true
-            })
-          })).filter(group => group.items.length > 0)
-        })().map(group => (
+        {filtrarNav((terapeuta?.nivel ?? 'coordenador') as SenioridadeNivel).map(group => (
           <div key={group.section}>
             <div style={{
               padding: '12px 20px 4px',
@@ -752,28 +753,10 @@ export default function ClinicDashboardLayout({ children }: { children: React.Re
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
                   <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(80,130,180,.4)' }} />
                 </div>
-                {[
-                  {
-                    section: 'Clínico', items: [
-                      { href: '/clinic/programas', label: 'Programas', icon: 'M2 4h12M2 8h9M2 12h6' },
-                      { href: '/clinic/avaliacoes', label: 'Avaliações', icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
-                      { href: '/clinic/evolucao', label: 'Evolução', icon: 'M1 11l4-5 3 3 3-5 4 3M1 13h14' },
-                      { href: '/clinic/analise', label: 'Análise', icon: 'M2 12h2v2H2zM5 8h2v6H5zM8 10h2v4H8zM11 5h2v9h-2zM14 2h2v12h-2z' },
-                    ]
-                  },
-                  {
-                    section: 'Desenvolvimento', items: [
-                      { href: '/clinic/education', label: 'Education', icon: 'M8 1l1.5 3 3.5.5-2.5 2.5.6 3.5L8 9l-3.1 1.5.6-3.5L3 4.5z' },
-                      { href: '/clinic/supervisao', label: 'Supervisão', icon: 'M1 5h14v9a1 1 0 01-1 1H2a1 1 0 01-1-1V5zM5 5V4a3 3 0 016 0v1' },
-                    ]
-                  },
-                  {
-                    section: 'Financeiro & Perfil', items: [
-                      { href: '/clinic/wallet', label: 'Clinic Wallet', icon: 'M8 2a6 6 0 100 12A6 6 0 008 2zM8 5v1.5M8 9.5V11M6 7.5c0-.8.9-1.5 2-1.5s2 .7 2 1.5-2 1.5-2 1.5' },
-                      { href: '/clinic/terapeuta', label: 'Meu Perfil', icon: 'M8 8a3 3 0 100-6 3 3 0 000 6zM4 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H4z' },
-                    ]
-                  },
-                ].map(group => (
+                {filtrarNav(
+                  (terapeuta?.nivel ?? 'coordenador') as SenioridadeNivel,
+                  ['/clinic/dashboard', '/clinic/pacientes', '/clinic/sessao', '/clinic/agenda']
+                ).map(group => (
                   <div key={group.section}>
                     <div style={{ padding: '6px 20px 4px', fontSize: 9, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(160,195,230,.5)' }}>{group.section}</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', padding: '4px 8px' }}>

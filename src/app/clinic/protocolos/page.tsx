@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { createClient } from "@supabase/supabase-js"
 import { useClinicContext, useAcesso } from "../layout"
 
@@ -372,7 +373,7 @@ export default function ProtocolosPage() {
       )}
 
       {/* Modal criar/editar */}
-      {modalAberto && (
+      {modalAberto && typeof document !== "undefined" && createPortal(
         <div onClick={() => setModalAberto(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: "rgba(7,17,31,.97)", border: "1px solid rgba(70,120,180,.4)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ fontSize: "1rem", fontWeight: 700, color: "#e8f0f8" }}>
@@ -447,7 +448,8 @@ export default function ProtocolosPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
