@@ -95,16 +95,16 @@ const CONFIG_ENVIO_DEFAULT: ConfigEnvio = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_PLANO: Record<StatusPlano, { label: string; color: string; bg: string }> = {
-  ativo:     { label: 'Ativo',     color: '#1D9E75', bg: 'rgba(29,158,117,0.12)' },
-  revisao:   { label: 'Revisão',   color: '#EF9F27', bg: 'rgba(239,159,39,0.12)' },
-  rascunho:  { label: 'Rascunho',  color: '#8B7FE8', bg: 'rgba(139,127,232,0.12)' },
+  ativo: { label: 'Ativo', color: '#1D9E75', bg: 'rgba(29,158,117,0.12)' },
+  revisao: { label: 'Revisão', color: '#EF9F27', bg: 'rgba(239,159,39,0.12)' },
+  rascunho: { label: 'Rascunho', color: '#8B7FE8', bg: 'rgba(139,127,232,0.12)' },
   encerrado: { label: 'Encerrado', color: '#7a9ab5', bg: 'rgba(122,154,181,0.10)' },
 }
 
 const STATUS_ALVO: Record<string, { label: string; color: string }> = {
-  ativo:        { label: 'Em andamento', color: '#1D9E75' },
-  emergente:    { label: 'Emergente',    color: '#EF9F27' },
-  dominio:      { label: 'Domínio',      color: '#378ADD' },
+  ativo: { label: 'Em andamento', color: '#1D9E75' },
+  emergente: { label: 'Emergente', color: '#EF9F27' },
+  dominio: { label: 'Domínio', color: '#378ADD' },
   nao_iniciado: { label: 'Não iniciado', color: '#7a9ab5' },
 }
 
@@ -175,22 +175,22 @@ function ModalEnvioDigital({
   const [enviado, setEnviado] = useState(false)
 
   const s = {
-    navy:   '#07111f',
-    card:   'rgba(13,32,53,0.95)',
+    navy: '#07111f',
+    card: 'rgba(13,32,53,0.95)',
     border: 'rgba(26,58,92,0.5)',
-    teal:   '#1D9E75',
-    blue:   '#378ADD',
-    amber:  '#EF9F27',
-    coral:  '#E05A4B',
+    teal: '#1D9E75',
+    blue: '#378ADD',
+    amber: '#EF9F27',
+    coral: '#E05A4B',
     purple: '#8B7FE8',
-    text:   '#e8eef4',
-    muted:  '#7a9ab5',
+    text: '#e8eef4',
+    muted: '#7a9ab5',
   }
 
   const NIVEL_LABEL: Record<typeof nivel, { label: string; color: string }> = {
-    terapeuta:   { label: 'Modo guiado',      color: s.teal   },
-    coordenador: { label: 'Modo semi-guiado', color: s.amber  },
-    supervisor:  { label: 'Modo livre',       color: s.purple },
+    terapeuta: { label: 'Modo guiado', color: s.teal },
+    coordenador: { label: 'Modo semi-guiado', color: s.amber },
+    supervisor: { label: 'Modo livre', color: s.purple },
   }
 
   const selecionarMatriz = (m: Matriz) => {
@@ -826,7 +826,7 @@ function TermometroABA({
           </div>
         </div>
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ transform: aberto ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.2s', flexShrink: 0 }}>
-          <path d="M2 4.5l5 5 5-5" stroke="rgba(232,238,244,.4)" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M2 4.5l5 5 5-5" stroke="rgba(232,238,244,.4)" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
 
@@ -849,7 +849,7 @@ function TermometroABA({
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 {d.ok
-                  ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                  ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
                   : <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#E05A4B' }} />
                 }
               </div>
@@ -1165,7 +1165,7 @@ export default function PlanosPage() {
         .from('stimulus_matrices')
         .select('id, name, description, columns, total_groups, created_at')
         .order('created_at', { ascending: false })
-      if (data) {
+      if (data && data.length > 0) {
         const matrizIds = data.map((m: any) => m.id)
         const { data: celulas } = await supabase
           .from('stimulus_matrix_cells')
@@ -1199,7 +1199,7 @@ export default function PlanosPage() {
         .select(`id, status, criado_em, criancas ( id, nome ), programas ( id, nome, dominio, objetivo, operante, total_tentativas, criterio_maestria )`)
         .eq('terapeuta_id', terapeuta.id)
         .order('criado_em', { ascending: false })
-      if (data) {
+      if (data && data.length > 0) {
         const agrupados = new Map<string, PlanoIntervencao>()
         for (const pl of data) {
           const crianca = pl.criancas as any
@@ -1469,62 +1469,62 @@ export default function PlanosPage() {
         )}
 
         {/* Modal novo protocolo */}
-      {modalProtocolo && planoSelecionado && (
-        <div onClick={() => setModalProtocolo(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(13,32,53,0.97)', border: '1px solid rgba(224,90,75,0.3)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ fontSize: 15, fontWeight: 500, color: '#f08070', marginBottom: 4 }}>Novo protocolo de conduta</div>
+        {modalProtocolo && planoSelecionado && (
+          <div onClick={() => setModalProtocolo(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(13,32,53,0.97)', border: '1px solid rgba(224,90,75,0.3)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: '#f08070', marginBottom: 4 }}>Novo protocolo de conduta</div>
 
-            {[
-              { label: 'Nome do protocolo *', key: 'nome', placeholder: 'Ex: Protocolo de autolesão' },
-              { label: 'Topografia (o quê acontece)', key: 'topografia', placeholder: 'Ex: Bater a cabeça na parede' },
-              { label: 'Função (hipótese)', key: 'funcao', placeholder: 'Ex: Fuga de demanda' },
-              { label: 'Estratégias (separadas por vírgula)', key: 'estrategia', placeholder: 'Ex: Extinção, Reforço diferencial, FCT' },
-              { label: 'Plano de crise / escalada', key: 'planoCrise', placeholder: 'Ex: Se persistir por 3+ minutos, acionar responsável' },
-            ].map(f => (
-              <div key={f.key}>
-                <label style={{ fontSize: 11, color: 'rgba(226,232,240,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>{f.label}</label>
-                <input
-                  value={novoProtocolo[f.key as keyof typeof novoProtocolo]}
-                  onChange={e => setNovoProtocolo(prev => ({ ...prev, [f.key]: e.target.value }))}
-                  placeholder={f.placeholder}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(224,90,75,0.2)', background: 'rgba(224,90,75,0.04)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-            ))}
+              {[
+                { label: 'Nome do protocolo *', key: 'nome', placeholder: 'Ex: Protocolo de autolesão' },
+                { label: 'Topografia (o quê acontece)', key: 'topografia', placeholder: 'Ex: Bater a cabeça na parede' },
+                { label: 'Função (hipótese)', key: 'funcao', placeholder: 'Ex: Fuga de demanda' },
+                { label: 'Estratégias (separadas por vírgula)', key: 'estrategia', placeholder: 'Ex: Extinção, Reforço diferencial, FCT' },
+                { label: 'Plano de crise / escalada', key: 'planoCrise', placeholder: 'Ex: Se persistir por 3+ minutos, acionar responsável' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label style={{ fontSize: 11, color: 'rgba(226,232,240,.4)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>{f.label}</label>
+                  <input
+                    value={novoProtocolo[f.key as keyof typeof novoProtocolo]}
+                    onChange={e => setNovoProtocolo(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    placeholder={f.placeholder}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(224,90,75,0.2)', background: 'rgba(224,90,75,0.04)', color: '#e8eef4', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <button onClick={() => setModalProtocolo(false)} style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(224,90,75,.2)', background: 'transparent', color: 'rgba(226,232,240,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
-              <button onClick={async () => {
-                if (!novoProtocolo.nome.trim() || !terapeuta) return
-                setSalvandoProtocolo(true)
-                const { data, error } = await supabase.from('protocolos_conduta').insert({
-                  plano_id: planoSelecionado.id,
-                  crianca_id: planoSelecionado.pacienteId,
-                  terapeuta_id: terapeuta.id,
-                  nome: novoProtocolo.nome,
-                  topografia: novoProtocolo.topografia,
-                  funcao: novoProtocolo.funcao,
-                  estrategia: novoProtocolo.estrategia.split(',').map(s => s.trim()).filter(Boolean),
-                  plano_crise: novoProtocolo.planoCrise,
-                }).select().single()
-                if (!error && data) {
-                  const novo: ProtocoloConduta = {
-                    id: data.id, nome: data.nome, topografia: data.topografia ?? '—',
-                    funcao: data.funcao ?? '—', estrategia: data.estrategia ?? [],
-                    planoCrise: data.plano_crise ?? '—',
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <button onClick={() => setModalProtocolo(false)} style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid rgba(224,90,75,.2)', background: 'transparent', color: 'rgba(226,232,240,.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+                <button onClick={async () => {
+                  if (!novoProtocolo.nome.trim() || !terapeuta) return
+                  setSalvandoProtocolo(true)
+                  const { data, error } = await supabase.from('protocolos_conduta').insert({
+                    plano_id: planoSelecionado.id,
+                    crianca_id: planoSelecionado.pacienteId,
+                    terapeuta_id: terapeuta.id,
+                    nome: novoProtocolo.nome,
+                    topografia: novoProtocolo.topografia,
+                    funcao: novoProtocolo.funcao,
+                    estrategia: novoProtocolo.estrategia.split(',').map(s => s.trim()).filter(Boolean),
+                    plano_crise: novoProtocolo.planoCrise,
+                  }).select().single()
+                  if (!error && data) {
+                    const novo: ProtocoloConduta = {
+                      id: data.id, nome: data.nome, topografia: data.topografia ?? '—',
+                      funcao: data.funcao ?? '—', estrategia: data.estrategia ?? [],
+                      planoCrise: data.plano_crise ?? '—',
+                    }
+                    setPlanoSelecionado(prev => prev ? { ...prev, protocolos: [...prev.protocolos, novo] } : prev)
+                    setNovoProtocolo({ nome: '', topografia: '', funcao: '', estrategia: '', planoCrise: '' })
+                    setModalProtocolo(false)
                   }
-                  setPlanoSelecionado(prev => prev ? { ...prev, protocolos: [...prev.protocolos, novo] } : prev)
-                  setNovoProtocolo({ nome: '', topografia: '', funcao: '', estrategia: '', planoCrise: '' })
-                  setModalProtocolo(false)
-                }
-                setSalvandoProtocolo(false)
-              }} disabled={salvandoProtocolo || !novoProtocolo.nome.trim()} style={{ flex: 2, padding: '10px', borderRadius: 9, border: 'none', background: novoProtocolo.nome.trim() ? s.coral : 'rgba(224,90,75,.2)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: salvandoProtocolo ? 0.7 : 1 }}>
-                {salvandoProtocolo ? 'Salvando...' : 'Salvar protocolo'}
-              </button>
+                  setSalvandoProtocolo(false)
+                }} disabled={salvandoProtocolo || !novoProtocolo.nome.trim()} style={{ flex: 2, padding: '10px', borderRadius: 9, border: 'none', background: novoProtocolo.nome.trim() ? s.coral : 'rgba(224,90,75,.2)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: salvandoProtocolo ? 0.7 : 1 }}>
+                  {salvandoProtocolo ? 'Salvando...' : 'Salvar protocolo'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
         {abaPage !== 'planos' && (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: s.muted, fontSize: 14, border: `1px dashed ${s.border}`, borderRadius: 12 }}>
