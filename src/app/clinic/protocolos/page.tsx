@@ -265,7 +265,8 @@ export default function ProtocolosPage() {
             return (
               <div key={p.id} style={{ ...card, overflow: "hidden", border: aberto ? "1px solid rgba(224,90,75,.3)" : "1px solid rgba(70,120,180,.3)" }}>
                 {/* Cabeçalho clicável */}
-                <button
+                <div
+                  role="button"
                   onClick={() => setExpandido(aberto ? null : p.id)}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "16px 20px", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }}
                 >
@@ -312,8 +313,7 @@ export default function ProtocolosPage() {
                       <path d="M3 6l5 5 5-5" />
                     </svg>
                   </div>
-                </button>
-
+                </div>
                 {/* Conteúdo expandido */}
                 {aberto && (
                   <div style={{ padding: "0 20px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
