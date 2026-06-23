@@ -10,20 +10,20 @@ type Etapa = 1 | 2 | 3 | 4 | 5;
 type NivelTreino = "basico" | "intermediario" | "avancado";
 type TipoOperante = "tato" | "mando" | "intraverbal" | "echoico" | "imitacao" | "ouvinte" | "textual" | "transcricao";
 type TipoComportamento = "verbal" | "não-verbal";
-type TipoRelacao = "A→B"|"B→A"|"A→C"|"B→C"|"C→A"|"C→B"|"A=A"|"B=A"|"A=C"|"C=A";
-type TipoRegistro = "dtt"|"frequencia"|"duracao"|"latencia"|"encadeamento"|"matching";
-type ControleEstimulo = "sd"|"mo"|"misto";
-type ProgressaoPrompt = "least_to_most"|"most_to_least"|"time_delay"|"graduated_guidance"|"prompt_fading";
-type ProcedimentoEnsino = "net"|"dtt"|"fct"|"prt"|"incidental"|"shaping"|"chaining"|"mand_training"|"outro";
-type CriterioTipo = "percentual"|"independencia"|"frequencia"|"duracao"|"latencia";
-type ManutencaoDias = 0|7|15|30|60;
+type TipoRelacao = "A→B" | "B→A" | "A→C" | "B→C" | "C→A" | "C→B" | "A=A" | "B=A" | "A=C" | "C=A";
+type TipoRegistro = "dtt" | "frequencia" | "duracao" | "latencia" | "encadeamento" | "matching";
+type ControleEstimulo = "sd" | "mo" | "misto";
+type ProgressaoPrompt = "least_to_most" | "most_to_least" | "time_delay" | "graduated_guidance" | "prompt_fading";
+type ProcedimentoEnsino = "net" | "dtt" | "fct" | "prt" | "incidental" | "shaping" | "chaining" | "mand_training" | "outro";
+type CriterioTipo = "percentual" | "independencia" | "frequencia" | "duracao" | "latencia";
+type ManutencaoDias = 0 | 7 | 15 | 30 | 60;
 
 interface Estimulo {
   id: string;
   modelo: string;
   comparacao: string;
-  modeloTipo: "imagem"|"texto"|"audio"|"emoji";
-  comparacaoTipo: "imagem"|"texto"|"audio"|"emoji";
+  modeloTipo: "imagem" | "texto" | "audio" | "emoji";
+  comparacaoTipo: "imagem" | "texto" | "audio" | "emoji";
 }
 interface CriterioPontuacao { pontos: number; descricao: string; reforco: string; }
 
@@ -42,17 +42,17 @@ interface Programa {
   estimulos: Estimulo[];
   relacoes: TipoRelacao[];
   totalTentativas: number;
-  ordemApresentacao: "fixo"|"randomizado";
+  ordemApresentacao: "fixo" | "randomizado";
   tipoRegistro: TipoRegistro;
   passosEncadeamento: string[];
-  direcaoEncadeamento: "frente"|"tras"|"total";
+  direcaoEncadeamento: "frente" | "tras" | "total";
   matrizId: string;
   // Etapa 3 — Procedimento
   presetHierarquia: string;
   hierarquiaDicas: string[];
   delayPrompt: number;
   progressaoPrompt: ProgressaoPrompt;
-  estrategiaDica: "least_to_most"|"most_to_least";
+  estrategiaDica: "least_to_most" | "most_to_least";
   material: string;
   instrucoes: string;
   // Etapa 4 — Critério
@@ -74,30 +74,30 @@ interface ProgramaDB {
   nome: string;
   dominio: string;
   operante: string;
-  sd: string|null;
-  objetivo: string|null;
-  comportamento_alvo: string|null;
+  sd: string | null;
+  objetivo: string | null;
+  comportamento_alvo: string | null;
   total_tentativas: number;
-  criterio_maestria: string|null;
-  nivel: string|null;
-  tipo_registro: string|null;
-  hierarquia_dicas: string[]|null;
-  passos_tarefa: string[]|null;
-  direcao_encadeamento: string|null;
-  estimulos: any[]|null;
-  relacoes: string[]|null;
+  criterio_maestria: string | null;
+  nivel: string | null;
+  tipo_registro: string | null;
+  hierarquia_dicas: string[] | null;
+  passos_tarefa: string[] | null;
+  direcao_encadeamento: string | null;
+  estimulos: any[] | null;
+  relacoes: string[] | null;
   ativo: boolean;
   criado_em: string;
-  procedimento_ensino: string|null;
-  controle_estimulo: string|null;
-  progressao_prompt: string|null;
-  criterio_tipo: string|null;
-  criterio_valor: number|null;
-  generalizacao: string[]|null;
-  manutencao_dias: number|null;
-  barreiras_previstas: string[]|null;
-  delay_prompt: number|null;
-  preset_hierarquia: string|null;
+  procedimento_ensino: string | null;
+  controle_estimulo: string | null;
+  progressao_prompt: string | null;
+  criterio_tipo: string | null;
+  criterio_valor: number | null;
+  generalizacao: string[] | null;
+  manutencao_dias: number | null;
+  barreiras_previstas: string[] | null;
+  delay_prompt: number | null;
+  preset_hierarquia: string | null;
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -110,66 +110,66 @@ const GRADIENTS_PAC = [
 ]
 function iniciaisPac(nome: string) {
   const p = nome.trim().split(" ");
-  return p.length >= 2 ? `${p[0][0]}${p[p.length-1][0]}`.toUpperCase() : nome.slice(0,2).toUpperCase();
+  return p.length >= 2 ? `${p[0][0]}${p[p.length - 1][0]}`.toUpperCase() : nome.slice(0, 2).toUpperCase();
 }
 
 const HIERARQUIAS_PRESET: Record<string, string[]> = {
   mando_net: ["espera", "contextual", "gestual", "visual", "ecoica_parcial", "ecoica_total"],
   mando_dtt: ["independente", "gestual", "modelo", "ecoica", "física parcial", "física total"],
-  generica:  ["independente", "gestual", "modelo", "física parcial", "física total"],
+  generica: ["independente", "gestual", "modelo", "física parcial", "física total"],
 }
 
 const OPERANTES: { id: TipoOperante; label: string; desc: string; cor: string }[] = [
-  { id: "mando",       label: "Mando",       desc: "Solicitar itens ou ações",       cor: "#1D9E75" },
-  { id: "tato",        label: "Tato",        desc: "Nomear estímulos presentes",     cor: "#378ADD" },
-  { id: "intraverbal", label: "Intraverbal", desc: "Responder a perguntas verbais",  cor: "#8B7FE8" },
-  { id: "echoico",     label: "Echoico",     desc: "Imitar sons e palavras",         cor: "#EF9F27" },
-  { id: "imitacao",    label: "Imitação",    desc: "Imitar ações motoras",           cor: "#E05A4B" },
-  { id: "ouvinte",     label: "Ouvinte",     desc: "Seguir instruções verbais",      cor: "#23c48f" },
-  { id: "textual",     label: "Textual",     desc: "Leitura funcional",              cor: "#378ADD" },
-  { id: "transcricao", label: "Transcrição", desc: "Escrita sob controle verbal",    cor: "#8B7FE8" },
+  { id: "mando", label: "Mando", desc: "Solicitar itens ou ações", cor: "#1D9E75" },
+  { id: "tato", label: "Tato", desc: "Nomear estímulos presentes", cor: "#378ADD" },
+  { id: "intraverbal", label: "Intraverbal", desc: "Responder a perguntas verbais", cor: "#8B7FE8" },
+  { id: "echoico", label: "Echoico", desc: "Imitar sons e palavras", cor: "#EF9F27" },
+  { id: "imitacao", label: "Imitação", desc: "Imitar ações motoras", cor: "#E05A4B" },
+  { id: "ouvinte", label: "Ouvinte", desc: "Seguir instruções verbais", cor: "#23c48f" },
+  { id: "textual", label: "Textual", desc: "Leitura funcional", cor: "#378ADD" },
+  { id: "transcricao", label: "Transcrição", desc: "Escrita sob controle verbal", cor: "#8B7FE8" },
 ]
 const NIVEIS_TREINO: { id: NivelTreino; label: string; desc: string }[] = [
-  { id: "basico",        label: "Nível 1 — Controle direto",      desc: "Treino direto, sem equivalência" },
-  { id: "intermediario", label: "Nível 2 — Controle colateral",   desc: "Equivalência de estímulos"       },
-  { id: "avancado",      label: "Nível 3 — Molduras relacionais", desc: "RFT e relações derivadas"        },
+  { id: "basico", label: "Nível 1 — Controle direto", desc: "Treino direto, sem equivalência" },
+  { id: "intermediario", label: "Nível 2 — Controle colateral", desc: "Equivalência de estímulos" },
+  { id: "avancado", label: "Nível 3 — Molduras relacionais", desc: "RFT e relações derivadas" },
 ]
 const DOMINIOS = [
-  { id: "comunicacao",   label: "Comunicação",   cor: "#1D9E75" },
-  { id: "social",        label: "Social",        cor: "#378ADD" },
-  { id: "atencao",       label: "Atenção",       cor: "#8B7FE8" },
-  { id: "regulacao",     label: "Regulação",     cor: "#E05A4B" },
-  { id: "brincadeira",   label: "Brincadeira",   cor: "#EF9F27" },
+  { id: "comunicacao", label: "Comunicação", cor: "#1D9E75" },
+  { id: "social", label: "Social", cor: "#378ADD" },
+  { id: "atencao", label: "Atenção", cor: "#8B7FE8" },
+  { id: "regulacao", label: "Regulação", cor: "#E05A4B" },
+  { id: "brincadeira", label: "Brincadeira", cor: "#EF9F27" },
   { id: "flexibilidade", label: "Flexibilidade", cor: "#23c48f" },
-  { id: "autonomia",     label: "Autonomia",     cor: "#378ADD" },
-  { id: "motivacao",     label: "Motivação",     cor: "#8B7FE8" },
+  { id: "autonomia", label: "Autonomia", cor: "#378ADD" },
+  { id: "motivacao", label: "Motivação", cor: "#8B7FE8" },
 ]
 const RELACOES_DISP: { id: TipoRelacao; label: string; desc: string }[] = [
-  { id: "A→B", label: "A→B", desc: "Treino direto"   },
-  { id: "B→A", label: "B→A", desc: "Treino inverso"  },
+  { id: "A→B", label: "A→B", desc: "Treino direto" },
+  { id: "B→A", label: "B→A", desc: "Treino inverso" },
   { id: "A→C", label: "A→C", desc: "Treino direto C" },
-  { id: "B→C", label: "B→C", desc: "Treino BC"       },
-  { id: "C→A", label: "C→A", desc: "Emergente CA"    },
-  { id: "C→B", label: "C→B", desc: "Emergente CB"    },
-  { id: "A=A", label: "A=A", desc: "Reflexividade"   },
-  { id: "B=A", label: "B=A", desc: "Simetria BA"     },
-  { id: "A=C", label: "A=C", desc: "Transitiv. AC"   },
-  { id: "C=A", label: "C=A", desc: "Equiv. CA"       },
+  { id: "B→C", label: "B→C", desc: "Treino BC" },
+  { id: "C→A", label: "C→A", desc: "Emergente CA" },
+  { id: "C→B", label: "C→B", desc: "Emergente CB" },
+  { id: "A=A", label: "A=A", desc: "Reflexividade" },
+  { id: "B=A", label: "B=A", desc: "Simetria BA" },
+  { id: "A=C", label: "A=C", desc: "Transitiv. AC" },
+  { id: "C=A", label: "C=A", desc: "Equiv. CA" },
 ]
 const CRITERIOS_DEFAULT: CriterioPontuacao[] = [
-  { pontos: 0,  descricao: "Sem resposta mesmo com várias dicas",              reforco: "Sem reforço"              },
-  { pontos: 2,  descricao: "Resposta após redução de estímulos e dicas",       reforco: "1 unidade de reforçador"  },
-  { pontos: 4,  descricao: "Resposta após 2+ dicas, sem redução de estímulos", reforco: "2 unidades de reforçador" },
-  { pontos: 8,  descricao: "Resposta após 1 dica verbal ou visual",            reforco: "3 unidades de reforçador" },
-  { pontos: 10, descricao: "Resposta independente, sem dicas",                 reforco: "4 unidades de reforçador" },
+  { pontos: 0, descricao: "Sem resposta mesmo com várias dicas", reforco: "Sem reforço" },
+  { pontos: 2, descricao: "Resposta após redução de estímulos e dicas", reforco: "1 unidade de reforçador" },
+  { pontos: 4, descricao: "Resposta após 2+ dicas, sem redução de estímulos", reforco: "2 unidades de reforçador" },
+  { pontos: 8, descricao: "Resposta após 1 dica verbal ou visual", reforco: "3 unidades de reforçador" },
+  { pontos: 10, descricao: "Resposta independente, sem dicas", reforco: "4 unidades de reforçador" },
 ]
 const DOMINIO_COR: Record<string, string> = {
   comunicacao: "#1D9E75", social: "#378ADD", atencao: "#8B7FE8",
   regulacao: "#E05A4B", brincadeira: "#EF9F27", flexibilidade: "#23c48f",
   autonomia: "#378ADD", motivacao: "#8B7FE8",
 }
-const BARREIRAS_OPTS = ["fuga","esquiva","rigidez","estereotipia","agressão","desatenção","recusa","choro","autolesão"]
-const GENERALIZACAO_OPTS = ["terapeuta","responsável","pai/mãe","escola","outros adultos","pares","ambiente clínico","ambiente doméstico","espaço externo","materiais variados","instruções variadas"]
+const BARREIRAS_OPTS = ["fuga", "esquiva", "rigidez", "estereotipia", "agressão", "desatenção", "recusa", "choro", "autolesão"]
+const GENERALIZACAO_OPTS = ["terapeuta", "responsável", "pai/mãe", "escola", "outros adultos", "pares", "ambiente clínico", "ambiente doméstico", "espaço externo", "materiais variados", "instruções variadas"]
 
 const PROGRAMA_INICIAL: Programa = {
   nome: "", operante: "tato", tipoComportamento: "verbal", nivelTreino: "basico",
@@ -193,15 +193,15 @@ const PROGRAMA_INICIAL: Programa = {
 export default function ProgramasPage() {
   const { terapeuta } = useClinicContext()
   const acesso = useAcesso()
-  const [view,          setView]          = useState<ViewPrincipal>("biblioteca")
+  const [view, setView] = useState<ViewPrincipal>("biblioteca")
   const [tabBiblioteca, setTabBiblioteca] = useState<TabBiblioteca>("meus")
-  const [programasDB,   setProgramasDB]   = useState<ProgramaDB[]>([])
-  const [loading,       setLoading]       = useState(true)
-  const [busca,         setBusca]         = useState("")
+  const [programasDB, setProgramasDB] = useState<ProgramaDB[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busca, setBusca] = useState("")
   const [filtroDominio, setFiltroDominio] = useState("todos")
-  const [editandoId,    setEditandoId]    = useState<string|null>(null)
-  const [confirmExcluir,setConfirmExcluir]= useState<ProgramaDB|null>(null)
-  const [excluindo,     setExcluindo]     = useState(false)
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [confirmExcluir, setConfirmExcluir] = useState<ProgramaDB | null>(null)
+  const [excluindo, setExcluindo] = useState(false)
 
   const card: React.CSSProperties = { background: "rgba(13,32,53,.75)", border: "1px solid rgba(26,58,92,.5)", borderRadius: 14 }
   const inp: React.CSSProperties = { background: "rgba(20,55,110,.55)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 8, padding: "9px 12px", color: "#e8f0f8", fontFamily: "var(--font-sans)", fontSize: ".82rem", outline: "none", width: "100%", boxSizing: "border-box" as const }
@@ -252,14 +252,14 @@ export default function ProgramasPage() {
         {acesso.podeEditarProgramas && (
           <button onClick={() => { setEditandoId(null); setView("goal-builder") }}
             style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 6 }}>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M8 3v10M3 8h10"/></svg>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M8 3v10M3 8h10" /></svg>
             Novo programa
           </button>
         )}
       </div>
 
       <div style={{ display: "flex", borderBottom: "1px solid rgba(26,58,92,.4)", overflowX: "auto", scrollbarWidth: "none" as any }}>
-        {([["meus","Meus programas"],["plataforma","Plataforma Fracta"],["avaliacao","Da avaliação"],["equipe","Da equipe"]] as const).map(([id, label]) => (
+        {([["meus", "Meus programas"], ["plataforma", "Plataforma Fracta"], ["avaliacao", "Da avaliação"], ["equipe", "Da equipe"]] as const).map(([id, label]) => (
           <button key={id} onClick={() => setTabBiblioteca(id)} style={{ padding: "10px 16px", background: "none", border: "none", borderBottom: `2px solid ${tabBiblioteca === id ? "#1D9E75" : "transparent"}`, color: tabBiblioteca === id ? "#1D9E75" : "rgba(160,200,235,.5)", fontFamily: "var(--font-sans)", fontWeight: tabBiblioteca === id ? 700 : 400, fontSize: ".78rem", cursor: "pointer", marginBottom: -1, whiteSpace: "nowrap" as const, flexShrink: 0 }}>{label}</button>
         ))}
       </div>
@@ -355,11 +355,11 @@ export default function ProgramasPage() {
 
 // ─── GOAL BUILDER ────────────────────────────────────────────────────────────
 function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
-  terapeutaId: string; editandoId: string|null; acesso: any; onVoltar: () => void
+  terapeutaId: string; editandoId: string | null; acesso: any; onVoltar: () => void
 }) {
-  const [etapa,    setEtapa]    = useState<Etapa>(1)
+  const [etapa, setEtapa] = useState<Etapa>(1)
   const [programa, setPrograma] = useState<Programa>(PROGRAMA_INICIAL)
-  const [salvo,    setSalvo]    = useState(false)
+  const [salvo, setSalvo] = useState(false)
   const [matrizes, setMatrizes] = useState<{ id: string; name: string }[]>([])
   const [novoPasso, setNovoPasso] = useState("")
 
@@ -377,41 +377,41 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
     const { data } = await supabase.from("programas").select("*").eq("id", editandoId).single()
     if (!data) return
     setPrograma({
-      nome:                data.nome ?? "",
-      operante:            (data.operante ?? "tato") as TipoOperante,
-      tipoComportamento:   "verbal",
-      nivelTreino:         ((data.nivel === "iniciante" ? "basico" : data.nivel) ?? "basico") as NivelTreino,
-      dominio:             data.dominio ?? "comunicacao",
-      comportamentoAlvo:   data.comportamento_alvo ?? data.objetivo ?? "",
-      procedimentoEnsino:  (data.procedimento_ensino ?? "dtt") as ProcedimentoEnsino,
-      controleEstimulo:    (data.controle_estimulo ?? "sd") as ControleEstimulo,
-      sd:                  data.sd ?? "",
-      estimulos:           data.estimulos?.length > 0 ? data.estimulos : [{ id: uid(), modelo: "", comparacao: "", modeloTipo: "texto", comparacaoTipo: "texto" }],
-      relacoes:            (data.relacoes ?? ["A→B"]) as TipoRelacao[],
-      totalTentativas:     data.total_tentativas ?? 10,
-      ordemApresentacao:   "randomizado",
-      tipoRegistro:        (data.tipo_registro ?? "dtt") as TipoRegistro,
-      passosEncadeamento:  data.passos_tarefa ?? [],
-      direcaoEncadeamento: (data.direcao_encadeamento ?? "frente") as "frente"|"tras"|"total",
-      matrizId:            "",
-      presetHierarquia:    data.preset_hierarquia ?? "generica",
-      hierarquiaDicas:     data.hierarquia_dicas ?? [...HIERARQUIAS_PRESET.generica],
-      delayPrompt:         data.delay_prompt ?? 2,
-      progressaoPrompt:    (data.progressao_prompt ?? "least_to_most") as ProgressaoPrompt,
-      estrategiaDica:      "least_to_most",
-      material:            data.materiais ?? "",
-      instrucoes:          data.dica ?? "",
-      criterioTipo:        (data.criterio_tipo ?? "percentual") as CriterioTipo,
-      criterioMaestria:    data.criterio_maestria ?? "80% de respostas corretas",
-      criterioValor:       data.criterio_valor ?? 80,
+      nome: data.nome ?? "",
+      operante: (data.operante ?? "tato") as TipoOperante,
+      tipoComportamento: "verbal",
+      nivelTreino: ((data.nivel === "iniciante" ? "basico" : data.nivel) ?? "basico") as NivelTreino,
+      dominio: data.dominio ?? "comunicacao",
+      comportamentoAlvo: data.comportamento_alvo ?? data.objetivo ?? "",
+      procedimentoEnsino: (data.procedimento_ensino ?? "dtt") as ProcedimentoEnsino,
+      controleEstimulo: (data.controle_estimulo ?? "sd") as ControleEstimulo,
+      sd: data.sd ?? "",
+      estimulos: data.estimulos?.length > 0 ? data.estimulos : [{ id: uid(), modelo: "", comparacao: "", modeloTipo: "texto", comparacaoTipo: "texto" }],
+      relacoes: (data.relacoes ?? ["A→B"]) as TipoRelacao[],
+      totalTentativas: data.total_tentativas ?? 10,
+      ordemApresentacao: "randomizado",
+      tipoRegistro: (data.tipo_registro ?? "dtt") as TipoRegistro,
+      passosEncadeamento: data.passos_tarefa ?? [],
+      direcaoEncadeamento: (data.direcao_encadeamento ?? "frente") as "frente" | "tras" | "total",
+      matrizId: "",
+      presetHierarquia: data.preset_hierarquia ?? "generica",
+      hierarquiaDicas: data.hierarquia_dicas ?? [...HIERARQUIAS_PRESET.generica],
+      delayPrompt: data.delay_prompt ?? 2,
+      progressaoPrompt: (data.progressao_prompt ?? "least_to_most") as ProgressaoPrompt,
+      estrategiaDica: "least_to_most",
+      material: data.materiais ?? "",
+      instrucoes: data.dica ?? "",
+      criterioTipo: (data.criterio_tipo ?? "percentual") as CriterioTipo,
+      criterioMaestria: data.criterio_maestria ?? "80% de respostas corretas",
+      criterioValor: data.criterio_valor ?? 80,
       sessoesParaMaestria: 3,
-      reforcoGeral:        "",
-      criterios:           CRITERIOS_DEFAULT,
-      generalizacao:       data.generalizacao ?? [],
-      manutencaoDias:      (data.manutencao_dias ?? 0) as ManutencaoDias,
-      barreirasPrevistas:  data.barreiras_previstas ?? [],
-      pacienteId:          "",
-      nivelDicas:          data.hierarquia_dicas ?? [...HIERARQUIAS_PRESET.generica],
+      reforcoGeral: "",
+      criterios: CRITERIOS_DEFAULT,
+      generalizacao: data.generalizacao ?? [],
+      manutencaoDias: (data.manutencao_dias ?? 0) as ManutencaoDias,
+      barreirasPrevistas: data.barreiras_previstas ?? [],
+      pacienteId: "",
+      nivelDicas: data.hierarquia_dicas ?? [...HIERARQUIAS_PRESET.generica],
     })
   }
 
@@ -437,37 +437,100 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
   const etapa3Valida = programa.hierarquiaDicas.length > 0
   const etapa4Valida = programa.criterioMaestria.trim() && programa.reforcoGeral.trim()
 
+  // Ponte canônica: deriva classificação ABA a partir do que o form captura.
+  // Mantém 'operante' antigo intacto (telas leem); canônico vai nos campos novos.
+  async function derivarCanonico(p: typeof programa): Promise<{
+    dominio_aba: string; tipo_resposta: string | null;
+    template_origem: string; teaching_format: string | null;
+    estrategia_dica: string; hierarquia_dicas: any[];
+  }> {
+    let dominio_aba = "nao_classificado";
+    let tipo_resposta: string | null = null;
+    let template_origem = "generic_non_verbal";
+    let teaching_format: string | null = null;
+
+    // Ordem de decisão (encadeamento tem prioridade sobre operante)
+    if (p.tipoRegistro === "encadeamento") {
+      dominio_aba = "adaptativo"; tipo_resposta = "motora"; template_origem = "task_analysis";
+    } else if (p.operante === "mando") {
+      dominio_aba = "verbal"; tipo_resposta = "vocal";
+      if (p.procedimentoEnsino === "net") { template_origem = "mando_net"; teaching_format = "net"; }
+      else { template_origem = "mando_dtt"; teaching_format = "dtt"; }
+    } else if (p.operante === "tato") {
+      dominio_aba = "verbal"; tipo_resposta = "vocal"; template_origem = "tato";
+    } else if (p.operante === "intraverbal") {
+      dominio_aba = "verbal"; tipo_resposta = "vocal"; template_origem = "intraverbal";
+    } else if (p.operante === "echoico") {
+      dominio_aba = "verbal"; tipo_resposta = "vocal"; template_origem = "ecoico";
+    } else if (p.operante === "ouvinte") {
+      if (p.tipoRegistro === "matching") { dominio_aba = "nao_verbal"; tipo_resposta = "selecao"; template_origem = "matching"; }
+      else { dominio_aba = "nao_verbal"; tipo_resposta = "motora"; template_origem = "generic_non_verbal"; }
+    } else if (p.operante === "imitacao") {
+      dominio_aba = "nao_verbal"; tipo_resposta = "motora"; template_origem = "generic_non_verbal";
+    } else if (p.operante === "textual" || p.operante === "transcricao") {
+      dominio_aba = "academico"; tipo_resposta = "escrita"; template_origem = "generic_academic";
+    }
+
+    // Busca o template (estratégia + níveis) e monta o SNAPSHOT (cópia, não referência)
+    const { data: tpl } = await supabase
+      .from("prompt_templates").select("prompting_strategy_padrao").eq("codigo", template_origem).single();
+    const { data: niveis } = await supabase
+      .from("prompt_template_niveis")
+      .select("posicao, prompt_codigo, prompt_types(rotulo)")
+      .eq("template_codigo", template_origem).order("posicao");
+
+    const hierarquia_dicas = (niveis ?? []).map((n: any) => ({
+      codigo: n.prompt_codigo,
+      rotulo: n.prompt_types?.rotulo ?? n.prompt_codigo,
+      posicao: n.posicao,
+    }));
+
+    return {
+      dominio_aba, tipo_resposta, template_origem, teaching_format,
+      estrategia_dica: tpl?.prompting_strategy_padrao ?? "least_to_most",
+      hierarquia_dicas,
+    };
+  }
+
   async function handleSalvar() {
+    const canon = await derivarCanonico(programa);
     const payload: any = {
-      nome:                 programa.nome,
-      operante:             programa.operante,
-      dominio:              programa.dominio,
-      objetivo:             programa.comportamentoAlvo,
-      comportamento_alvo:   programa.comportamentoAlvo,
-      sd:                   programa.controleEstimulo !== "mo" ? programa.sd : null,
-      materiais:            programa.material,
-      dica:                 programa.instrucoes,
-      total_tentativas:     programa.totalTentativas,
-      criterio_maestria:    programa.criterioMaestria,
-      nivel:                programa.nivelTreino === "basico" ? "iniciante" : programa.nivelTreino,
-      estimulos:            programa.estimulos,
-      relacoes:             programa.relacoes,
-      hierarquia_dicas:     programa.hierarquiaDicas.filter(d => d.trim()),
-      tipo_registro:        programa.tipoRegistro,
-      passos_tarefa:        programa.tipoRegistro === "encadeamento" ? programa.passosEncadeamento.filter(p => p.trim()) : null,
+      nome: programa.nome,
+      operante: programa.operante,
+      dominio: programa.dominio,
+      objetivo: programa.comportamentoAlvo,
+      comportamento_alvo: programa.comportamentoAlvo,
+      sd: programa.controleEstimulo !== "mo" ? programa.sd : null,
+      materiais: programa.material,
+      dica: programa.instrucoes,
+      total_tentativas: programa.totalTentativas,
+      criterio_maestria: programa.criterioMaestria,
+      nivel: programa.nivelTreino === "basico" ? "iniciante" : programa.nivelTreino,
+      estimulos: programa.estimulos,
+      relacoes: programa.relacoes,
+      tipo_registro: programa.tipoRegistro,
+      passos_tarefa: programa.tipoRegistro === "encadeamento" ? programa.passosEncadeamento.filter(p => p.trim()) : null,
       direcao_encadeamento: programa.tipoRegistro === "encadeamento" ? programa.direcaoEncadeamento : null,
-      procedimento_ensino:  programa.procedimentoEnsino,
-      controle_estimulo:    programa.controleEstimulo,
-      progressao_prompt:    programa.progressaoPrompt,
-      criterio_tipo:        programa.criterioTipo,
-      criterio_valor:       programa.criterioValor,
-      generalizacao:        programa.generalizacao,
-      manutencao_dias:      programa.manutencaoDias,
-      barreiras_previstas:  programa.barreirasPrevistas,
-      delay_prompt:         programa.delayPrompt,
-      preset_hierarquia:    programa.presetHierarquia,
-      ativo:                true,
-      criado_por:           terapeutaId || undefined,
+      procedimento_ensino: programa.procedimentoEnsino,
+      controle_estimulo: programa.controleEstimulo,
+      progressao_prompt: programa.progressaoPrompt,
+      criterio_tipo: programa.criterioTipo,
+      criterio_valor: programa.criterioValor,
+      generalizacao: programa.generalizacao,
+      manutencao_dias: programa.manutencaoDias,
+      barreiras_previstas: programa.barreirasPrevistas,
+      delay_prompt: programa.delayPrompt,
+      preset_hierarquia: programa.presetHierarquia,
+      ativo: true,
+      criado_por: terapeutaId || undefined,
+      // Ponte canônica (campos novos; 'operante' antigo fica intacto acima)
+      dominio_aba: canon.dominio_aba,
+      tipo_resposta: canon.tipo_resposta,
+      template_origem: canon.template_origem,
+      teaching_format: canon.teaching_format,
+      classification_status: "classified",
+      estrategia_dica: canon.estrategia_dica,
+      hierarquia_dicas: canon.hierarquia_dicas,
     }
     let error
     if (editandoId) {
@@ -481,7 +544,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
     else { console.error("Erro ao salvar:", error); alert("Erro ao salvar. Verifique o console.") }
   }
 
-  const ETAPAS_LABELS = ["Identidade","Estímulos","Procedimento","Critério","Revisão"]
+  const ETAPAS_LABELS = ["Identidade", "Estímulos", "Procedimento", "Critério", "Revisão"]
 
   if (salvo) return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", gap: 20 }}>
@@ -500,7 +563,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
       {/* Cabeçalho */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={onVoltar} style={{ background: "none", border: "none", color: "rgba(160,200,235,.7)", cursor: "pointer", fontSize: ".75rem", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 4, padding: 0 }}>
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5"/></svg>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5" /></svg>
           Biblioteca
         </button>
         <div style={{ width: 1, height: 16, background: "rgba(26,58,92,.5)" }} />
@@ -509,7 +572,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
 
       {/* Progress steps */}
       <div style={{ display: "flex", alignItems: "center" }}>
-        {([1,2,3,4,5] as Etapa[]).map((e, i) => {
+        {([1, 2, 3, 4, 5] as Etapa[]).map((e, i) => {
           const ativa = e === etapa; const concluida = e < etapa
           return (
             <div key={e} style={{ display: "flex", alignItems: "center", flex: 1 }}>
@@ -538,15 +601,15 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
             <label style={lbl}>Procedimento de ensino *</label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
               {([
-                ["net","NET","Natural Environment"],
-                ["dtt","DTT","Tentativa discreta"],
-                ["fct","FCT","Comunicação funcional"],
-                ["prt","PRT","Treino de respostas pivô"],
-                ["incidental","Incidental","Ensino incidental"],
-                ["shaping","Shaping","Modelagem"],
-                ["chaining","Chaining","Encadeamento"],
-                ["mand_training","Mand Training","Treino de mando"],
-                ["outro","Outro","Especificar"],
+                ["net", "NET", "Natural Environment"],
+                ["dtt", "DTT", "Tentativa discreta"],
+                ["fct", "FCT", "Comunicação funcional"],
+                ["prt", "PRT", "Treino de respostas pivô"],
+                ["incidental", "Incidental", "Ensino incidental"],
+                ["shaping", "Shaping", "Modelagem"],
+                ["chaining", "Chaining", "Encadeamento"],
+                ["mand_training", "Mand Training", "Treino de mando"],
+                ["outro", "Outro", "Especificar"],
               ] as const).map(([id, label, desc]) => (
                 <button key={id} onClick={() => upd("procedimentoEnsino", id)}
                   style={{ padding: "8px 6px", borderRadius: 8, border: `1px solid ${programa.procedimentoEnsino === id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: programa.procedimentoEnsino === id ? "rgba(139,127,232,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
@@ -560,7 +623,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
           <div style={{ ...card, padding: 20 }}>
             <label style={lbl}>Tipo de comportamento *</label>
             <div style={{ display: "flex", gap: 8 }}>
-              {(["verbal","não-verbal"] as TipoComportamento[]).map(t => (
+              {(["verbal", "não-verbal"] as TipoComportamento[]).map(t => (
                 <button key={t} onClick={() => upd("tipoComportamento", t)}
                   style={{ flex: 1, padding: "10px", borderRadius: 9, border: `1px solid ${programa.tipoComportamento === t ? "rgba(29,158,117,.5)" : "rgba(26,58,92,.4)"}`, background: programa.tipoComportamento === t ? "rgba(29,158,117,.15)" : "transparent", color: programa.tipoComportamento === t ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".78rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                   {t === "verbal" ? "Comportamento Verbal" : "Comportamento Não-verbal"}
@@ -573,9 +636,9 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
             <div style={{ ...card, padding: 20 }}>
               <label style={lbl}>Operante verbal *</label>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8 }}>
-                {OPERANTES.filter(o => !["imitacao","ouvinte"].includes(o.id)).map(o => (
+                {OPERANTES.filter(o => !["imitacao", "ouvinte"].includes(o.id)).map(o => (
                   <button key={o.id} onClick={() => upd("operante", o.id)}
-                    style={{ padding: "10px 12px", borderRadius: 9, border: `1px solid ${programa.operante === o.id ? o.cor+"55" : "rgba(26,58,92,.5)"}`, background: programa.operante === o.id ? o.cor+"11" : "transparent", cursor: "pointer", textAlign: "left" as const, fontFamily: "var(--font-sans)" }}>
+                    style={{ padding: "10px 12px", borderRadius: 9, border: `1px solid ${programa.operante === o.id ? o.cor + "55" : "rgba(26,58,92,.5)"}`, background: programa.operante === o.id ? o.cor + "11" : "transparent", cursor: "pointer", textAlign: "left" as const, fontFamily: "var(--font-sans)" }}>
                     <div style={{ fontSize: ".78rem", fontWeight: 600, color: programa.operante === o.id ? o.cor : "rgba(160,200,235,.92)" }}>{o.label}</div>
                     <div style={{ fontSize: ".62rem", color: "rgba(165,208,242,.85)", marginTop: 2 }}>{o.desc}</div>
                   </button>
@@ -589,7 +652,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8 }}>
               {DOMINIOS.map(d => (
                 <button key={d.id} onClick={() => upd("dominio", d.id)}
-                  style={{ padding: "9px 12px", borderRadius: 9, border: `1px solid ${programa.dominio === d.id ? d.cor+"55" : "rgba(26,58,92,.4)"}`, background: programa.dominio === d.id ? d.cor+"11" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" as const }}>
+                  style={{ padding: "9px 12px", borderRadius: 9, border: `1px solid ${programa.dominio === d.id ? d.cor + "55" : "rgba(26,58,92,.4)"}`, background: programa.dominio === d.id ? d.cor + "11" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" as const }}>
                   <div style={{ fontSize: ".78rem", fontWeight: 600, color: programa.dominio === d.id ? d.cor : "rgba(160,200,235,.84)" }}>{d.label}</div>
                 </button>
               ))}
@@ -639,7 +702,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
           <div style={{ ...card, padding: 20 }}>
             <label style={lbl}>Controle de estímulo *</label>
             <div style={{ display: "flex", gap: 8 }}>
-              {([["sd","SD","Estímulo discriminativo formal"],["mo","MO","Operação motivacional (sem SD)"],["misto","Misto","SD + contexto motivacional"]] as const).map(([id, label, desc]) => (
+              {([["sd", "SD", "Estímulo discriminativo formal"], ["mo", "MO", "Operação motivacional (sem SD)"], ["misto", "Misto", "SD + contexto motivacional"]] as const).map(([id, label, desc]) => (
                 <button key={id} onClick={() => upd("controleEstimulo", id)}
                   style={{ flex: 1, padding: "10px 8px", borderRadius: 9, border: `1px solid ${programa.controleEstimulo === id ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: programa.controleEstimulo === id ? "rgba(55,138,221,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
                   <div style={{ fontSize: ".78rem", fontWeight: 600, color: programa.controleEstimulo === id ? "#378ADD" : "rgba(160,200,235,.84)" }}>{label}</div>
@@ -660,12 +723,12 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
             <label style={lbl}>Tipo de registro *</label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
               {([
-                ["dtt","DTT","Tentativa discreta"],
-                ["frequencia","Frequência","Contagem livre"],
-                ["duracao","Duração","Tempo de resposta"],
-                ["latencia","Latência","SD → resposta"],
-                ["encadeamento","Encadeamento","Task analysis"],
-                ["matching","Matching","Estímulo/comparação"],
+                ["dtt", "DTT", "Tentativa discreta"],
+                ["frequencia", "Frequência", "Contagem livre"],
+                ["duracao", "Duração", "Tempo de resposta"],
+                ["latencia", "Latência", "SD → resposta"],
+                ["encadeamento", "Encadeamento", "Task analysis"],
+                ["matching", "Matching", "Estímulo/comparação"],
               ] as const).map(([id, label, desc]) => (
                 <button key={id} onClick={() => upd("tipoRegistro", id as TipoRegistro)}
                   style={{ padding: "8px 6px", borderRadius: 8, border: `1px solid ${programa.tipoRegistro === id ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: programa.tipoRegistro === id ? "rgba(55,138,221,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
@@ -680,7 +743,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
             <div style={{ ...card, padding: 20 }}>
               <label style={lbl}>Passos da tarefa (task analysis)</label>
               <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-                {([["frente","À frente"],["tras","Atrás"],["total","Cadeia total"]] as const).map(([id, label]) => (
+                {([["frente", "À frente"], ["tras", "Atrás"], ["total", "Cadeia total"]] as const).map(([id, label]) => (
                   <button key={id} onClick={() => upd("direcaoEncadeamento", id)}
                     style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${programa.direcaoEncadeamento === id ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.4)"}`, background: programa.direcaoEncadeamento === id ? "rgba(139,127,232,.1)" : "transparent", color: programa.direcaoEncadeamento === id ? "#8B7FE8" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: programa.direcaoEncadeamento === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                     {label}
@@ -724,7 +787,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
             </div>
           )}
 
-          {!["encadeamento","matching"].includes(programa.tipoRegistro) && (
+          {!["encadeamento", "matching"].includes(programa.tipoRegistro) && (
             <>
               <div style={{ ...card, padding: 20 }}>
                 <label style={lbl}>Relações de treino</label>
@@ -752,9 +815,9 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
                 </div>
                 {programa.estimulos.map((est, i) => (
                   <div key={est.id} style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                    <input value={est.modelo} onChange={e => upd("estimulos", programa.estimulos.map((x, j) => j === i ? { ...x, modelo: e.target.value } : x))} placeholder={`Modelo ${i+1}...`} style={inp} />
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(170,210,245,.4)" strokeWidth="1.5"><path d="M2 8h12M9 3l5 5-5 5"/></svg>
-                    <input value={est.comparacao} onChange={e => upd("estimulos", programa.estimulos.map((x, j) => j === i ? { ...x, comparacao: e.target.value } : x))} placeholder={`Comparação ${i+1}...`} style={inp} />
+                    <input value={est.modelo} onChange={e => upd("estimulos", programa.estimulos.map((x, j) => j === i ? { ...x, modelo: e.target.value } : x))} placeholder={`Modelo ${i + 1}...`} style={inp} />
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(170,210,245,.4)" strokeWidth="1.5"><path d="M2 8h12M9 3l5 5-5 5" /></svg>
+                    <input value={est.comparacao} onChange={e => upd("estimulos", programa.estimulos.map((x, j) => j === i ? { ...x, comparacao: e.target.value } : x))} placeholder={`Comparação ${i + 1}...`} style={inp} />
                     <button onClick={() => programa.estimulos.length > 1 && upd("estimulos", programa.estimulos.filter((_, j) => j !== i))}
                       style={{ width: 28, height: 36, borderRadius: 7, border: "1px solid rgba(224,90,75,.25)", background: "transparent", color: "rgba(224,90,75,.6)", cursor: programa.estimulos.length > 1 ? "pointer" : "not-allowed", fontSize: ".85rem", display: "flex", alignItems: "center", justifyContent: "center", opacity: programa.estimulos.length > 1 ? 1 : .3 }}>×</button>
                   </div>
@@ -771,7 +834,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
             <div style={{ ...card, padding: 20 }}>
               <label style={lbl}>Ordem de apresentação</label>
               <div style={{ display: "flex", gap: 8 }}>
-                {(["randomizado","fixo"] as const).map(o => (
+                {(["randomizado", "fixo"] as const).map(o => (
                   <button key={o} onClick={() => upd("ordemApresentacao", o)}
                     style={{ flex: 1, padding: "9px", borderRadius: 8, border: `1px solid ${programa.ordemApresentacao === o ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: programa.ordemApresentacao === o ? "rgba(29,158,117,.1)" : "transparent", color: programa.ordemApresentacao === o ? "#1D9E75" : "rgba(160,200,235,.5)", fontSize: ".75rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", textTransform: "capitalize" as const }}>
                     {o}
@@ -798,7 +861,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
           <div style={{ ...card, padding: 20 }}>
             <label style={lbl}>Hierarquia base</label>
             <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-              {([["mando_net","Mando NET"],["mando_dtt","Mando DTT"],["generica","Genérica"]] as const).map(([id, label]) => (
+              {([["mando_net", "Mando NET"], ["mando_dtt", "Mando DTT"], ["generica", "Genérica"]] as const).map(([id, label]) => (
                 <button key={id} onClick={() => aplicarPreset(id)}
                   style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${programa.presetHierarquia === id ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: programa.presetHierarquia === id ? "rgba(29,158,117,.1)" : "transparent", color: programa.presetHierarquia === id ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: programa.presetHierarquia === id ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                   {label}
@@ -826,11 +889,11 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
             <label style={lbl}>Progressão de prompt</label>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {([
-                ["least_to_most","Menos → Mais","Gradual ascending"],
-                ["most_to_least","Mais → Menos","Gradual descending"],
-                ["time_delay","Time Delay","Atraso progressivo"],
-                ["graduated_guidance","Grad. Guidance","Guia graduada"],
-                ["prompt_fading","Prompt Fading","Esvanecimento"],
+                ["least_to_most", "Menos → Mais", "Gradual ascending"],
+                ["most_to_least", "Mais → Menos", "Gradual descending"],
+                ["time_delay", "Time Delay", "Atraso progressivo"],
+                ["graduated_guidance", "Grad. Guidance", "Guia graduada"],
+                ["prompt_fading", "Prompt Fading", "Esvanecimento"],
               ] as const).map(([id, label, desc]) => (
                 <button key={id} onClick={() => upd("progressaoPrompt", id)}
                   style={{ padding: "9px 10px", borderRadius: 8, border: `1px solid ${programa.progressaoPrompt === id ? "rgba(55,138,221,.4)" : "rgba(26,58,92,.4)"}`, background: programa.progressaoPrompt === id ? "rgba(55,138,221,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" as const }}>
@@ -873,11 +936,11 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
             <label style={lbl}>Tipo de critério de domínio</label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 14 }}>
               {([
-                ["percentual","% Acerto","Porcentagem de acertos"],
-                ["independencia","Independência","% sem dica"],
-                ["frequencia","Frequência","Número de ocorrências"],
-                ["duracao","Duração","Tempo de resposta"],
-                ["latencia","Latência","Tempo até resposta"],
+                ["percentual", "% Acerto", "Porcentagem de acertos"],
+                ["independencia", "Independência", "% sem dica"],
+                ["frequencia", "Frequência", "Número de ocorrências"],
+                ["duracao", "Duração", "Tempo de resposta"],
+                ["latencia", "Latência", "Tempo até resposta"],
               ] as const).map(([id, label, desc]) => (
                 <button key={id} onClick={() => upd("criterioTipo", id)}
                   style={{ padding: "8px 6px", borderRadius: 8, border: `1px solid ${programa.criterioTipo === id ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: programa.criterioTipo === id ? "rgba(29,158,117,.1)" : "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" as const }}>
@@ -932,7 +995,7 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
           <div style={{ ...card, padding: 20 }}>
             <label style={lbl}>Verificação de manutenção</label>
             <div style={{ display: "flex", gap: 8 }}>
-              {([0,7,15,30,60] as ManutencaoDias[]).map(d => (
+              {([0, 7, 15, 30, 60] as ManutencaoDias[]).map(d => (
                 <button key={d} onClick={() => upd("manutencaoDias", d)}
                   style={{ flex: 1, padding: "9px 6px", borderRadius: 8, border: `1px solid ${programa.manutencaoDias === d ? "rgba(239,159,39,.4)" : "rgba(26,58,92,.4)"}`, background: programa.manutencaoDias === d ? "rgba(239,159,39,.1)" : "transparent", color: programa.manutencaoDias === d ? "#EF9F27" : "rgba(160,200,235,.4)", fontSize: ".7rem", fontWeight: programa.manutencaoDias === d ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                   {d === 0 ? "Não" : `${d}d`}
@@ -973,19 +1036,19 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
             <div style={{ fontSize: ".62rem", color: "#1D9E75", fontWeight: 700, letterSpacing: ".09em", textTransform: "uppercase" as const, marginBottom: 12 }}>Resumo do programa</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {[
-                { l: "Nome",             v: programa.nome },
-                { l: "Disponibilidade",  v: "Biblioteca global" },
-                { l: "Procedimento",     v: programa.procedimentoEnsino.toUpperCase() },
-                { l: "Operante",         v: OPERANTES.find(o => o.id === programa.operante)?.label ?? "—" },
-                { l: "Domínio",          v: DOMINIOS.find(d => d.id === programa.dominio)?.label ?? "—" },
-                { l: "Nível de treino",  v: NIVEIS_TREINO.find(n => n.id === programa.nivelTreino)?.label ?? "—" },
+                { l: "Nome", v: programa.nome },
+                { l: "Disponibilidade", v: "Biblioteca global" },
+                { l: "Procedimento", v: programa.procedimentoEnsino.toUpperCase() },
+                { l: "Operante", v: OPERANTES.find(o => o.id === programa.operante)?.label ?? "—" },
+                { l: "Domínio", v: DOMINIOS.find(d => d.id === programa.dominio)?.label ?? "—" },
+                { l: "Nível de treino", v: NIVEIS_TREINO.find(n => n.id === programa.nivelTreino)?.label ?? "—" },
                 { l: "Tipo de registro", v: programa.tipoRegistro },
-                { l: "Controle estímulo",v: programa.controleEstimulo.toUpperCase() },
-                { l: "Progressão prompt",v: programa.progressaoPrompt.replace(/_/g," ") },
-                { l: "Tentativas/sessão",v: String(programa.totalTentativas) },
-                { l: "Critério",         v: `${programa.criterioMaestria} em ${programa.sessoesParaMaestria} sessões` },
-                { l: "Reforçador",       v: programa.reforcoGeral },
-                { l: "Manutenção",       v: programa.manutencaoDias > 0 ? `${programa.manutencaoDias} dias` : "Não definida" },
+                { l: "Controle estímulo", v: programa.controleEstimulo.toUpperCase() },
+                { l: "Progressão prompt", v: programa.progressaoPrompt.replace(/_/g, " ") },
+                { l: "Tentativas/sessão", v: String(programa.totalTentativas) },
+                { l: "Critério", v: `${programa.criterioMaestria} em ${programa.sessoesParaMaestria} sessões` },
+                { l: "Reforçador", v: programa.reforcoGeral },
+                { l: "Manutenção", v: programa.manutencaoDias > 0 ? `${programa.manutencaoDias} dias` : "Não definida" },
               ].map(r => (
                 <div key={r.l}>
                   <div style={{ fontSize: ".6rem", color: "rgba(170,210,245,.88)", textTransform: "uppercase" as const, letterSpacing: ".08em", marginBottom: 3 }}>{r.l}</div>
@@ -1001,8 +1064,8 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
                 Passos ({programa.passosEncadeamento.length}) · {programa.direcaoEncadeamento}
               </div>
               {programa.passosEncadeamento.map((p, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: i < programa.passosEncadeamento.length-1 ? "1px solid rgba(26,58,92,.2)" : "none" }}>
-                  <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20, flexShrink: 0 }}>{i+1}.</span>
+                <div key={i} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: i < programa.passosEncadeamento.length - 1 ? "1px solid rgba(26,58,92,.2)" : "none" }}>
+                  <span style={{ fontSize: ".65rem", color: "rgba(160,200,235,.35)", width: 20, flexShrink: 0 }}>{i + 1}.</span>
                   <span style={{ fontSize: ".78rem", color: "#e8f0f8" }}>{p}</span>
                 </div>
               ))}
