@@ -13,6 +13,16 @@ type TipoSessao = "atendimento" | "acompanhamento_terapeutico" | "supervisao";
 type StageKey = "warmup_pairing" | "assent_checklist" | "preference_assessment" | "clinical_actions" | "break" | "closing_preparation";
 type StageStatus = "pending" | "active" | "completed" | "skipped";
 type PromptLevel = "independente" | "gestual" | "modelo" | "fisico_parcial" | "fisico_total";
+
+function normalizarHierarquia(h: any): { key: string; label: string }[] {
+  if (!Array.isArray(h)) return [];
+  return h.map((item: any) => {
+    if (typeof item === "string") return { key: item, label: item };
+    if (item && typeof item === "object")
+      return { key: item.codigo ?? item.key ?? "", label: item.rotulo ?? item.label ?? item.codigo ?? item.key ?? "" };
+    return { key: String(item), label: String(item) };
+  }).filter(x => x.key);
+}
 type EventType = "assent_given" | "assent_revoked" | "assent_recovered" | "avoidance_signal" | "distress_signal" | "break_requested" | "session_paused" | "session_resumed";
 type AreaAtiva = "intervencao" | "avaliacao";
 
@@ -30,7 +40,7 @@ interface Acao {
   taxaHistorica?: number
   operanteVerbal?: string
   hierarquiaTipo?: "motora" | "verbal" | "generica"
-  hierarquiaDicas?: string[]    // ← novo
+  hierarquiaDicas?: { key: string; label: string }[]    // ← novo
   planoId?: string
   planoProgramaId?: string      // ← novo
   tipo_registro?: "dtt" | "frequencia" | "duracao" | "latencia" | "encadeamento" | "matching"
@@ -52,7 +62,7 @@ interface LibItem {
   taxaHistorica?: number
   operante?: string
   totalTentativas?: number
-  hierarquiaDicas?: string[]
+  hierarquiaDicas?: { key: string; label: string }[]
   estrategiaDica?: string
   sd?: string
   estimulos?: any[]
@@ -488,11 +498,11 @@ function SessaoInner() {
           const alvo = (pp as any).alvos_comportamentais
           if (!prog) continue
 
-          const hierarquia = prog.hierarquia_dicas?.length > 0
+          const hierarquia = normalizarHierarquia(prog.hierarquia_dicas?.length > 0
             ? prog.hierarquia_dicas
             : prog.nivel_dicas
               ? Object.keys(prog.nivel_dicas)
-              : ["independente", "gestual", "modelo", "física parcial", "física total"]
+              : ["independente", "gestual", "modelo", "fisico_parcial", "fisico_total"])
 
           planejados.push({
             id: prog.id,
@@ -532,9 +542,9 @@ function SessaoInner() {
           planejado: false,
           operante: p.operante,
           totalTentativas: p.total_tentativas ?? 10,
-          hierarquiaDicas: p.hierarquia_dicas?.length > 0
+          hierarquiaDicas: normalizarHierarquia(p.hierarquia_dicas?.length > 0
             ? p.hierarquia_dicas
-            : ["independente", "gestual", "modelo", "física parcial", "física total"],
+            : ["independente", "gestual", "modelo", "fisico_parcial", "fisico_total"]),
           estrategiaDica: "least_to_most",
           sd: p.sd,
           tipo_registro: p.tipo_registro ?? "dtt",
@@ -570,7 +580,7 @@ function SessaoInner() {
         planejado: true,
         operante: s.operante,
         totalTentativas: 10,
-        hierarquiaDicas: ["independente", "gestual", "modelo", "física parcial", "física total"],
+        hierarquiaDicas: normalizarHierarquia(["independente", "gestual", "modelo", "fisico_parcial", "fisico_total"]),
         estrategiaDica: "least_to_most",
       }))
 
@@ -802,7 +812,7 @@ function SessaoInner() {
     // Salva em sessao_tentativas (novo) + operants (legado, mantém por ora)
     if (sessaoDbId && acaoAtiva.dbId) {
       const hierarquia = acaoAtiva.hierarquiaDicas ?? []
-      const nivelIdx = hierarquia.indexOf(nivelKey ?? "independente")
+      const nivelIdx = hierarquia.findIndex(h => h.key === (nivelKey ?? "independente"))
 
       // Resolve a fase ativa do programa (estável durante a sessão)
       let programaFaseId: string | null = null
@@ -1578,7 +1588,7 @@ function SessaoInner() {
 
                               {/* Independente sempre primeiro e destacado */}
                               <button
-                                onClick={() => registrarOperante(true, niveis[0])}
+                                onClick={() => registrarOperante(true, niveis[0].key)}
                                 style={{
                                   padding: "13px 14px",
                                   borderRadius: 10,
@@ -1594,7 +1604,7 @@ function SessaoInner() {
                                   justifyContent: "space-between",
                                 }}
                               >
-                                <span>✓ {niveis[0]}</span>
+                                <span>✓ {niveis[0].label}</span>
                                 <span style={{ fontSize: ".62rem", opacity: .45 }}>sem dica</span>
                               </button>
 
@@ -1605,8 +1615,8 @@ function SessaoInner() {
                                 const cor = isUltimo ? "#EF9F27" : "#378ADD"
                                 return (
                                   <button
-                                    key={nivel}
-                                    onClick={() => registrarOperante(true, nivel)}
+                                    key={nivel.key}
+                                    onClick={() => registrarOperante(true, nivel.key)}
                                     style={{
                                       padding: "10px 14px",
                                       borderRadius: 10,
@@ -1622,7 +1632,7 @@ function SessaoInner() {
                                       justifyContent: "space-between",
                                     }}
                                   >
-                                    <span>✓ {nivel}</span>
+                                    <span>✓ {nivel.label}</span>
                                     <span style={{ fontSize: ".62rem", opacity: .45 }}>
                                       nível {idx + 1}
                                     </span>
@@ -2885,7 +2895,7 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
   const presetInicial = item.operante === "mando" ? "mando_net" : "generica"
   const [preset, setPreset] = useState(presetInicial)
   const [hierarquia, setHierarquia] = useState<string[]>(
-    (item.hierarquiaDicas?.length ?? 0) > 0 ? (item.hierarquiaDicas ?? []) : HIERARQUIAS_PRESET[presetInicial]
+    (item.hierarquiaDicas?.length ?? 0) > 0 ? (item.hierarquiaDicas ?? []).map((h: any) => typeof h === "string" ? h : h.key) : HIERARQUIAS_PRESET[presetInicial]
   )
   const [delay, setDelay] = useState(2)
   const [estrategia, setEstrategia] = useState<"least_to_most" | "most_to_least">("least_to_most")
@@ -2913,7 +2923,7 @@ function ModalConfigurarPrograma({ item, onConfirmar, onCancelar }: {
     onConfirmar({
       ...item,
       nome: item.nome.replace("💡 ", ""),
-      hierarquiaDicas: hierarquia,
+      hierarquiaDicas: hierarquia.map(k => ({ key: k, label: k })),
       estrategiaDica: estrategia,
       tipo_registro: tipoRegistro,
       passosEncadeamento: tipoRegistro === "encadeamento" ? passosEncadeamento.filter(p => p.trim()) : undefined,
@@ -3415,7 +3425,7 @@ function FolhaLatencia({ acao, onRegistrar, atingiuLimite }: {
     ? Math.round(latencias.reduce((a, b) => a + b.ms, 0) / latencias.length)
     : 0
   const menor = latencias.length > 0 ? Math.min(...latencias.map(l => l.ms)) : 0
-  const niveis = acao.hierarquiaDicas ?? ["independente", "gestual", "modelo", "física parcial"]
+  const niveis = acao.hierarquiaDicas ?? [{ key: "independente", label: "Independente" }, { key: "gestual", label: "Gestual" }, { key: "modelo", label: "Modelo" }, { key: "fisico_parcial", label: "Físico Parcial" }]
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -3444,9 +3454,9 @@ function FolhaLatencia({ acao, onRegistrar, atingiuLimite }: {
         <div style={{ fontSize: ".62rem", color: "rgba(160,200,235,.35)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Nível de dica</div>
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const }}>
           {niveis.map(n => (
-            <button key={n} onClick={() => setNivelSelecionado(n)}
-              style={{ padding: "5px 10px", borderRadius: 20, border: `1px solid ${nivelSelecionado === n ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: nivelSelecionado === n ? "rgba(29,158,117,.1)" : "transparent", color: nivelSelecionado === n ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: nivelSelecionado === n ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-              {n}
+            <button key={n.key} onClick={() => setNivelSelecionado(n.key)}
+              style={{ padding: "5px 10px", borderRadius: 20, border: `1px solid ${nivelSelecionado === n.key ? "rgba(29,158,117,.4)" : "rgba(26,58,92,.4)"}`, background: nivelSelecionado === n.key ? "rgba(29,158,117,.1)" : "transparent", color: nivelSelecionado === n.key ? "#1D9E75" : "rgba(160,200,235,.4)", fontSize: ".65rem", fontWeight: nivelSelecionado === n.key ? 700 : 400, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+              {n.label}
             </button>
           ))}
         </div>
