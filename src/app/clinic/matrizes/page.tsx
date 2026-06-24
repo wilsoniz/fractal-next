@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useClinicContext, useAcesso } from '../layout'
 import { supabase } from '@/lib/supabase'
 
@@ -596,6 +596,51 @@ export default function MatrizesPage() {
   const { terapeuta } = useClinicContext()
   const acesso = useAcesso()
 
+  const carregarMatrizes = useCallback(async () => {
+    const { data: mats } = await supabase
+      .from('stimulus_matrices')
+      .select('id, name, description, columns, is_public, created_at')
+      .order('created_at', { ascending: false })
+    if (!mats) { setMatrizes([]); return }
+    const ids = mats.map((mm: any) => mm.id)
+    let cellsByMatrix: Record<string, any[]> = {}
+    if (ids.length > 0) {
+      const { data: cells } = await supabase
+        .from('stimulus_matrix_cells')
+        .select('matrix_id, group_index, column_id, inline_type, inline_label, inline_url')
+        .in('matrix_id', ids)
+        .order('group_index', { ascending: true })
+      for (const c of (cells ?? [])) {
+        (cellsByMatrix[c.matrix_id] ??= []).push(c)
+      }
+    }
+    const reconstruidas: Matriz[] = mats.map((mm: any) => {
+      const colunas = Array.isArray(mm.columns) ? mm.columns : []
+      const cells = cellsByMatrix[mm.id] ?? []
+      const gruposMap: Record<number, any> = {}
+      for (const c of cells) {
+        const gi = c.group_index
+        if (!gruposMap[gi]) gruposMap[gi] = { id: 'g' + gi, celulas: {} }
+        gruposMap[gi].celulas[c.column_id] = { colunaId: c.column_id, valor: c.inline_label ?? '', url: c.inline_url ?? '' }
+      }
+      const grupos = Object.keys(gruposMap)
+        .sort((a, b) => Number(a) - Number(b))
+        .map(k => gruposMap[Number(k)])
+      return {
+        id: mm.id,
+        nome: mm.name,
+        descricao: mm.description ?? '',
+        colunas,
+        grupos,
+        criatedAt: mm.created_at ?? '',
+        isPublic: mm.is_public ?? false,
+      }
+    })
+    setMatrizes(reconstruidas)
+  }, [])
+
+  useEffect(() => { carregarMatrizes() }, [carregarMatrizes])
+
   if (!acesso.podeAcessarMatrizes) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16, color: 'rgba(232,238,244,.6)', fontFamily: 'var(--font-sans)' }}>
       <div style={{ fontSize: 32, opacity: 0.2 }}>⊘</div>
@@ -605,7 +650,7 @@ export default function MatrizesPage() {
       </div>
     </div>
   )
-  const [matrizes, setMatrizes] = useState<Matriz[]>(MOCK_MATRIZES)
+  const [matrizes, setMatrizes] = useState<Matriz[]>([])
   const [editando, setEditando] = useState<Matriz | null>(null)
   const [selecionada, setSelecionada] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
@@ -672,10 +717,7 @@ export default function MatrizesPage() {
       await supabase.from('stimulus_matrix_cells').insert(celulas)
     }
 
-    setMatrizes(prev => {
-      const existe = prev.find(x => x.id === m.id)
-      return existe ? prev.map(x => x.id === m.id ? m : x) : [m, ...prev]
-    })
+    await carregarMatrizes()
     setEditando(null)
   }
 

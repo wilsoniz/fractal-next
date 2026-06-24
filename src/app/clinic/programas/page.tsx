@@ -367,10 +367,19 @@ function GoalBuilder({ terapeutaId, editandoId, acesso, onVoltar }: {
   const inp: React.CSSProperties = { background: "rgba(20,55,110,.55)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 8, padding: "9px 12px", color: "#e8f0f8", fontFamily: "var(--font-sans)", fontSize: ".82rem", outline: "none", width: "100%", boxSizing: "border-box" as const }
   const lbl: React.CSSProperties = { fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".09em", color: "rgba(170,210,245,.6)", marginBottom: 8, display: "block" }
 
-  useEffect(() => {
+  const carregarMatrizes = useCallback(() => {
     supabase.from("stimulus_matrices").select("id, name").then(({ data }) => setMatrizes(data ?? []))
+  }, [])
+
+  useEffect(() => {
+    carregarMatrizes()
     if (editandoId) carregarEdicao()
   }, [editandoId])
+
+  // Recarrega matrizes ao entrar na etapa de Estímulos (pega matrizes criadas após abrir o Goal Builder)
+  useEffect(() => {
+    if (etapa === 2) carregarMatrizes()
+  }, [etapa, carregarMatrizes])
 
   async function carregarEdicao() {
     if (!editandoId) return
