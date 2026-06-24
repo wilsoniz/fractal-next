@@ -835,6 +835,8 @@ function SessaoInner() {
         resultado: correto ? "acerto" : "erro",
         nivel_dica: nivelKey ?? "independente",
         nivel_dica_idx: nivelIdx >= 0 ? nivelIdx : 0,
+        prompt_level_used: correto ? (nivelKey ?? "independente") : null,
+        responded_during_delay: false,
         registrado_em: new Date().toISOString(),
       })
 
