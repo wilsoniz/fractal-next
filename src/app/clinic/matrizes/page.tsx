@@ -521,9 +521,10 @@ function MatrizEditor({
 
 // ─── Card de matriz na lista ──────────────────────────────────────────────────
 
-function MatrizCard({ matriz, onEditar, onSelecionar, selecionada }: {
+function MatrizCard({ matriz, onEditar, onExcluir, onSelecionar, selecionada }: {
   matriz: Matriz
   onEditar: () => void
+  onExcluir: () => void
   onSelecionar: () => void
   selecionada: boolean
 }) {
@@ -551,12 +552,21 @@ function MatrizCard({ matriz, onEditar, onSelecionar, selecionada }: {
             <div style={{ fontSize: 11, color: s.muted, marginTop: 2 }}>{matriz.descricao}</div>
           )}
         </div>
-        <button
-          onClick={e => { e.stopPropagation(); onEditar() }}
-          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, background: 'transparent', border: `1px solid ${s.border}`, color: s.muted, cursor: 'pointer' }}
-        >
-          Editar
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={e => { e.stopPropagation(); onEditar() }}
+            style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, background: 'transparent', border: `1px solid ${s.border}`, color: s.muted, cursor: 'pointer' }}
+          >
+            Editar
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onExcluir() }}
+            title="Excluir matriz"
+            style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, background: 'transparent', border: `1px solid rgba(224,90,75,.4)`, color: '#E05A4B', cursor: 'pointer' }}
+          >
+            Excluir
+          </button>
+        </div>
       </div>
 
       {/* Preview das colunas */}
@@ -724,6 +734,14 @@ export default function MatrizesPage() {
   const handleNova = () => {
     setEditando(novaMatrizVazia())
   }
+  const handleExcluir = async (m: Matriz) => {
+    if (!confirm(`Excluir a matriz "${m.nome}"? Esta acao nao pode ser desfeita.`)) return
+    await supabase.from('stimulus_matrix_cells').delete().eq('matrix_id', m.id)
+    const { error } = await supabase.from('stimulus_matrices').delete().eq('id', m.id)
+    if (error) { console.error('Erro ao excluir matriz:', error); alert('Erro ao excluir. Verifique o console.'); return }
+    if (selecionada === m.id) setSelecionada(null)
+    await carregarMatrizes()
+  }
 
   if (editando) {
     return (
@@ -813,6 +831,7 @@ export default function MatrizesPage() {
                 selecionada={selecionada === m.id}
                 onSelecionar={() => setSelecionada(m.id)}
                 onEditar={() => setEditando(m)}
+                onExcluir={() => handleExcluir(m)}
               />
             ))}
             {/* Card nova matriz */}
