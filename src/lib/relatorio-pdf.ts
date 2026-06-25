@@ -46,6 +46,9 @@ export interface DadosRelatorio {
   decisaoProxima?:  string[]
   notaDecisao?:     string
   notaEncerramento?: string
+  analiseClinica?:   string
+  decisaoProxima?:   string[]
+  notaDecisao?:      string
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -486,6 +489,9 @@ export function dadosDoSummary(
     eventos_json: any[]
     familia_comunicada: boolean
     nota_encerramento: string | null
+    analise_clinica?: string | null
+    decisao_proxima?: string[] | null
+    nota_decisao?: string | null
   },
   sessao: {
     inicio: string
@@ -547,5 +553,8 @@ export function dadosDoSummary(
     avaliacoes,
     eventos,
     notaEncerramento:  summary.nota_encerramento ?? undefined,
+    analiseClinica:    summary.analise_clinica ?? undefined,
+    decisaoProxima:    summary.decisao_proxima ?? undefined,
+    notaDecisao:       summary.nota_decisao ?? undefined,
   }
 }

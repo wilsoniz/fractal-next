@@ -19,6 +19,8 @@ interface SessaoHistorico {
   familia_comunicada: boolean
   nota_encerramento: string | null
   terapeuta_nome: string
+  terapeuta_conselho: string | null
+  terapeuta_registro: string | null
   analise_clinica: string | null
   decisao_proxima: string[] | null
   nota_decisao: string | null
@@ -196,10 +198,10 @@ export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string
       const terapeutaIds = [...new Set((sessv2 ?? []).map(s => s.terapeuta_id).filter(Boolean))]
       const { data: perfis } = await supabase
         .from('profiles')
-        .select('id, nome')
+        .select('id, nome, conselho_profissional, registro_profissional')
         .in('id', terapeutaIds)
 
-      const perfilMap = new Map((perfis ?? []).map(p => [p.id, p.nome]))
+      const perfilMap = new Map((perfis ?? []).map(p => [p.id, p]))
       const sessMap   = new Map((sessv2 ?? []).map(s => [s.id, s]))
 
       setSessoes(summaries.map(sm => {
@@ -218,7 +220,9 @@ export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string
           eventos_json:      sm.eventos_json ?? [],
           familia_comunicada:sm.familia_comunicada ?? false,
           nota_encerramento: sm.nota_encerramento,
-          terapeuta_nome:    perfilMap.get(sv?.terapeuta_id) ?? '—',
+          terapeuta_nome:    (perfilMap.get(sv?.terapeuta_id) as any)?.nome ?? '—',
+          terapeuta_conselho:(perfilMap.get(sv?.terapeuta_id) as any)?.conselho_profissional ?? null,
+          terapeuta_registro:(perfilMap.get(sv?.terapeuta_id) as any)?.registro_profissional ?? null,
           analise_clinica:   sm.analise_clinica ?? null,
           decisao_proxima:   sm.decisao_proxima ?? null,
           nota_decisao:      sm.nota_decisao ?? null,
@@ -328,7 +332,7 @@ export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string
     <button onClick={() => abrirRelatorioPDF(dadosDoSummary(
       s,
       { inicio: s.inicio, tipo: s.tipo, duracao_segundos: s.duracao_segundos },
-      { nome: s.terapeuta_nome },
+      { nome: s.terapeuta_nome, conselho_profissional: s.terapeuta_conselho ?? undefined, registro_profissional: s.terapeuta_registro ?? undefined },
       criancaNome ?? '—'
     ))} style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid rgba(29,158,117,.3)', background: 'rgba(29,158,117,.08)', color: '#1D9E75', fontSize: '.68rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
       Ver relatório
