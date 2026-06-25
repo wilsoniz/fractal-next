@@ -19,6 +19,9 @@ interface SessaoHistorico {
   familia_comunicada: boolean
   nota_encerramento: string | null
   terapeuta_nome: string
+  analise_clinica: string | null
+  decisao_proxima: string[] | null
+  nota_decisao: string | null
 }
 
 interface Contrato {
@@ -142,6 +145,30 @@ export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string
   const [sessoes, setSessoes] = useState<SessaoHistorico[]>([])
   const [loading, setLoading] = useState(true)
   const [aberta,  setAberta]  = useState<string | null>(null)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [fAnalise, setFAnalise] = useState("")
+  const [fDecisao, setFDecisao] = useState<string[]>([])
+  const [fNota, setFNota] = useState("")
+  const [salvandoAn, setSalvandoAn] = useState(false)
+  const OPCOES_PLANO = ["Manter programas atuais","Aumentar critério de maestria","Reduzir nível de ajuda","Introduzir generalização","Revisão de programa","Incluir novos objetivos","Necessidade de supervisão clínica"]
+  function iniciarEdicao(s: SessaoHistorico) {
+    setEditId(s.id)
+    setFAnalise(s.analise_clinica ?? "")
+    setFDecisao(s.decisao_proxima ?? [])
+    setFNota(s.nota_decisao ?? "")
+  }
+  async function salvarEdicao(s: SessaoHistorico) {
+    setSalvandoAn(true)
+    const { error } = await supabase.from('session_summary').update({
+      analise_clinica: fAnalise || null,
+      decisao_proxima: fDecisao.length > 0 ? fDecisao : null,
+      nota_decisao: fNota || null,
+    }).eq('sessao_id', s.sessao_id)
+    setSalvandoAn(false)
+    if (error) { console.error('Erro ao salvar analise:', error); alert('Erro ao salvar. Verifique o console.'); return }
+    setSessoes(prev => prev.map(x => x.id === s.id ? { ...x, analise_clinica: fAnalise || null, decisao_proxima: fDecisao.length > 0 ? fDecisao : null, nota_decisao: fNota || null } : x))
+    setEditId(null)
+  }
 
   useEffect(() => {
     if (!criancaId) return
@@ -149,7 +176,7 @@ export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string
       setLoading(true)
       const { data: summaries } = await supabase
         .from('session_summary')
-        .select('id, sessao_id, taxa_geral, total_operantes, programas_json, eventos_json, familia_comunicada, nota_encerramento, criado_em')
+        .select('id, sessao_id, taxa_geral, total_operantes, programas_json, eventos_json, familia_comunicada, nota_encerramento, criado_em, analise_clinica, decisao_proxima, nota_decisao')
         .eq('crianca_id', criancaId)
         .order('criado_em', { ascending: false })
         .limit(50)
@@ -192,6 +219,9 @@ export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string
           familia_comunicada:sm.familia_comunicada ?? false,
           nota_encerramento: sm.nota_encerramento,
           terapeuta_nome:    perfilMap.get(sv?.terapeuta_id) ?? '—',
+          analise_clinica:   sm.analise_clinica ?? null,
+          decisao_proxima:   sm.decisao_proxima ?? null,
+          nota_decisao:      sm.nota_decisao ?? null,
         }
       }))
       setLoading(false)
@@ -303,6 +333,64 @@ export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string
     ))} style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid rgba(29,158,117,.3)', background: 'rgba(29,158,117,.08)', color: '#1D9E75', fontSize: '.68rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
       Ver relatório
     </button>
+  </div>
+
+  {/* Analise clinica e plano (2c) */}
+  <div style={{ background: 'rgba(26,58,92,.15)', borderRadius: 10, padding: 14 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+      <div style={{ fontSize: '.65rem', color: 'rgba(170,210,245,.5)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Análise clínica e plano</div>
+      {editId !== s.id && (
+        <button onClick={() => iniciarEdicao(s)} style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid rgba(55,138,221,.3)', background: 'rgba(55,138,221,.08)', color: '#378ADD', fontSize: '.64rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+          {(s.analise_clinica || (s.decisao_proxima && s.decisao_proxima.length > 0) || s.nota_decisao) ? 'Editar' : 'Adicionar'}
+        </button>
+      )}
+    </div>
+    {editId === s.id ? (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <textarea value={fAnalise} onChange={e => setFAnalise(e.target.value)} placeholder="Análise clínica..." rows={3}
+          style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(26,58,92,.4)', background: 'rgba(13,32,53,.6)', color: '#e8f0f8', fontSize: '.75rem', fontFamily: 'var(--font-sans)', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {OPCOES_PLANO.map(opcao => {
+            const sel = fDecisao.includes(opcao)
+            return (
+              <div key={opcao} onClick={() => setFDecisao(prev => sel ? prev.filter(d => d !== opcao) : [...prev, opcao])}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: sel ? 'rgba(29,158,117,.08)' : 'rgba(26,58,92,.15)', border: `1px solid ${sel ? 'rgba(29,158,117,.3)' : 'rgba(26,58,92,.3)'}`, cursor: 'pointer' }}>
+                <div style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0, border: `1.5px solid ${sel ? '#1D9E75' : 'rgba(160,200,235,.25)'}`, background: sel ? '#1D9E75' : 'transparent' }} />
+                <span style={{ fontSize: '.72rem', color: sel ? '#e8f0f8' : 'rgba(160,200,235,.6)' }}>{opcao}</span>
+              </div>
+            )
+          })}
+        </div>
+        <textarea value={fNota} onChange={e => setFNota(e.target.value)} placeholder="Detalhes do plano..." rows={2}
+          style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(26,58,92,.4)', background: 'rgba(13,32,53,.6)', color: '#e8f0f8', fontSize: '.75rem', fontFamily: 'var(--font-sans)', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => salvarEdicao(s)} disabled={salvandoAn}
+            style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#1D9E75,#168a64)', color: '#07111f', fontSize: '.72rem', fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-sans)', opacity: salvandoAn ? .6 : 1 }}>
+            {salvandoAn ? 'Salvando...' : 'Salvar'}
+          </button>
+          <button onClick={() => setEditId(null)}
+            style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid rgba(160,200,235,.2)', background: 'transparent', color: 'rgba(160,200,235,.7)', fontSize: '.72rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    ) : (
+      (s.analise_clinica || (s.decisao_proxima && s.decisao_proxima.length > 0) || s.nota_decisao) ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {s.analise_clinica && <div style={{ fontSize: '.75rem', color: 'rgba(232,240,248,.85)', lineHeight: 1.5 }}>{s.analise_clinica}</div>}
+          {s.decisao_proxima && s.decisao_proxima.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {s.decisao_proxima.map((d, i) => (
+                <span key={i} style={{ fontSize: '.66rem', padding: '3px 9px', borderRadius: 20, background: 'rgba(29,158,117,.1)', border: '1px solid rgba(29,158,117,.25)', color: '#1D9E75' }}>{d}</span>
+              ))}
+            </div>
+          )}
+          {s.nota_decisao && <div style={{ fontSize: '.72rem', color: 'rgba(160,200,235,.6)', fontStyle: 'italic' }}>{s.nota_decisao}</div>}
+        </div>
+      ) : (
+        <div style={{ fontSize: '.72rem', color: 'rgba(160,200,235,.3)' }}>Nenhuma análise registrada nesta sessão.</div>
+      )
+    )}
   </div>
 
                 {progInterv.length > 0 && (

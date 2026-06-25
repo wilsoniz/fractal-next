@@ -342,6 +342,8 @@ function SessaoInner() {
   const [analiseClinica, setAnaliseClinica] = useState("")
   const [decisaoProxima, setDecisaoProxima] = useState<string[]>([])
   const [notaDecisao, setNotaDecisao] = useState("")
+  const [salvandoAnalise, setSalvandoAnalise] = useState(false)
+  const [analiseSalva, setAnaliseSalva] = useState(false)
 
 
   // ── Timer ─────────────────────────────────────────────────────────────────────
@@ -927,6 +929,21 @@ function SessaoInner() {
   }
 
   // ── CASCATA DE ENCERRAMENTO ─────────────────────────────────────────────────
+  async function salvarAnalisePlano() {
+    if (!sessaoDbId) return
+    setSalvandoAnalise(true)
+    const { error } = await supabase
+      .from("session_summary")
+      .update({
+        analise_clinica: analiseClinica || null,
+        decisao_proxima: decisaoProxima.length > 0 ? decisaoProxima : null,
+        nota_decisao: notaDecisao || null,
+      })
+      .eq("sessao_id", sessaoDbId)
+    setSalvandoAnalise(false)
+    if (!error) { setAnaliseSalva(true); setTimeout(() => setAnaliseSalva(false), 3000) }
+    else { console.error("Erro ao salvar analise:", error); alert("Erro ao salvar analise. Verifique o console.") }
+  }
   async function confirmarEncerramento() {
     if (!sessaoDbId || !paciente || !terapeuta) return
     setSalvandoEnc(true)
@@ -2112,6 +2129,21 @@ ID: ${sessaoDbId ?? "—"} · ${new Date().toLocaleString("pt-BR")}`
             style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".78rem", fontFamily: "var(--font-sans)", resize: "vertical" as const, outline: "none", boxSizing: "border-box" as const }}
           />
         </div>
+
+        {/* Botão salvar análise e plano */}
+        <button
+          onClick={salvarAnalisePlano}
+          disabled={salvandoAnalise}
+          style={{
+            width: "100%", padding: "12px", borderRadius: 10, border: "none",
+            background: analiseSalva ? "rgba(29,158,117,.2)" : "linear-gradient(135deg,#1D9E75,#168a64)",
+            color: analiseSalva ? "#1D9E75" : "#07111f", fontSize: ".85rem", fontWeight: 800,
+            cursor: salvandoAnalise ? "default" : "pointer", fontFamily: "var(--font-sans)",
+            opacity: salvandoAnalise ? .6 : 1,
+          }}
+        >
+          {salvandoAnalise ? "Salvando..." : analiseSalva ? "✓ Análise e plano salvos" : "Salvar análise e plano"}
+        </button>
 
         {/* Relatório */}
         <div style={{ ...card, padding: 16 }}>
