@@ -46,9 +46,6 @@ export interface DadosRelatorio {
   decisaoProxima?:  string[]
   notaDecisao?:     string
   notaEncerramento?: string
-  analiseClinica?:   string
-  decisaoProxima?:   string[]
-  notaDecisao?:      string
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
