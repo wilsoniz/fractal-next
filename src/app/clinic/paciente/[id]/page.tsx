@@ -117,6 +117,8 @@ function JornadaClinica({ jornada, jornadaAnterior, dominios, paciente, criancaI
   const [analiseClinica, setAnaliseClinica] = useState("")
   const [recomendacoes, setRecomendacoes] = useState("")
   const [gerandoRelatorio, setGerandoRelatorio] = useState(false)
+  const [modoRelatorio, setModoRelatorio] = useState<'tecnico' | 'familia' | 'completo'>('completo')
+  const { terapeuta: terapeutaCtx } = useClinicContext()
 
   const FASES = [
     { id: "avaliacao", label: "Avaliação", icone: "📋" },
@@ -190,115 +192,52 @@ function JornadaClinica({ jornada, jornadaAnterior, dominios, paciente, criancaI
     onJornadaCriada({ ...jornada, fase_atual: novaFase, historico_fases: historico })
   }
 
-  async function gerarEAvancar(comRelatorio: boolean) {
+  async function gerarRelatorioFase(avancar: boolean) {
     if (!jornada) return
     setGerandoRelatorio(true)
     try {
-      if (comRelatorio) {
-        // Busca dados para o relatório
-        const { data: sessoes } = await supabase
-          .from("sessoes_v2")
-          .select("id, inicio, fim, duracao_segundos")
-          .eq("crianca_id", criancaId)
-          .eq("status", "finalizada")
-          .gte("inicio", jornada.data_inicio_fase)
-          .order("inicio", { ascending: false })
+      const { montarDadosRelatorioFase } = await import("@/lib/montar-relatorio-fase")
+      const { gerarHTMLRelatorioFase } = await import("@/lib/relatorio-fase-v2")
+      const dados = await montarDadosRelatorioFase({
+        criancaId,
+        jornada,
+        paciente,
+        terapeuta: {
+          nome: terapeutaCtx?.nome ?? "—",
+          conselho_profissional: (terapeutaCtx as any)?.conselho_profissional,
+          registro_profissional: (terapeutaCtx as any)?.registro_profissional,
+        },
+        analiseClinica,
+        recomendacoes,
+      })
+      // injeta sintese/recomendacoes do terapeuta
+      dados.sinteseNarrativa = analiseClinica || undefined
+      dados.recomendacoes = recomendacoes || undefined
 
-        const { data: summaries } = await supabase
-          .from("session_summary")
-          .select("taxa_geral, programas_json")
-          .in("sessao_id", (sessoes ?? []).map((s: any) => s.id))
+      const html = gerarHTMLRelatorioFase(dados, modoRelatorio)
+      const win = window.open("", "_blank")
+      if (win) { win.document.write(html); win.document.close() }
 
-        const { data: habilidades } = await supabase
-          .from("repertorio_habilidades")
-          .select("dominio, habilidade, status, score, fonte")
-          .eq("crianca_id", criancaId)
-          .order("dominio")
+      // Persiste no banco (com snapshot dos dados)
+      const { data: userData } = await supabase.auth.getUser()
+      await supabase.from("relatorios_fase").insert({
+        jornada_id: jornada.id,
+        crianca_id: criancaId,
+        terapeuta_id: userData.user?.id,
+        fase: jornada.fase_atual,
+        numero_ciclo: jornada.numero_ciclo ?? 1,
+        data_inicio_fase: jornada.data_inicio_fase,
+        data_fim_fase: new Date().toISOString(),
+        total_sessoes: dados.cabecalho.totalSessoes,
+        taxa_media: null,
+        analise_clinica: analiseClinica || null,
+        recomendacoes: recomendacoes || null,
+        dados_snapshot: dados as any,
+      })
 
-        const { data: comportamentos } = await supabase
-          .from("planos_comportamento_interferente")
-          .select("comportamento, intensidade, status")
-          .eq("crianca_id", criancaId)
-
-        const { data: radares } = await supabase
-          .from("radar_snapshots")
-          .select("*")
-          .eq("crianca_id", criancaId)
-          .order("criado_em", { ascending: true })
-
-        const radarInicio = radares?.[0] ? {
-          comunicacao: radares[0].score_comunicacao, social: radares[0].score_social,
-          atencao: radares[0].score_atencao, regulacao: radares[0].score_regulacao,
-          brincadeira: radares[0].score_brincadeira, flexibilidade: radares[0].score_flexibilidade,
-          autonomia: radares[0].score_autonomia, motivacao: radares[0].score_motivacao,
-        } : undefined
-        const radarFim = radares?.[radares.length - 1] ? {
-          comunicacao: radares[radares.length - 1].score_comunicacao, social: radares[radares.length - 1].score_social,
-          atencao: radares[radares.length - 1].score_atencao, regulacao: radares[radares.length - 1].score_regulacao,
-          brincadeira: radares[radares.length - 1].score_brincadeira, flexibilidade: radares[radares.length - 1].score_flexibilidade,
-          autonomia: radares[radares.length - 1].score_autonomia, motivacao: radares[radares.length - 1].score_motivacao,
-        } : undefined
-
-        // Agrega programas
-        const progMap: Record<string, { taxas: number[]; sessoes: number }> = {}
-        for (const s of summaries ?? []) {
-          for (const p of (s.programas_json ?? [])) {
-            if (!progMap[p.nome]) progMap[p.nome] = { taxas: [], sessoes: 0 }
-            progMap[p.nome].taxas.push(p.taxa)
-            progMap[p.nome].sessoes++
-          }
-        }
-        const programas = Object.entries(progMap).map(([nome, d]) => ({
-          nome, dominio: "—", sessoes: d.sessoes,
-          taxaMedia: Math.round(d.taxas.reduce((a, b) => a + b, 0) / d.taxas.length),
-          criterio: d.taxas.filter(t => t >= 80).length >= 3,
-          status: "em_andamento",
-        }))
-
-        const taxaMedia = summaries && summaries.length > 0
-          ? summaries.reduce((a, s) => a + (s.taxa_geral ?? 0), 0) / summaries.length
-          : 0
-
-        const { abrirRelatorioFasePDF } = await import("@/lib/relatorio-fase")
-        abrirRelatorioFasePDF({
-          pacienteNome: paciente?.nome ?? "—",
-          pacienteDiagnostico: paciente?.diagnostico ?? "—",
-          pacienteIdade: paciente?.data_nascimento
-            ? `${Math.floor((Date.now() - new Date(paciente.data_nascimento).getTime()) / (1000 * 60 * 60 * 24 * 365.25))} anos`
-            : "—",
-          terapeutaNome: (await supabase.auth.getUser()).data.user?.email ?? "—",
-          fase: jornada.fase_atual,
-          numeroCiclo: jornada.numero_ciclo ?? 1,
-          dataInicioFase: new Date(jornada.data_inicio_fase).toLocaleDateString("pt-BR"),
-          dataFimFase: new Date().toLocaleDateString("pt-BR"),
-          totalSessoes: sessoes?.length ?? 0,
-          taxaMedia: Math.round(taxaMedia),
-          analiseClinica,
-          recomendacoes,
-          programas,
-          habilidades: (habilidades ?? []).map(h => ({ dominio: h.dominio, habilidade: h.habilidade, status: h.status, score: h.score, fonte: h.fonte ?? "" })),
-          comportamentosInterferentes: (comportamentos ?? []).map(c => ({ comportamento: c.comportamento, intensidade: c.intensidade, status: c.status })),
-          radarInicio,
-          radarFim,
-          avaliacoes: [],
-        })
-
-        // Salva relatório no banco
-        await supabase.from("relatorios_fase").insert({
-          jornada_id: jornada.id,
-          crianca_id: criancaId,
-          terapeuta_id: (await supabase.auth.getUser()).data.user?.id,
-          fase: jornada.fase_atual,
-          numero_ciclo: jornada.numero_ciclo ?? 1,
-          data_inicio_fase: jornada.data_inicio_fase,
-          data_fim_fase: new Date().toISOString(),
-          total_sessoes: sessoes?.length ?? 0,
-          taxa_media: Math.round(taxaMedia),
-          analise_clinica: analiseClinica,
-          recomendacoes,
-        })
+      if (avancar) {
+        await avancarFase(faseParaAvançar)
       }
-      await avancarFase(faseParaAvançar)
     } finally {
       setGerandoRelatorio(false)
       setModalRelatorio(false)
@@ -428,16 +367,46 @@ function JornadaClinica({ jornada, jornadaAnterior, dominios, paciente, criancaI
               rows={3}
               style={{ ...inp, resize: "none" as const, marginBottom: 20 }}
             />
+            <label style={{ fontSize: 11, color: "rgba(170,210,245,.5)", textTransform: "uppercase" as const, letterSpacing: ".08em", display: "block", marginBottom: 8 }}>
+              Versão do relatório
+            </label>
+            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+              {([
+                { id: "tecnico", label: "Técnico", desc: "para supervisão" },
+                { id: "familia", label: "Família", desc: "linguagem acessível" },
+                { id: "completo", label: "Completo", desc: "ambos" },
+              ] as const).map(opt => (
+                <button key={opt.id}
+                  onClick={() => setModoRelatorio(opt.id)}
+                  style={{ flex: 1, padding: "9px 6px", borderRadius: 8, cursor: "pointer", fontFamily: "var(--font-sans)",
+                    border: modoRelatorio === opt.id ? "1.5px solid #1D9E75" : "1px solid rgba(70,120,180,.3)",
+                    background: modoRelatorio === opt.id ? "rgba(29,158,117,.12)" : "transparent",
+                    color: modoRelatorio === opt.id ? "#1D9E75" : "rgba(160,200,235,.6)" }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700 }}>{opt.label}</div>
+                  <div style={{ fontSize: 9.5, opacity: .8, marginTop: 1 }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 10.5, color: "rgba(160,200,235,.35)", marginBottom: 18, lineHeight: 1.5 }}>
+              O relatório é científico (gráficos e métricas) nos três modos. O modo muda apenas a linguagem da análise: técnica para supervisão, acessível para famílias, ou ambas.
+            </div>
             <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
               <button
-                onClick={() => gerarEAvancar(true)}
+                onClick={() => gerarRelatorioFase(false)}
                 disabled={gerandoRelatorio}
                 style={{ padding: "12px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-sans)", opacity: gerandoRelatorio ? 0.7 : 1 }}
               >
-                {gerandoRelatorio ? "Gerando..." : "Gerar relatório PDF e avançar fase"}
+                {gerandoRelatorio ? "Gerando..." : "Gerar relatório de fase"}
               </button>
               <button
-                onClick={() => gerarEAvancar(false)}
+                onClick={() => gerarRelatorioFase(true)}
+                disabled={gerandoRelatorio}
+                style={{ padding: "11px", borderRadius: 9, border: "1px solid rgba(29,158,117,.4)", background: "rgba(29,158,117,.06)", color: "#1D9E75", fontWeight: 600, fontSize: 12.5, cursor: "pointer", fontFamily: "var(--font-sans)" }}
+              >
+                Gerar relatório e avançar fase
+              </button>
+              <button
+                onClick={async () => { setModalRelatorio(false); await avancarFase(faseParaAvançar) }}
                 disabled={gerandoRelatorio}
                 style={{ padding: "10px", borderRadius: 9, border: "1px solid rgba(70,120,180,.4)", background: "transparent", color: "rgba(160,200,235,.5)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-sans)" }}
               >
