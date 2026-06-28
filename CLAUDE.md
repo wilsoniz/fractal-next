@@ -94,7 +94,9 @@ git add -A && git commit -m "..." && git push origin main
 - `src/lib/grafico-evolucao.ts` — gráficos SVG padrão ABA (X=sessões, Y=medida, quebra na mudança de fase)
 - `src/lib/relatorio-fase-v2.ts` — relatório de fase (3 modos: técnico / família / completo)
 - `src/lib/narrativa-acessivel.ts` — tradução de métricas em linguagem para pais
-- `paciente/[id]/page.tsx` — função `gerarEAvancar`
+- `src/lib/montar-relatorio-fase.ts` — I/O do relatório de fase (queries Supabase; monta DadosRelatorioFaseV2; aceita período livre / fase arquivada via `dataInicio`/`dataFim`/`faseRotulo`/`numeroCiclo`, ou janela da fase atual por padrão)
+- `paciente/[id]/relatorios-tab.tsx` — aba "Relatórios" (recorte por fase OU período livre, 3 modos, geração do PDF + persistência em `relatorios_fase`)
+- `paciente/[id]/page.tsx` — função `gerarRelatorioFase(avancar)` (ex-`gerarEAvancar`) + modal de relatório + wiring da aba "Relatórios"
 
 ### AVISO: `sessao/page.tsx`
 Tem **5 overlays**. Antes de migrar qualquer um para `<Modal>`:
@@ -109,15 +111,33 @@ Auditar cada um individualmente.
 - **Migração de Modal** (baixa prioridade, migrar conforme tocar a página):
   - Já migrado: `protocolos`, `pacientes`
   - Pendente: `planos`, `terapeuta`, `avaliacoes`, `paciente/[id]/tabs.tsx`, `paciente/[id]/page.tsx`, `programas`, `wallet`, `agenda`, `sessao`
-- Bugs no caminho do relatório de fase: terapeuta aparecendo como email em vez de nome+CRP (~linha 263 `gerarEAvancar`); `total_sessoes = 0` (filtro de data na agregação).
+- Relatório de fase: a função antiga `gerarEAvancar` já não existe (virou `gerarRelatorioFase`). Os bugs antes listados (terapeuta como email; `total_sessoes = 0`) estão resolvidos — terapeuta vem do contexto com CRP e `total_sessoes` confere no teste real da aba.
 - Backlog: limpar `console.log` de debug; valor de sessão hardcoded (deveria vir do contrato).
 
 ---
 
 ## EM ANDAMENTO
 
-**Relatório de Fase (Frente 3) — Etapa 4:** lógica completa (motor + gráficos + montagem HTML validados com dados sintéticos). Falta o I/O real: `montarDadosRelatorioFase()` com queries Supabase, integração no app substituindo o `relatorio-fase.ts` antigo, seletor de modo, persistência em `relatorios_fase`, e tela de listar/reabrir.
+**Relatório de Fase (Frente 3) — engine + aba "Relatórios" (Camada 1) CONCLUÍDAS** e validadas com dados reais.
+- `src/lib/montar-relatorio-fase.ts` — I/O pronto (queries Supabase; aceita 
+  `dataInicio`/`dataFim`/`faseRotulo`/`numeroCiclo` para período livre OU fase 
+  arquivada, ou janela da fase atual por padrão; separa instrumentos de avaliação 
+  de programas de ensino)
+- `paciente/[id]/relatorios-tab.tsx` — aba "Relatórios": recorte por fase (todos os 
+  ciclos: fase atual + histórico) OU período livre, 3 modos (técnico/família/completo), 
+  geração do PDF e persistência em `relatorios_fase` (`fase='periodo_livre'` no período 
+  livre). Testada: período livre gera, abre PDF e persiste com datas/`total_sessoes` ok.
+- `paciente/[id]/page.tsx` — `gerarRelatorioFase(avancar)` no fluxo de avançar fase + 
+  wiring da aba.
 
+**PRÓXIMO — Aba "Relatórios", Camadas 2-3:**
+- Camada 2: pré-visualização dos gráficos de evolução na própria tela (antes de gerar o PDF).
+- Camada 3: lista de relatórios salvos (`relatorios_fase`) para reabrir/reimprimir.
+- Limpeza: remover seed `[TESTE]` do banco.
+
+NOTA: o fluxo de avançar fase (`gerarRelatorioFase` em page.tsx) ainda passa o paciente 
+sem normalizar EN→PT (`data.name`/`diagnosis`); a aba nova já normaliza. Alinhar quando 
+tocar esse caminho.
 ---
 
 *Para crescer: dá pra mover blocos detalhados (mapa de arquivos, dívida técnica) para `.claude/rules/*.md` (carregados automaticamente) e manter este arquivo conciso.*
