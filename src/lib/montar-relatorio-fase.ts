@@ -26,6 +26,12 @@ export interface ContextoRelatorioFase {
     }
     analiseClinica?: string
     recomendacoes?: string
+    // Recorte temporal opcional (período livre / fase arquivada).
+    // Ausentes → usa a janela da fase atual da jornada (comportamento legado).
+    dataInicio?: string     // ISO; default = jornada.data_inicio_fase
+    dataFim?: string        // ISO; default = agora (sem limite superior se ausente)
+    faseRotulo?: string     // default = jornada.fase_atual
+    numeroCiclo?: number    // default = jornada.numero_ciclo
 }
 
 // Instrumentos de avaliação — NUNCA entram como programas de ensino.
@@ -40,6 +46,7 @@ export async function montarDadosRelatorioFase(
     ctx: ContextoRelatorioFase
 ): Promise<DadosRelatorioFaseV2> {
     const { criancaId, jornada, paciente, terapeuta } = ctx
+    const janelaInicio = ctx.dataInicio ?? jornada.data_inicio_fase
 
     // 1. Plano(s) ativo(s) do paciente
     const { data: planos } = await supabase
@@ -66,13 +73,16 @@ export async function montarDadosRelatorioFase(
             .in("plano_id", planoIds)
             .eq("status", "ativo")
 
-        // sessões finalizadas da fase atual (janela: a partir do início da fase)
-        const { data: sessoes } = await supabase
+        // sessões finalizadas na janela (período livre / fase arquivada ou,
+        // por padrão, a partir do início da fase atual)
+        let qSessoes = supabase
             .from("sessoes_v2")
             .select("id, inicio")
             .eq("crianca_id", criancaId)
             .eq("status", "finalizada")
-            .gte("inicio", jornada.data_inicio_fase)
+            .gte("inicio", janelaInicio)
+        if (ctx.dataFim) qSessoes = qSessoes.lte("inicio", ctx.dataFim)
+        const { data: sessoes } = await qSessoes
         const sessaoIds = (sessoes ?? []).map((s: any) => s.id)
         const sessaoDataMap = new Map((sessoes ?? []).map((s: any) => [s.id, s.inicio]))
 
@@ -147,10 +157,10 @@ export async function montarDadosRelatorioFase(
             terapeutaNome: terapeuta?.nome ?? "—",
             terapeutaConselho: terapeuta?.conselho_profissional,
             terapeutaRegistro: terapeuta?.registro_profissional,
-            fase: jornada.fase_atual,
-            numeroCiclo: jornada.numero_ciclo ?? 1,
-            dataInicio: fmtData(jornada.data_inicio_fase),
-            dataFim: fmtData(new Date()),
+            fase: ctx.faseRotulo ?? jornada.fase_atual,
+            numeroCiclo: ctx.numeroCiclo ?? jornada.numero_ciclo ?? 1,
+            dataInicio: fmtData(janelaInicio),
+            dataFim: fmtData(ctx.dataFim ?? new Date()),
             totalSessoes,
         },
         programas: programasAnalisados,

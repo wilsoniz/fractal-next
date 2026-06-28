@@ -11,6 +11,7 @@ import { generateForecastFromProfile, type ForecastGoal, type ForecastResult } f
 import { useClinicContext } from "../../layout";
 import { supabase } from "@/lib/supabase";
 import { HistoricoSessoes, ContratoTab } from "./tabs";
+import { RelatoriosTab } from "./relatorios-tab";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type RadarSnapshot = {
@@ -53,7 +54,7 @@ type VariaveisClinicas = {
   revogacoes_por_sessao: number; tolerancia_exigencia: number; responsividade_reforco: number;
 };
 
-type Tab = "visao-geral" | "programas" | "skill-graph" | "forecast" | "avaliacoes" | "contrato" | "historico" | "jornada";
+type Tab = "visao-geral" | "programas" | "skill-graph" | "forecast" | "avaliacoes" | "contrato" | "historico" | "jornada" | "relatorios";
 
 // ─── FORECAST GOALS ──────────────────────────────────────────────────────────
 const FORECAST_GOALS: ForecastGoal[] = [
@@ -995,6 +996,7 @@ export default function PerfilPacientePage() {
     { id: "avaliacoes", label: "Avaliações" },
     { id: "historico", label: "Histórico" },
     { id: "contrato", label: "Contrato" },
+    { id: "relatorios", label: "Relatórios" },
   ];
 
   // Habilidades agrupadas por domínio
@@ -1815,8 +1817,8 @@ export default function PerfilPacientePage() {
 
 
       {/* ── CONTRATO ── */}
-      {tab === "historico" && <HistoricoSessoes criancaId={params.id as string} criancaNome={data?.name ?? '—'} />}
       {tab === "contrato" && <ContratoTab criancaId={params.id as string} terapeutaId={terapeuta?.id ?? ""} />}
+      {tab === "relatorios" && <RelatoriosTab criancaId={params.id as string} jornada={jornada} paciente={data} terapeuta={terapeuta} />}
 
       {/* Modal adicionar habilidade */}
       {modalHab && (
