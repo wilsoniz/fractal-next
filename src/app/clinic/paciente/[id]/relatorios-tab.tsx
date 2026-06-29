@@ -21,6 +21,12 @@ const FASE_LABEL: Record<string, string> = {
   manutencao: "Manutenção",
 }
 
+const MODO_LABEL: Record<string, string> = {
+  tecnico: "Técnico",
+  familia: "Família",
+  completo: "Completo",
+}
+
 type FaseOpcao = {
   key: string
   fase: string
@@ -74,6 +80,24 @@ function mesAno(iso: string): string {
   }
 }
 
+function fmtData(iso?: string | null): string {
+  if (!iso) return "—"
+  try {
+    return new Date(iso).toLocaleDateString("pt-BR")
+  } catch {
+    return "—"
+  }
+}
+
+function fmtDataHora(iso?: string | null): string {
+  if (!iso) return "—"
+  try {
+    return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+  } catch {
+    return "—"
+  }
+}
+
 export function RelatoriosTab({
   criancaId,
   jornada,
@@ -96,6 +120,13 @@ export function RelatoriosTab({
   const [dataNascimento, setDN] = useState<string | null>(null)
   const [gerando, setGerando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  // Camada 2 — pré-visualização na tela (não persiste)
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  // Camada 3 — lista de relatórios salvos
+  const [relatorios, setRelatorios] = useState<any[]>([])
+  const [carregandoLista, setCarregandoLista] = useState(false)
+  const [reabrindo, setReabrindo] = useState<string | null>(null)
 
   // Carrega: todas as jornadas (todos os ciclos) + data_nascimento.
   useEffect(() => {
@@ -162,102 +193,133 @@ export function RelatoriosTab({
   )
 
   const podeGerar =
-    !gerando &&
+    !gerando && !previewLoading &&
     (recorte === "fase" ? !!faseKey : !!iniLivre && !!fimLivre)
+
+  const podePreview =
+    !gerando && !previewLoading &&
+    (recorte === "fase" ? !!faseKey : !!iniLivre && !!fimLivre)
+
+  // Montagem compartilhada por gerar() e previsualizar(): resolve o recorte,
+  // normaliza o paciente e produz { dados, html }. NÃO persiste. Retorna null se
+  // a validação do recorte falhar (e seta o erro).
+  async function construirRelatorio(): Promise<
+    | {
+        dados: any
+        html: string
+        jornadaId: string | undefined
+        fase: string
+        numeroCiclo: number
+        dataInicio: string
+        dataFim: string | undefined
+      }
+    | null
+  > {
+    // 1. Resolve o recorte → campos explícitos para a engine.
+    let jornadaCtx: any
+    let dataInicio: string
+    let dataFim: string | undefined
+    let faseRotulo: string
+    let numeroCiclo: number
+    let jornadaId: string | undefined
+
+    if (recorte === "fase") {
+      const opt = mapaOpcoes.get(faseKey)
+      if (!opt) {
+        setErro("Selecione uma fase.")
+        return null
+      }
+      jornadaCtx = opt.jornadaRow
+      dataInicio = opt.dataInicio
+      dataFim = opt.dataFim ?? undefined
+      faseRotulo = opt.fase
+      numeroCiclo = opt.numeroCiclo
+      jornadaId = opt.jornadaId
+    } else {
+      if (!iniLivre || !fimLivre) {
+        setErro("Informe início e fim do período.")
+        return null
+      }
+      if (iniLivre > fimLivre) {
+        setErro("A data de início não pode ser depois do fim.")
+        return null
+      }
+      jornadaCtx = jornada
+      dataInicio = new Date(iniLivre).toISOString()
+      dataFim = new Date(fimLivre).toISOString()
+      faseRotulo = "periodo_livre"
+      numeroCiclo = jornada?.numero_ciclo ?? 1
+      jornadaId = jornada?.id
+    }
+
+    // 2. Normaliza paciente EN→PT (data_nascimento vem do banco, nunca fabricado).
+    const pacienteNorm = {
+      nome: paciente?.name ?? "—",
+      diagnostico: paciente?.diagnosis,
+      data_nascimento: dataNascimento ?? undefined,
+    }
+
+    // 3. Monta + gera o HTML.
+    const { montarDadosRelatorioFase } = await import("@/lib/montar-relatorio-fase")
+    const { gerarHTMLRelatorioFase } = await import("@/lib/relatorio-fase-v2")
+
+    const dados = await montarDadosRelatorioFase({
+      criancaId,
+      jornada: jornadaCtx,
+      paciente: pacienteNorm,
+      terapeuta: {
+        nome: terapeuta?.nome ?? "—",
+        conselho_profissional: terapeuta?.conselho_profissional,
+        registro_profissional: terapeuta?.registro_profissional,
+      },
+      dataInicio,
+      dataFim,
+      faseRotulo,
+      numeroCiclo,
+      analiseClinica,
+      recomendacoes,
+    })
+    dados.sinteseNarrativa = analiseClinica || undefined
+    dados.recomendacoes = recomendacoes || undefined
+
+    const html = gerarHTMLRelatorioFase(dados, modo)
+    return { dados, html, jornadaId, fase: faseRotulo, numeroCiclo, dataInicio, dataFim }
+  }
 
   async function gerar() {
     setGerando(true)
     setErro(null)
     try {
-      // 1. Resolve o recorte → campos explícitos para a engine.
-      let jornadaCtx: any
-      let dataInicio: string
-      let dataFim: string | undefined
-      let faseRotulo: string
-      let numeroCiclo: number
+      const r = await construirRelatorio()
+      if (!r) return
 
-      if (recorte === "fase") {
-        const opt = mapaOpcoes.get(faseKey)
-        if (!opt) {
-          setErro("Selecione uma fase.")
-          setGerando(false)
-          return
-        }
-        jornadaCtx = opt.jornadaRow
-        dataInicio = opt.dataInicio
-        dataFim = opt.dataFim ?? undefined
-        faseRotulo = opt.fase
-        numeroCiclo = opt.numeroCiclo
-      } else {
-        if (!iniLivre || !fimLivre) {
-          setErro("Informe início e fim do período.")
-          setGerando(false)
-          return
-        }
-        if (iniLivre > fimLivre) {
-          setErro("A data de início não pode ser depois do fim.")
-          setGerando(false)
-          return
-        }
-        jornadaCtx = jornada
-        dataInicio = new Date(iniLivre).toISOString()
-        dataFim = new Date(fimLivre).toISOString()
-        faseRotulo = "periodo_livre"
-        numeroCiclo = jornada?.numero_ciclo ?? 1
-      }
+      // Carimba no snapshot qual modo foi gerado (jsonb livre; não toca a engine).
+      ;(r.dados as any).modoGerado = modo
 
-      // 2. Normaliza paciente EN→PT (data_nascimento vem do banco, nunca fabricado).
-      const pacienteNorm = {
-        nome: paciente?.name ?? "—",
-        diagnostico: paciente?.diagnosis,
-        data_nascimento: dataNascimento ?? undefined,
-      }
-
-      // 3. Monta + gera.
-      const { montarDadosRelatorioFase } = await import("@/lib/montar-relatorio-fase")
-      const { gerarHTMLRelatorioFase } = await import("@/lib/relatorio-fase-v2")
-
-      const dados = await montarDadosRelatorioFase({
-        criancaId,
-        jornada: jornadaCtx,
-        paciente: pacienteNorm,
-        terapeuta: {
-          nome: terapeuta?.nome ?? "—",
-          conselho_profissional: terapeuta?.conselho_profissional,
-          registro_profissional: terapeuta?.registro_profissional,
-        },
-        dataInicio,
-        dataFim,
-        faseRotulo,
-        numeroCiclo,
-        analiseClinica,
-        recomendacoes,
-      })
-      dados.sinteseNarrativa = analiseClinica || undefined
-      dados.recomendacoes = recomendacoes || undefined
-
-      const html = gerarHTMLRelatorioFase(dados, modo)
+      // Abre o PDF em nova aba.
       const win = window.open("", "_blank")
       if (win) {
-        win.document.write(html)
+        win.document.write(r.html)
         win.document.close()
       }
 
-      // 4. Persiste (snapshot dos dados).
+      // Persiste (snapshot dos dados).
       const { data: userData } = await supabase.auth.getUser()
       await supabase.from("relatorios_fase").insert({
-        jornada_id: recorte === "fase" ? mapaOpcoes.get(faseKey)?.jornadaId : jornada?.id,
+        jornada_id: r.jornadaId,
         crianca_id: criancaId,
         terapeuta_id: userData.user?.id,
-        fase: faseRotulo,
-        numero_ciclo: numeroCiclo,
-        data_inicio_fase: dataInicio,
-        data_fim_fase: dataFim ?? new Date().toISOString(),
-        total_sessoes: dados.cabecalho.totalSessoes,
+        fase: r.fase,
+        numero_ciclo: r.numeroCiclo,
+        data_inicio_fase: r.dataInicio,
+        data_fim_fase: r.dataFim ?? new Date().toISOString(),
+        total_sessoes: r.dados.cabecalho.totalSessoes,
         analise_clinica: analiseClinica || null,
         recomendacoes: recomendacoes || null,
-        dados_snapshot: dados as any,
+        dados_snapshot: r.dados as any,
       })
+
+      await carregarRelatorios()
     } catch (err: any) {
       console.error("Erro ao gerar relatório:", err)
       setErro("Não foi possível gerar o relatório. Tente novamente.")
@@ -265,6 +327,54 @@ export function RelatoriosTab({
       setGerando(false)
     }
   }
+
+  async function previsualizar() {
+    setPreviewLoading(true)
+    setErro(null)
+    try {
+      const r = await construirRelatorio()
+      if (r) setPreviewHtml(r.html)
+    } catch (err: any) {
+      console.error("Erro na pré-visualização:", err)
+      setErro("Não foi possível gerar a pré-visualização.")
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  async function carregarRelatorios() {
+    setCarregandoLista(true)
+    const { data } = await supabase
+      .from("relatorios_fase")
+      .select(
+        "id, fase, numero_ciclo, data_inicio_fase, data_fim_fase, total_sessoes, criado_em, dados_snapshot",
+      )
+      .eq("crianca_id", criancaId)
+      .order("criado_em", { ascending: false })
+    setRelatorios(data ?? [])
+    setCarregandoLista(false)
+  }
+
+  // Reabre do snapshot congelado — não reprocessa o banco.
+  async function reabrir(item: any) {
+    setReabrindo(item.id)
+    setErro(null)
+    try {
+      const { gerarHTMLRelatorioFase } = await import("@/lib/relatorio-fase-v2")
+      const snap = item.dados_snapshot
+      setPreviewHtml(gerarHTMLRelatorioFase(snap, snap?.modoGerado ?? "completo"))
+    } catch (err: any) {
+      console.error("Erro ao reabrir relatório:", err)
+      setErro("Não foi possível reabrir este relatório.")
+    } finally {
+      setReabrindo(null)
+    }
+  }
+
+  useEffect(() => {
+    carregarRelatorios()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [criancaId])
 
   const semJornadas = opcoesFase.length === 0
 
@@ -412,23 +522,164 @@ export function RelatoriosTab({
           <div style={{ fontSize: ".76rem", color: "#E05A4B", marginBottom: 12 }}>{erro}</div>
         )}
 
-        <button
-          onClick={gerar}
-          disabled={!podeGerar}
-          style={{
-            padding: "11px 22px",
-            borderRadius: 10,
-            border: "none",
-            background: podeGerar ? "#1D9E75" : "rgba(29,158,117,.3)",
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: ".82rem",
-            cursor: podeGerar ? "pointer" : "not-allowed",
-            fontFamily: "var(--font-sans)",
-          }}
-        >
-          {gerando ? "Gerando…" : "Gerar relatório PDF"}
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={previsualizar}
+            disabled={!podePreview}
+            style={{
+              padding: "11px 22px",
+              borderRadius: 10,
+              border: `1px solid ${podePreview ? "#1D9E75" : "rgba(29,158,117,.3)"}`,
+              background: "transparent",
+              color: podePreview ? "#1D9E75" : "rgba(29,158,117,.5)",
+              fontWeight: 700,
+              fontSize: ".82rem",
+              cursor: podePreview ? "pointer" : "not-allowed",
+              fontFamily: "var(--font-sans)",
+            }}
+          >
+            {previewLoading ? "Montando…" : "Pré-visualizar"}
+          </button>
+          <button
+            onClick={gerar}
+            disabled={!podeGerar}
+            style={{
+              padding: "11px 22px",
+              borderRadius: 10,
+              border: "none",
+              background: podeGerar ? "#1D9E75" : "rgba(29,158,117,.3)",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: ".82rem",
+              cursor: podeGerar ? "pointer" : "not-allowed",
+              fontFamily: "var(--font-sans)",
+            }}
+          >
+            {gerando ? "Gerando…" : "Gerar relatório PDF"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Pré-visualização (Camada 2) ── */}
+      {previewHtml && (
+        <div style={card}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: ".9rem", fontWeight: 700, color: "#e8f0f8" }}>Pré-visualização</div>
+            <button
+              onClick={() => setPreviewHtml(null)}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 8,
+                border: "1px solid rgba(70,120,180,.4)",
+                background: "transparent",
+                color: "rgba(160,200,235,.9)",
+                fontWeight: 600,
+                fontSize: ".72rem",
+                cursor: "pointer",
+                fontFamily: "var(--font-sans)",
+              }}
+            >
+              Fechar
+            </button>
+          </div>
+          <iframe
+            srcDoc={previewHtml}
+            title="Pré-visualização do relatório"
+            style={{
+              width: "100%",
+              height: "70vh",
+              border: "1px solid rgba(70,120,180,.3)",
+              borderRadius: 8,
+              background: "#fff",
+            }}
+          />
+        </div>
+      )}
+
+      {/* ── Relatórios gerados (Camada 3) ── */}
+      <div style={card}>
+        <div style={{ fontSize: ".9rem", fontWeight: 700, color: "#e8f0f8", marginBottom: 4 }}>
+          Relatórios gerados
+        </div>
+        <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.84)", marginBottom: 16 }}>
+          Cada item reabre a versão congelada no momento da geração.
+        </div>
+
+        {carregandoLista ? (
+          <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.7)" }}>Carregando…</div>
+        ) : relatorios.length === 0 ? (
+          <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.7)" }}>
+            Nenhum relatório gerado ainda.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {relatorios.map((r) => {
+              const ehLivre = r.fase === "periodo_livre"
+              const titulo = ehLivre ? "Período livre" : FASE_LABEL[r.fase] ?? r.fase
+              const modoSnap = r.dados_snapshot?.modoGerado
+              return (
+                <div
+                  key={r.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    background: "rgba(8,20,34,.5)",
+                    border: "1px solid rgba(26,58,92,.5)",
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: ".82rem", fontWeight: 600, color: "#e8f0f8", marginBottom: 3 }}>
+                      {titulo} · Ciclo {r.numero_ciclo ?? "—"}
+                      {modoSnap && (
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            fontSize: ".62rem",
+                            fontWeight: 700,
+                            color: "#1D9E75",
+                            background: "rgba(29,158,117,.12)",
+                            borderRadius: 20,
+                            padding: "2px 8px",
+                          }}
+                        >
+                          {MODO_LABEL[modoSnap] ?? modoSnap}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: ".7rem", color: "rgba(160,200,235,.78)" }}>
+                      {fmtData(r.data_inicio_fase)} – {fmtData(r.data_fim_fase)} · {r.total_sessoes ?? 0} sessões
+                    </div>
+                    <div style={{ fontSize: ".66rem", color: "rgba(160,200,235,.55)", marginTop: 2 }}>
+                      Gerado em {fmtDataHora(r.criado_em)}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => reabrir(r)}
+                    disabled={reabrindo === r.id}
+                    style={{
+                      flexShrink: 0,
+                      padding: "7px 14px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(29,158,117,.4)",
+                      background: "transparent",
+                      color: "#1D9E75",
+                      fontWeight: 600,
+                      fontSize: ".72rem",
+                      cursor: reabrindo === r.id ? "default" : "pointer",
+                      fontFamily: "var(--font-sans)",
+                    }}
+                  >
+                    {reabrindo === r.id ? "Abrindo…" : "Reabrir"}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
