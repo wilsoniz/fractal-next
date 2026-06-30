@@ -130,10 +130,13 @@ Auditar cada um individualmente.
 - `paciente/[id]/page.tsx` — `gerarRelatorioFase(avancar)` no fluxo de avançar fase + 
   wiring da aba.
 
-**PRÓXIMO — Aba "Relatórios", Camadas 2-3:**
-- Camada 2: pré-visualização dos gráficos de evolução na própria tela (antes de gerar o PDF).
-- Camada 3: lista de relatórios salvos (`relatorios_fase`) para reabrir/reimprimir.
-- Limpeza: remover seed `[TESTE]` do banco.
+**Camadas 2-3 CONCLUÍDAS** (em `relatorios-tab.tsx`):
+- Camada 2: pré-visualização WYSIWYG na tela via `<iframe srcDoc>` (papel branco isolado), sem persistir.
+- Camada 3: lista de `relatorios_fase` (`.eq`), badge de modo (`dados_snapshot.modoGerado`), "Reabrir" do snapshot CONGELADO (não reprocessa). Helper `construirRelatorio()` compartilha a montagem entre gerar e pré-visualizar.
+
+**PRÓXIMO (backlog priorizado):**
+- **Plano Terapêutico (PEI+PIC)**: documento de planejamento inicial p/ pais. 8 seções, atrelado ao plano de tratamento, 2 modos (técnico/família), puxa avaliações/repertório/comportamentos/programas automaticamente. Reusa arquitetura do relatório de fase. Fazer spec primeiro (aguarda input da parceira + manuais).
+- **Padrão de qualidade de PDF (transversal)**: paginação inteligente (eliminar "buracos"), marca Fracta discreta no rodapé (boca-a-boca viral), matar "about:blank" (definir title), qualidade de impressão. Vale p/ fase, sessão e PEI. Tratar como "chassi de documento" compartilhado.
 
 NOTA: o fluxo de avançar fase (`gerarRelatorioFase` em page.tsx) ainda passa o paciente 
 sem normalizar EN→PT (`data.name`/`diagnosis`); a aba nova já normaliza. Alinhar quando 
