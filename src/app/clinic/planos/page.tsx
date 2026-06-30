@@ -99,6 +99,7 @@ const STATUS_PLANO: Record<StatusPlano, { label: string; color: string; bg: stri
   revisao: { label: 'Revisão', color: '#EF9F27', bg: 'rgba(239,159,39,0.12)' },
   rascunho: { label: 'Rascunho', color: '#8B7FE8', bg: 'rgba(139,127,232,0.12)' },
   encerrado: { label: 'Encerrado', color: '#7a9ab5', bg: 'rgba(122,154,181,0.10)' },
+  cancelado: { label: 'Cancelado', color: '#E05A4B', bg: 'rgba(224,90,75,0.12)' },
 }
 
 const STATUS_ALVO: Record<string, { label: string; color: string }> = {
@@ -1327,7 +1328,7 @@ export default function PlanosPage() {
             {!loadingPlanos && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 28 }}>
                 {planos.map(plano => {
-                  const st = STATUS_PLANO[plano.status]
+                  const st = STATUS_PLANO[plano.status] ?? { label: plano.status ?? 'Sem status', color: '#9ca3af', bg: 'rgba(156,163,175,.15)' }
                   const sel = plano.id === planoSelecionado?.id
                   return (
                     <div key={plano.id} onClick={() => { setPlanoSelecionado(plano); setAlvoSelecionado(plano.alvos[0] ?? null); setProgramaSelecionado(plano.alvos[0]?.programas[0] ?? null) }}
@@ -1390,7 +1391,7 @@ export default function PlanosPage() {
                         <div style={{ fontSize: 11, color: s.muted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Comportamentos-alvo</div>
                         {planoSelecionado.alvos.length === 0 && <div style={{ fontSize: 12, color: s.muted }}>Nenhum alvo cadastrado</div>}
                         {planoSelecionado.alvos.map(alvo => {
-                          const stAlvo = STATUS_ALVO[alvo.status]
+                          const stAlvo = STATUS_ALVO[alvo.status] ?? { label: alvo.status ?? 'Sem status', color: '#9ca3af' }
                           const sel = alvoSelecionado?.id === alvo.id
                           return (
                             <div key={alvo.id} onClick={() => { setAlvoSelecionado(alvo); setProgramaSelecionado(alvo.programas[0] ?? null) }}
@@ -1417,7 +1418,10 @@ export default function PlanosPage() {
                                 <div style={{ fontSize: 13, fontWeight: 500, color: s.text }}>{alvoSelecionado.descricao}</div>
                                 <div style={{ fontSize: 11, color: s.muted, marginTop: 2 }}>{alvoSelecionado.area} · {alvoSelecionado.funcao} · {alvoSelecionado.operante}</div>
                               </div>
-                              <Badge label={STATUS_ALVO[alvoSelecionado.status].label} color={STATUS_ALVO[alvoSelecionado.status].color} bg={`${STATUS_ALVO[alvoSelecionado.status].color}18`} />
+                              {(() => {
+                                const stSel = STATUS_ALVO[alvoSelecionado.status] ?? { label: alvoSelecionado.status ?? 'Sem status', color: '#9ca3af' }
+                                return <Badge label={stSel.label} color={stSel.color} bg={`${stSel.color}18`} />
+                              })()}
                             </div>
                             {alvoSelecionado.programas.length > 0 ? (
                               <>
