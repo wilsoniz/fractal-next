@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type PrazoType = 'curto' | 'medio' | 'longo'
-type StatusPlano = 'ativo' | 'revisao' | 'rascunho' | 'encerrado'
+type StatusPlano = 'ativo' | 'revisao' | 'rascunho' | 'encerrado' | 'cancelado'
 type TipoMidia = 'imagem' | 'texto' | 'audio' | 'simbolo'
 type TipoTarefa = 'enunciado' | 'encaixar'
 type TipoRelacao = 'treino_direto' | 'equivalencia' | 'generalizacao'
