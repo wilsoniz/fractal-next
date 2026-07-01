@@ -2,49 +2,51 @@
 // Abre o relatório de sessão em nova janela isolada para impressão/PDF.
 // Reutilizável na tela de encerramento e no histórico do paciente.
 
+import { envolverComChassi } from './chassi-documento'
+
 export interface DadosRelatorio {
-  sessaoId:          string
-  pacienteNome:      string
-  data:              string   // "01/06/2026"
-  horario:           string   // "15:05"
-  duracao:           string   // "01:43"
+  sessaoId: string
+  pacienteNome: string
+  data: string   // "01/06/2026"
+  horario: string   // "15:05"
+  duracao: string   // "01:43"
   duracaoContratada: number   // minutos
-  tipo:              string
-  local:             string
-  terapeutaNome:     string
+  tipo: string
+  local: string
+  terapeutaNome: string
   conselhoProfissional?: string
   registroProfissional?: string
   familiaComunicada: boolean
-  taxaGeral:         number
-  totalOperantes:    number
+  taxaGeral: number
+  totalOperantes: number
   programas: {
-    nome:          string
-    dominio:       string
-    taxa:          number
-    total:         number
-    acertos:       number
+    nome: string
+    dominio: string
+    taxa: number
+    total: number
+    acertos: number
     independencia: number
-    criterio:      boolean
-    seq:           string        // "CCEECCC"
+    criterio: boolean
+    seq: string        // "CCEECCC"
     nivelPredominante?: string
   }[]
   avaliacoes: {
-    nome:      string
+    nome: string
     registros: number
   }[]
   eventos: {
-    label:     string
-    tipo:      string
+    label: string
+    tipo: string
     timestamp: number
   }[]
   encaminhamentos?: {
     programaNome: string
-    acao:         string
-    prioridade:   string
+    acao: string
+    prioridade: string
   }[]
-  analiseClinica?:  string
-  decisaoProxima?:  string[]
-  notaDecisao?:     string
+  analiseClinica?: string
+  decisaoProxima?: string[]
+  notaDecisao?: string
   notaEncerramento?: string
 }
 
@@ -78,14 +80,14 @@ function seqChips(seq: string): string {
 
 function eventoIcone(tipo: string): { icone: string; bg: string; cor: string } {
   const map: Record<string, { icone: string; bg: string; cor: string }> = {
-    assent_given:     { icone: '✓', bg: '#d1fae5', cor: '#065f46' },
-    assent_revoked:   { icone: '✗', bg: '#fee2e2', cor: '#991b1b' },
+    assent_given: { icone: '✓', bg: '#d1fae5', cor: '#065f46' },
+    assent_revoked: { icone: '✗', bg: '#fee2e2', cor: '#991b1b' },
     assent_recovered: { icone: '↺', bg: '#d1fae5', cor: '#065f46' },
     avoidance_signal: { icone: '!', bg: '#fef3c7', cor: '#92400e' },
-    distress_signal:  { icone: '⚠', bg: '#fef3c7', cor: '#92400e' },
-    break_requested:  { icone: '⏸', bg: '#e0e7ff', cor: '#3730a3' },
-    session_paused:   { icone: '⏸', bg: '#e0e7ff', cor: '#3730a3' },
-    session_resumed:  { icone: '▶', bg: '#d1fae5', cor: '#065f46' },
+    distress_signal: { icone: '⚠', bg: '#fef3c7', cor: '#92400e' },
+    break_requested: { icone: '⏸', bg: '#e0e7ff', cor: '#3730a3' },
+    session_paused: { icone: '⏸', bg: '#e0e7ff', cor: '#3730a3' },
+    session_resumed: { icone: '▶', bg: '#d1fae5', cor: '#065f46' },
   }
   return map[tipo] ?? { icone: '·', bg: '#f1f5f9', cor: '#64748b' }
 }
@@ -93,7 +95,7 @@ function eventoIcone(tipo: string): { icone: string; bg: string; cor: string } {
 function fmt(segundos: number): string {
   const m = Math.floor(segundos / 60)
   const s = segundos % 60
-  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
 // ─── GERADOR HTML ─────────────────────────────────────────────────────────────
@@ -168,9 +170,9 @@ function gerarHTML(d: DadosRelatorio): string {
     <div class="secao">
       <div class="secao-titulo">Encaminhamentos (${d.encaminhamentos.length})</div>
       ${d.encaminhamentos.map(enc => {
-        const corPrior = enc.prioridade === 'alta' ? '#991b1b' : enc.prioridade === 'media' ? '#92400e' : '#065f46'
-        const bgPrior  = enc.prioridade === 'alta' ? '#fee2e2' : enc.prioridade === 'media' ? '#fef3c7' : '#d1fae5'
-        return `
+    const corPrior = enc.prioridade === 'alta' ? '#991b1b' : enc.prioridade === 'media' ? '#92400e' : '#065f46'
+    const bgPrior = enc.prioridade === 'alta' ? '#fee2e2' : enc.prioridade === 'media' ? '#fef3c7' : '#d1fae5'
+    return `
           <div style="padding:10px 14px;background:#f7f9fc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;">
             <span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:${bgPrior};color:${corPrior};flex-shrink:0;margin-top:1px;">${enc.prioridade.toUpperCase()}</span>
             <div>
@@ -179,7 +181,7 @@ function gerarHTML(d: DadosRelatorio): string {
             </div>
           </div>
         `
-      }).join('')}
+  }).join('')}
     </div>
   ` : ''
 
@@ -214,132 +216,321 @@ function gerarHTML(d: DadosRelatorio): string {
     </div>
   ` : ''
 
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Relatório de Sessão — ${d.pacienteNome} — ${d.data}</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
+  const cssRelatorio = `<style>
   :root {
     --verde:#1D9E75; --azul:#378ADD; --lilas:#8B7FE8;
     --text:#1a2332; --text-2:#4a5568; --text-3:#718096;
     --borda:#e2e8f0; --fundo:#f7f9fc; --branco:#ffffff;
   }
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--fundo);line-height:1.6;}
 
-  .screen-bar{background:#07111f;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
-  .screen-bar span{color:rgba(255,255,255,.4);font-size:12px;}
-  .btn-print{padding:8px 18px;border-radius:8px;border:none;background:#1D9E75;color:#07111f;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;}
+  .documento-relatorio-sessao{
+    background:var(--branco);
+  }
 
-  .documento{max-width:800px;margin:28px auto;background:var(--branco);border-radius:4px;box-shadow:0 2px 20px rgba(0,0,0,.08);overflow:hidden;}
+  .cabecalho{
+    padding:0 0 20px;
+    border-bottom:3px solid var(--verde);
+    display:grid;
+    grid-template-columns:1fr auto;
+    align-items:start;
+    gap:20px;
+  }
 
-  .cabecalho{padding:28px 36px 20px;border-bottom:3px solid var(--verde);display:grid;grid-template-columns:1fr auto;align-items:start;gap:20px;}
-  .marca{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
-  .marca-icone{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#1D9E75,#378ADD);display:flex;align-items:center;justify-content:center;}
-  .marca-nome{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.02em;}
-  .marca-sub{font-size:10px;color:var(--text-3);margin-top:1px;}
-  .doc-titulo{font-size:18px;font-weight:700;color:var(--text);letter-spacing:-.02em;margin-bottom:3px;}
-  .doc-subtitulo{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;font-weight:500;}
-  .doc-id-label{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;}
-  .doc-id-valor{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-2);background:var(--fundo);padding:3px 8px;border-radius:4px;border:1px solid var(--borda);}
+  .cabecalho .marca{display:none;}
 
-  .metadados{padding:18px 36px;background:var(--fundo);border-bottom:1px solid var(--borda);display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
-  .meta-label{font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;}
-  .meta-valor{font-size:13px;color:var(--text);font-weight:500;}
+  .doc-titulo{
+    font-size:18px;
+    font-weight:700;
+    color:var(--text);
+    letter-spacing:-.02em;
+    margin-bottom:3px;
+  }
 
-  .kpis{padding:16px 36px;border-bottom:1px solid var(--borda);display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
-  .kpi{background:var(--fundo);border:1px solid var(--borda);border-radius:8px;padding:12px 14px;text-align:center;}
-  .kpi-valor{font-size:20px;font-weight:700;line-height:1;margin-bottom:3px;}
-  .kpi-label{font-size:10px;color:var(--text-3);font-weight:500;}
+  .doc-subtitulo{
+    font-size:11px;
+    color:var(--text-3);
+    text-transform:uppercase;
+    letter-spacing:.07em;
+    font-weight:500;
+  }
 
-  .corpo{padding:28px 36px;display:flex;flex-direction:column;gap:24px;}
-  .secao{}
-  .secao-titulo{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;padding-bottom:7px;border-bottom:1px solid var(--borda);margin-bottom:12px;display:flex;align-items:center;gap:7px;}
-  .secao-titulo::before{content:'';display:inline-block;width:3px;height:11px;border-radius:2px;background:var(--verde);}
+  .doc-id-label{
+    font-size:10px;
+    color:var(--text-3);
+    text-transform:uppercase;
+    letter-spacing:.07em;
+    margin-bottom:3px;
+  }
 
-  .programa{border:1px solid var(--borda);border-radius:8px;overflow:hidden;margin-bottom:10px;}
+  .doc-id-valor{
+    font-family:'DM Mono',monospace;
+    font-size:10px;
+    color:var(--text-2);
+    background:var(--fundo);
+    padding:3px 8px;
+    border-radius:4px;
+    border:1px solid var(--borda);
+  }
+
+  .metadados{
+    padding:18px 0;
+    background:var(--fundo);
+    border-bottom:1px solid var(--borda);
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+  }
+
+  .meta-label{
+    font-size:10px;
+    font-weight:600;
+    color:var(--text-3);
+    text-transform:uppercase;
+    letter-spacing:.07em;
+    margin-bottom:2px;
+  }
+
+  .meta-valor{
+    font-size:13px;
+    color:var(--text);
+    font-weight:500;
+  }
+
+  .kpis{
+    padding:16px 0;
+    border-bottom:1px solid var(--borda);
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+
+  .kpi{
+    background:var(--fundo);
+    border:1px solid var(--borda);
+    border-radius:8px;
+    padding:12px 14px;
+    text-align:center;
+  }
+
+  .kpi-valor{
+    font-size:20px;
+    font-weight:700;
+    line-height:1;
+    margin-bottom:3px;
+  }
+
+  .kpi-label{
+    font-size:10px;
+    color:var(--text-3);
+    font-weight:500;
+  }
+
+  .corpo{
+    padding:28px 0;
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+  }
+
+  .secao-titulo{
+    font-size:10px;
+    font-weight:700;
+    color:var(--text-3);
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    padding-bottom:7px;
+    border-bottom:1px solid var(--borda);
+    margin-bottom:12px;
+    display:flex;
+    align-items:center;
+    gap:7px;
+  }
+
+  .secao-titulo::before{
+    content:'';
+    display:inline-block;
+    width:3px;
+    height:11px;
+    border-radius:2px;
+    background:var(--verde);
+  }
+
+  .programa{
+    border:1px solid var(--borda);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:10px;
+    page-break-inside:avoid;
+  }
+
   .programa:last-child{margin-bottom:0;}
-  .programa-header{padding:11px 14px;background:var(--fundo);border-bottom:1px solid var(--borda);display:flex;align-items:center;justify-content:space-between;}
+
+  .programa-header{
+    padding:11px 14px;
+    background:var(--fundo);
+    border-bottom:1px solid var(--borda);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+
   .programa-nome{font-weight:600;font-size:13px;color:var(--text);}
   .programa-dominio{font-size:11px;color:var(--text-3);margin-top:2px;}
   .programa-taxa{font-size:18px;font-weight:700;text-align:right;}
   .programa-taxa-label{font-size:10px;color:var(--text-3);text-align:right;margin-top:1px;}
-  .programa-corpo{padding:11px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
-  .prog-dado-label{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;}
+
+  .programa-corpo{
+    padding:11px 14px;
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:10px;
+  }
+
+  .prog-dado-label{
+    font-size:10px;
+    color:var(--text-3);
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    margin-bottom:2px;
+  }
+
   .prog-dado-valor{font-size:13px;font-weight:600;color:var(--text);}
   .prog-sequencia{grid-column:1/-1;padding-top:9px;border-top:1px solid var(--borda);}
   .seq-label{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;}
   .seq-chips{display:flex;gap:3px;flex-wrap:wrap;}
-  .chip{width:20px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:'DM Mono',monospace;}
+
+  .chip{
+    width:20px;
+    height:20px;
+    border-radius:3px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:9px;
+    font-weight:700;
+    font-family:'DM Mono',monospace;
+  }
+
   .chip-c{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;}
   .chip-e{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;}
-  .badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:9px;font-weight:600;border:1px solid;}
+
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    padding:2px 7px;
+    border-radius:20px;
+    font-size:9px;
+    font-weight:600;
+    border:1px solid;
+  }
 
   .eventos-lista{display:flex;flex-direction:column;gap:5px;}
-  .evento{display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:6px;border:1px solid var(--borda);background:var(--fundo);}
-  .evento-icone{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}
+
+  .evento{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    padding:7px 11px;
+    border-radius:6px;
+    border:1px solid var(--borda);
+    background:var(--fundo);
+  }
+
+  .evento-icone{
+    width:22px;
+    height:22px;
+    border-radius:5px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:10px;
+    font-weight:700;
+    flex-shrink:0;
+  }
+
   .evento-label{font-size:12px;color:var(--text);flex:1;}
   .evento-hora{font-size:10px;color:var(--text-3);font-family:'DM Mono',monospace;}
 
-  .texto-clinico{font-size:13px;color:var(--text-2);line-height:1.75;padding:12px 14px;background:var(--fundo);border:1px solid var(--borda);border-radius:8px;border-left:3px solid var(--verde);}
-  .decisoes{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px;}
-  .decisao-item{display:flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;border:1px solid #a7f3d0;background:#d1fae5;font-size:11px;font-weight:600;color:#065f46;}
-  .nota-decisao{font-size:12px;color:var(--text-2);line-height:1.65;padding:9px 12px;background:var(--fundo);border:1px solid var(--borda);border-radius:6px;font-style:italic;}
+  .texto-clinico{
+    font-size:13px;
+    color:var(--text-2);
+    line-height:1.75;
+    padding:12px 14px;
+    background:var(--fundo);
+    border:1px solid var(--borda);
+    border-radius:8px;
+    border-left:3px solid var(--verde);
+  }
 
-  .assinatura{padding:20px 36px;border-top:1px solid var(--borda);display:grid;grid-template-columns:1fr 1fr;gap:36px;}
-  .assinatura-label{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;}
+  .decisoes{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px;}
+
+  .decisao-item{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    padding:4px 11px;
+    border-radius:20px;
+    border:1px solid #a7f3d0;
+    background:#d1fae5;
+    font-size:11px;
+    font-weight:600;
+    color:#065f46;
+  }
+
+  .nota-decisao{
+    font-size:12px;
+    color:var(--text-2);
+    line-height:1.65;
+    padding:9px 12px;
+    background:var(--fundo);
+    border:1px solid var(--borda);
+    border-radius:6px;
+    font-style:italic;
+  }
+
+  .assinatura{
+    padding:20px 0 0;
+    border-top:1px solid var(--borda);
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:36px;
+    page-break-inside:avoid;
+  }
+
+  .assinatura-label{
+    font-size:10px;
+    color:var(--text-3);
+    text-transform:uppercase;
+    letter-spacing:.07em;
+    margin-bottom:10px;
+  }
+
   .assinatura-linha{border-bottom:1px solid var(--text);margin-bottom:7px;height:28px;}
   .assinatura-nome{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;}
   .assinatura-registro{font-size:10px;color:var(--text-3);font-family:'DM Mono',monospace;}
 
-  .rodape{padding:12px 36px;background:#07111f;display:flex;align-items:center;justify-content:space-between;}
-  .rodape-marca{font-size:11px;color:rgba(255,255,255,.4);font-weight:600;}
-  .rodape-marca span{color:#1D9E75;}
-  .rodape-info{font-size:9px;color:rgba(255,255,255,.2);font-family:'DM Mono',monospace;text-align:right;}
+  .divisor-relatorio-sessao{
+    height:1px;
+    background:var(--borda);
+    margin:0;
+  }
 
   @media print {
-    @page{size:A4;margin:12mm 14mm;}
-    body{background:#fff;font-size:11px;}
-    .screen-bar{display:none!important;}
-    .documento{max-width:100%;margin:0;box-shadow:none;border-radius:0;}
-    .cabecalho{padding:18px 24px 14px;}
-    .metadados{padding:12px 24px;}
-    .kpis{padding:12px 24px;}
-    .corpo{padding:18px 24px;gap:18px;}
-    .assinatura{padding:14px 24px;}
-    .rodape{padding:9px 24px;}
     .kpi-valor{font-size:16px;}
-    .programa{page-break-inside:avoid;}
-    .secao{page-break-inside:avoid;}
-    .assinatura{page-break-inside:avoid;}
-    .rodape{page-break-inside:avoid;}
+    .programa,
+    .assinatura{
+      break-inside:avoid;
+      page-break-inside:avoid;
+    }
   }
-</style>
-</head>
-<body>
+</style>`
 
-<div class="screen-bar">
-  <span>Relatório · ${d.pacienteNome} · ${d.data}</span>
-  <button class="btn-print" onclick="window.print()">Exportar PDF</button>
-</div>
+  const conteudo = `${cssRelatorio}
 
-<div class="documento">
+<div class="documento-relatorio-sessao">
 
   <div class="cabecalho">
     <div>
-      <div class="marca">
-        <div class="marca-icone">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-          </svg>
-        </div>
-        <div>
-          <div class="marca-nome">FractaBehavior</div>
-          <div class="marca-sub">Plataforma Clínica ABA</div>
-        </div>
-      </div>
       <div class="doc-titulo">Relatório de Evolução de Sessão ABA</div>
       <div class="doc-subtitulo">Documento clínico · Uso restrito ao profissional responsável</div>
     </div>
@@ -426,7 +617,7 @@ function gerarHTML(d: DadosRelatorio): string {
 
   </div>
 
-  <div style="height:1px;background:var(--borda);margin:0 36px;"></div>
+  <div class="divisor-relatorio-sessao"></div>
 
   <div class="assinatura">
     <div>
@@ -443,21 +634,13 @@ function gerarHTML(d: DadosRelatorio): string {
     </div>
   </div>
 
-  <div class="rodape">
-    <div class="rodape-marca"><span>Fracta</span>Behavior · fractabehavior.com</div>
-    <div class="rodape-info">
-      ID ${d.sessaoId}<br>
-      Documento gerado automaticamente · validade mediante assinatura do profissional
-    </div>
-  </div>
+</div>`
 
-</div>
-<script>
-  // Foca na janela para facilitar Cmd+P imediato
-  window.focus()
-</script>
-</body>
-</html>`
+  return envolverComChassi(conteudo, {
+    tituloDocumento: 'Relatório de Sessão',
+    pacienteNome: d.pacienteNome,
+    rodapeInfo: 'Fracta Behavior · fractabehavior.com · Documento clínico gerado pela plataforma',
+  })
 }
 
 // ─── FUNÇÃO PÚBLICA ───────────────────────────────────────────────────────────
@@ -507,51 +690,51 @@ export function dadosDoSummary(
   const programas = (summary.programas_json ?? [])
     .filter((p: any) => p.area === 'intervencao' || p.tipo === 'intervention')
     .map((p: any) => ({
-      nome:              p.nome ?? '—',
-      dominio:           p.dominio ?? '—',
-      taxa:              p.taxa ?? 0,
-      total:             p.total ?? 0,
-      acertos:           p.acertos ?? 0,
-      independencia:     p.independencia ?? 0,
-      criterio:          p.criterio ?? false,
-      seq:               p.seq ?? '',
+      nome: p.nome ?? '—',
+      dominio: p.dominio ?? '—',
+      taxa: p.taxa ?? 0,
+      total: p.total ?? 0,
+      acertos: p.acertos ?? 0,
+      independencia: p.independencia ?? 0,
+      criterio: p.criterio ?? false,
+      seq: p.seq ?? '',
       nivelPredominante: p.nivelPredominante,
     }))
 
   const avaliacoes = (summary.programas_json ?? [])
     .filter((p: any) => p.area === 'avaliacao' || p.tipo === 'assessment')
     .map((p: any) => ({
-      nome:      p.nome ?? '—',
+      nome: p.nome ?? '—',
       registros: p.total ?? 0,
     }))
 
   const eventos = (summary.eventos_json ?? []).map((e: any) => ({
-    label:     e.label ?? e.tipo,
-    tipo:      e.tipo ?? '',
+    label: e.label ?? e.tipo,
+    tipo: e.tipo ?? '',
     timestamp: e.timestamp ?? 0,
   }))
 
   return {
-    sessaoId:          summary.sessao_id,
+    sessaoId: summary.sessao_id,
     pacienteNome,
-    data:              inicio.toLocaleDateString('pt-BR'),
-    horario:           inicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-    duracao:           fmt(sessao.duracao_segundos),
+    data: inicio.toLocaleDateString('pt-BR'),
+    horario: inicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    duracao: fmt(sessao.duracao_segundos),
     duracaoContratada: 60,
-    tipo:              sessao.tipo,
-    local:             'presencial',
-    terapeutaNome:     terapeuta.nome,
+    tipo: sessao.tipo,
+    local: 'presencial',
+    terapeutaNome: terapeuta.nome,
     conselhoProfissional: terapeuta.conselho_profissional,
     registroProfissional: terapeuta.registro_profissional,
     familiaComunicada: summary.familia_comunicada,
-    taxaGeral:         summary.taxa_geral ?? 0,
-    totalOperantes:    summary.total_operantes ?? 0,
+    taxaGeral: summary.taxa_geral ?? 0,
+    totalOperantes: summary.total_operantes ?? 0,
     programas,
     avaliacoes,
     eventos,
-    notaEncerramento:  summary.nota_encerramento ?? undefined,
-    analiseClinica:    summary.analise_clinica ?? undefined,
-    decisaoProxima:    summary.decisao_proxima ?? undefined,
-    notaDecisao:       summary.nota_decisao ?? undefined,
+    notaEncerramento: summary.nota_encerramento ?? undefined,
+    analiseClinica: summary.analise_clinica ?? undefined,
+    decisaoProxima: summary.decisao_proxima ?? undefined,
+    notaDecisao: summary.nota_decisao ?? undefined,
   }
 }

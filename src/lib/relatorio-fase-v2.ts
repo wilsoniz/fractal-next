@@ -15,6 +15,7 @@ import {
 } from './analise-single-case'
 import { gerarGraficoSVG, type PontoSerie } from './grafico-evolucao'
 import { gerarNarrativaAcessivel } from './narrativa-acessivel'
+import { envolverComChassi } from './chassi-documento'
 
 // ── Contrato de dados ────────────────────────────────────────────────────────
 
@@ -354,13 +355,7 @@ export function gerarHTMLRelatorioFase(d: DadosRelatorioFaseV2, modo: ModoRelato
       <p class="texto">${esc(d.recomendacoes)}</p>
     </div>` : ''
 
-    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
-<title>Relatório de Fase — ${esc(c.pacienteNome)}</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', -apple-system, sans-serif; color: #1a2e44; background: #fff; padding: 40px; line-height: 1.5; }
-  .doc { max-width: 760px; margin: 0 auto; }
+    const cssRelatorio = `<style>
   .cabecalho { border-bottom: 3px solid #1D9E75; padding-bottom: 16px; margin-bottom: 24px; }
   .titulo { font-size: 22px; font-weight: 800; color: #1D9E75; }
   .subtitulo { font-size: 13px; color: #64748b; margin-top: 2px; }
@@ -396,8 +391,9 @@ export function gerarHTMLRelatorioFase(d: DadosRelatorioFaseV2, modo: ModoRelato
   .assinatura-linha { width: 280px; border-top: 1px solid #1a2e44; margin: 32px auto 6px; }
   .assinatura-nome { font-weight: 600; font-size: 13px; }
   .assinatura-registro { font-family: 'DM Mono', monospace; font-size: 12px; color: #64748b; }
-  @media print { body { padding: 0; } .programa { page-break-inside: avoid; } }
-</style></head><body><div class="doc">
+</style>`
+
+    const conteudo = `${cssRelatorio}
   <div class="cabecalho">
     <div class="titulo">Relatório de Fase — ${FASE_LABEL[c.fase] ?? esc(c.fase)}</div>
     <div class="subtitulo">Análise de evolução clínica · delineamento de caso único${modoLabel}</div>
@@ -428,8 +424,13 @@ export function gerarHTMLRelatorioFase(d: DadosRelatorioFaseV2, modo: ModoRelato
     <div class="assinatura-linha"></div>
     <div class="assinatura-nome">${esc(c.terapeutaNome)}</div>
     <div class="assinatura-registro">${registroStr}</div>
-  </div>
-</div></body></html>`
+  </div>`
+
+    return envolverComChassi(conteudo, {
+        tituloDocumento: 'Relatório de Fase',
+        pacienteNome: c.pacienteNome,
+        rodapeInfo: 'Documento clínico · uso restrito ao profissional responsável',
+    })
 }
 
 function ehPct(label: string): boolean { return /independ|acerto|%/i.test(label) }
