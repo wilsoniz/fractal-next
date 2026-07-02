@@ -4,6 +4,13 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { abrirRelatorioPDF } from "@/lib/relatorio-pdf";
 //import { abrirRelatorioPDF, type DadosRelatorio } from "@/lib/relatorio-pdf";
 import { supabase } from "@/lib/supabase";
+import {
+  listarInvestigacoesAtivasDoPaciente,
+  listarInvestigacoesDaSessao,
+  vincularSessaoAInvestigacoes,
+  removerVinculoSessao,
+} from "@/lib/clinical-investigation-evidence";
+import type { ClinicalInvestigation } from "@/lib/clinical-investigations";
 import { useClinicContext } from "../layout";
 import { LineChart, Line, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 
@@ -333,6 +340,9 @@ function SessaoInner() {
   const [notaEncerr, setNotaEncerr] = useState("")
   const [salvandoEnc, setSalvandoEnc] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  // ── FCRM-002: perguntas clínicas ativas vinculáveis à sessão ────────────────────
+  const [pcAtivas, setPcAtivas] = useState<ClinicalInvestigation[]>([])
+  const [pcSelecionadas, setPcSelecionadas] = useState<Set<string>>(new Set())
 
   // ── Supervisão ────────────────────────────────────────────────────────────────
   const [encaminhamentos, setEncaminhamentos] = useState<Encaminhamento[]>([])
@@ -401,6 +411,24 @@ function SessaoInner() {
       }
     } catch { /* ignora erro de parse */ }
   }, [])
+
+  // FCRM-002: perguntas clínicas ativas do paciente + pré-marca as já vinculadas à sessão
+  useEffect(() => {
+    if (!pacienteId) return
+    let cancelado = false
+    async function carregarPc() {
+      const res = await listarInvestigacoesAtivasDoPaciente(pacienteId!)
+      if (cancelado) return
+      if (res.error === null) setPcAtivas(res.data)
+
+      if (sessaoDbId) {
+        const vin = await listarInvestigacoesDaSessao(sessaoDbId)
+        if (!cancelado && vin.error === null) setPcSelecionadas(new Set(vin.data))
+      }
+    }
+    carregarPc()
+    return () => { cancelado = true }
+  }, [pacienteId, sessaoDbId])
 
 
   // ── Carregar dados ─────────────────────────────────────────────────────────────
@@ -1010,6 +1038,24 @@ function SessaoInner() {
 
       if (rpcError) throw rpcError
 
+      // FCRM-002: vincula a sessão às perguntas clínicas selecionadas.
+      // Só roda porque a sessão finalizou com sucesso (após o RPC).
+      // Reconcilia: grava as selecionadas (idempotente) e remove as que
+      // estavam vinculadas e foram desmarcadas.
+      const selecionadas = Array.from(pcSelecionadas)
+      const vincRes = await vincularSessaoAInvestigacoes(sessaoDbId, selecionadas)
+      if (vincRes.error) console.error("Erro ao vincular perguntas clínicas:", vincRes.error)
+
+      const prev = await listarInvestigacoesDaSessao(sessaoDbId)
+      if (prev.error === null) {
+        for (const invId of prev.data) {
+          if (!pcSelecionadas.has(invId)) {
+            const delRes = await removerVinculoSessao(invId, sessaoDbId)
+            if (delRes.error) console.error("Erro ao remover vínculo de pergunta clínica:", delRes.error)
+          }
+        }
+      }
+
     } catch (err) {
       console.error("Erro no encerramento:", err)
     }
@@ -1307,6 +1353,13 @@ function SessaoInner() {
             notaEncerr={notaEncerr} setNotaEncerr={setNotaEncerr}
             salvando={salvandoEnc}
             tipoSessao={tipoSessao}
+            investigacoes={pcAtivas}
+            selecionadas={pcSelecionadas}
+            onToggleInvestig={(id) => setPcSelecionadas(prev => {
+              const next = new Set(prev)
+              if (next.has(id)) next.delete(id); else next.add(id)
+              return next
+            })}
             onCancelar={() => setShowEncModal(false)}
             onConfirmar={confirmarEncerramento}
           />
@@ -1911,6 +1964,13 @@ function SessaoInner() {
             notaEncerr={notaEncerr} setNotaEncerr={setNotaEncerr}
             salvando={salvandoEnc}
             tipoSessao={tipoSessao}
+            investigacoes={pcAtivas}
+            selecionadas={pcSelecionadas}
+            onToggleInvestig={(id) => setPcSelecionadas(prev => {
+              const next = new Set(prev)
+              if (next.has(id)) next.delete(id); else next.add(id)
+              return next
+            })}
             onCancelar={() => setShowEncModal(false)}
             onConfirmar={confirmarEncerramento}
           />
@@ -2839,11 +2899,12 @@ function AvisoTempo({ onContinuar, onEncerrar }: { onContinuar: () => void; onEn
   )
 }
 
-function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setFamiliaComunic, notaEncerr, setNotaEncerr, salvando, tipoSessao, onCancelar, onConfirmar }: {
+function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setFamiliaComunic, notaEncerr, setNotaEncerr, salvando, tipoSessao, investigacoes, selecionadas, onToggleInvestig, onCancelar, onConfirmar }: {
   segundos: number; totalOps: number; taxaGeral: number
   familiaComunic: boolean | null; setFamiliaComunic: (v: boolean) => void
   notaEncerr: string; setNotaEncerr: (v: string) => void
   salvando: boolean; tipoSessao: TipoSessao
+  investigacoes: ClinicalInvestigation[]; selecionadas: Set<string>; onToggleInvestig: (id: string) => void
   onCancelar: () => void; onConfirmar: () => void
 }) {
   const card: React.CSSProperties = { background: "rgba(13,32,53,.9)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 14 }
@@ -2881,6 +2942,33 @@ function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setF
             rows={3}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: "1px solid rgba(26,58,92,.4)", background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".78rem", fontFamily: "var(--font-sans)", resize: "none", outline: "none", boxSizing: "border-box" }}
           />
+        </div>
+
+        {/* FCRM-002: vínculo com Perguntas Clínicas */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: ".75rem", color: "rgba(170,210,245,.7)", marginBottom: 8 }}>
+            Esta sessão contribui para quais Perguntas Clínicas?
+          </div>
+          {investigacoes.length === 0 ? (
+            <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.4)", padding: "8px 0" }}>
+              Nenhuma pergunta clínica ativa para este paciente.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 168, overflowY: "auto" }}>
+              {investigacoes.map(inv => {
+                const marcada = selecionadas.has(inv.id)
+                return (
+                  <button key={inv.id} type="button" onClick={() => onToggleInvestig(inv.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left", padding: "9px 11px", borderRadius: 9, cursor: "pointer", fontFamily: "var(--font-sans)", border: `1px solid ${marcada ? "rgba(29,158,117,.55)" : "rgba(26,58,92,.5)"}`, background: marcada ? "rgba(29,158,117,.12)" : "transparent" }}>
+                    <span style={{ width: 16, height: 16, borderRadius: 5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".7rem", fontWeight: 800, border: `1.5px solid ${marcada ? "#1D9E75" : "rgba(160,200,235,.4)"}`, background: marcada ? "#1D9E75" : "transparent", color: "#fff" }}>
+                      {marcada ? "✓" : ""}
+                    </span>
+                    <span style={{ fontSize: ".78rem", fontWeight: 600, color: marcada ? "#e8f0f8" : "rgba(200,225,245,.75)" }}>{inv.title}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>

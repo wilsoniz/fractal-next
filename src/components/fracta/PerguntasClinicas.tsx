@@ -6,11 +6,15 @@
 import { useEffect, useState, useCallback } from "react"
 import { Modal } from "@/components/fracta/Modal"
 import {
-  listarInvestigacoes, criarInvestigacao, editarInvestigacao,
+  criarInvestigacao, editarInvestigacao,
   fecharInvestigacao, reabrirInvestigacao,
   PRIORIDADE_LABEL, STATUS_LABEL,
   type ClinicalInvestigation, type InvestigationPriority,
 } from "@/lib/clinical-investigations"
+import {
+  listarInvestigacoesComContagemEvidencias,
+  type InvestigacaoComContagem,
+} from "@/lib/clinical-investigation-evidence"
 
 // ─── Tokens visuais (Petróleo Clínico) ─────────────────────────────────────
 const TEAL = '#1D9E75', AMBER = '#EF9F27', INK = '#1a2e44', RED = '#E05A4B'
@@ -36,7 +40,7 @@ const PRIORIDADES: InvestigationPriority[] = ['Low', 'Medium', 'High', 'Critical
 type ModoModal = { tipo: 'fechado' } | { tipo: 'criar' } | { tipo: 'editar'; alvo: ClinicalInvestigation }
 
 export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
-  const [itens, setItens] = useState<ClinicalInvestigation[]>([])
+  const [itens, setItens] = useState<InvestigacaoComContagem[]>([])
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -52,7 +56,7 @@ export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
 
   const carregar = useCallback(async () => {
     setLoading(true); setErro(null)
-    const res = await listarInvestigacoes(criancaId)
+    const res = await listarInvestigacoesComContagemEvidencias(criancaId)
     if (res.error !== null) setErro(res.error)
     else setItens(res.data)
     setLoading(false)
@@ -133,6 +137,9 @@ export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
                       </span>
                       <span style={{ ...badge, color: cs.fg, background: cs.bg }}>
                         {STATUS_LABEL[inv.status] ?? inv.status}
+                      </span>
+                      <span style={{ ...badge, color: '#5a6b7d', background: 'rgba(26,46,68,.06)' }}>
+                        Evidências: {inv.evidenceCount}
                       </span>
                     </div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: INK }}>{inv.title}</div>
