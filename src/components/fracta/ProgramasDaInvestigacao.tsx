@@ -65,8 +65,8 @@ export function ProgramasDaInvestigacao({
     <div style={caixa}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <div style={rotulo}>Intervenções em uso</div>
-        {!loading && !adicionando && candidatos.length > 0 && (
-          <button onClick={() => setAdicionando(true)} style={btnLink}>+ Vincular programa</button>
+        {!loading && !adicionando && (
+          <button onClick={() => setAdicionando(true)} style={btnVincular}>+ Vincular programa</button>
         )}
       </div>
 
@@ -98,7 +98,7 @@ export function ProgramasDaInvestigacao({
           {adicionando && (
             <div style={{ marginTop: 8 }}>
               {candidatos.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#8595a6' }}>Nenhum programa ativo disponível para vincular.</div>
+                <div style={{ fontSize: 12, color: '#8595a6' }}>Nenhum programa ativo no plano deste paciente para vincular.</div>
               ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {candidatos.map(c => (
@@ -133,6 +133,10 @@ const item: React.CSSProperties = {
 }
 const btnLink: React.CSSProperties = {
   background: 'transparent', color: TEAL, border: 'none', padding: 0, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+}
+const btnVincular: React.CSSProperties = {
+  background: 'rgba(29,158,117,.10)', color: TEAL, border: '1px solid rgba(29,158,117,.30)',
+  borderRadius: 8, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
 }
 const btnRemover: React.CSSProperties = {
   background: 'transparent', color: '#8595a6', border: '1px solid rgba(26,46,68,.14)', borderRadius: 6,
