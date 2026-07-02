@@ -16,6 +16,7 @@ import {
   type InvestigacaoComContagem,
 } from "@/lib/clinical-investigation-evidence"
 import { ResumoInvestigacao } from "@/components/fracta/ResumoInvestigacao"
+import { ProgramasDaInvestigacao } from "@/components/fracta/ProgramasDaInvestigacao"
 
 // ─── Tokens visuais (Petróleo Clínico) ─────────────────────────────────────
 const TEAL = '#1D9E75', AMBER = '#EF9F27', INK = '#1a2e44', RED = '#E05A4B'
@@ -177,6 +178,7 @@ export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
                     {expandido.has(inv.id) ? 'Ocultar resumo' : 'Ver resumo'}
                   </button>
                   {expandido.has(inv.id) && <ResumoInvestigacao investigationId={inv.id} />}
+                  {expandido.has(inv.id) && <ProgramasDaInvestigacao investigationId={inv.id} patientId={inv.patient_id} />}
                 </div>
               </div>
             )
