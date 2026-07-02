@@ -15,6 +15,7 @@ import {
   listarInvestigacoesComContagemEvidencias,
   type InvestigacaoComContagem,
 } from "@/lib/clinical-investigation-evidence"
+import { ResumoInvestigacao } from "@/components/fracta/ResumoInvestigacao"
 
 // ─── Tokens visuais (Petróleo Clínico) ─────────────────────────────────────
 const TEAL = '#1D9E75', AMBER = '#EF9F27', INK = '#1a2e44', RED = '#E05A4B'
@@ -53,6 +54,15 @@ export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
 
   const [confirmFechar, setConfirmFechar] = useState<ClinicalInvestigation | null>(null)
   const [acaoId, setAcaoId] = useState<string | null>(null) // id em ação (fechar/reabrir)
+  const [expandido, setExpandido] = useState<Set<string>>(new Set()) // resumos abertos (lazy)
+
+  function toggleResumo(id: string) {
+    setExpandido(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   const carregar = useCallback(async () => {
     setLoading(true); setErro(null)
@@ -162,6 +172,12 @@ export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
                     )}
                   </div>
                 </div>
+                <div style={{ marginTop: 12, borderTop: '1px solid rgba(26,46,68,.07)', paddingTop: 10 }}>
+                  <button onClick={() => toggleResumo(inv.id)} style={btnResumo}>
+                    {expandido.has(inv.id) ? 'Ocultar resumo' : 'Ver resumo'}
+                  </button>
+                  {expandido.has(inv.id) && <ResumoInvestigacao investigationId={inv.id} />}
+                </div>
               </div>
             )
           })}
@@ -233,6 +249,10 @@ const btnPrimario: React.CSSProperties = {
 const btnSec: React.CSSProperties = {
   background: '#fff', color: INK, border: '1px solid rgba(26,46,68,.16)', borderRadius: 8,
   padding: '7px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+}
+const btnResumo: React.CSSProperties = {
+  background: 'transparent', color: TEAL, border: 'none', padding: 0,
+  fontSize: 13, fontWeight: 600, cursor: 'pointer',
 }
 const caixaErro: React.CSSProperties = {
   fontSize: 13, padding: '9px 12px', borderRadius: 8, color: RED,
