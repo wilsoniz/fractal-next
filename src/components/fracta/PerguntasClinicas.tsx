@@ -17,6 +17,7 @@ import {
 } from "@/lib/clinical-investigation-evidence"
 import { ResumoInvestigacao } from "@/components/fracta/ResumoInvestigacao"
 import { ProgramasDaInvestigacao } from "@/components/fracta/ProgramasDaInvestigacao"
+import { TimelineInvestigacao } from "@/components/fracta/TimelineInvestigacao"
 
 // ─── Tokens visuais (Petróleo Clínico) ─────────────────────────────────────
 const TEAL = '#1D9E75', AMBER = '#EF9F27', INK = '#1a2e44', RED = '#E05A4B'
@@ -56,9 +57,17 @@ export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
   const [confirmFechar, setConfirmFechar] = useState<ClinicalInvestigation | null>(null)
   const [acaoId, setAcaoId] = useState<string | null>(null) // id em ação (fechar/reabrir)
   const [expandido, setExpandido] = useState<Set<string>>(new Set()) // resumos abertos (lazy)
+  const [expandidoTimeline, setExpandidoTimeline] = useState<Set<string>>(new Set()) // timelines abertas (lazy)
 
   function toggleResumo(id: string) {
     setExpandido(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function toggleTimeline(id: string) {
+    setExpandidoTimeline(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id); else next.add(id)
       return next
@@ -174,11 +183,17 @@ export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
                   </div>
                 </div>
                 <div style={{ marginTop: 12, borderTop: '1px solid rgba(26,46,68,.07)', paddingTop: 10 }}>
-                  <button onClick={() => toggleResumo(inv.id)} style={btnResumo}>
-                    {expandido.has(inv.id) ? 'Ocultar resumo' : 'Ver resumo'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 16 }}>
+                    <button onClick={() => toggleResumo(inv.id)} style={btnResumo}>
+                      {expandido.has(inv.id) ? 'Ocultar resumo' : 'Ver resumo'}
+                    </button>
+                    <button onClick={() => toggleTimeline(inv.id)} style={btnResumo}>
+                      {expandidoTimeline.has(inv.id) ? 'Ocultar timeline' : 'Ver timeline'}
+                    </button>
+                  </div>
                   {expandido.has(inv.id) && <ResumoInvestigacao investigationId={inv.id} />}
                   {expandido.has(inv.id) && <ProgramasDaInvestigacao investigationId={inv.id} patientId={inv.patient_id} />}
+                  {expandidoTimeline.has(inv.id) && <TimelineInvestigacao investigationId={inv.id} />}
                 </div>
               </div>
             )
