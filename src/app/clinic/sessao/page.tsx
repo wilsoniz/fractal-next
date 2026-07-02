@@ -9,8 +9,11 @@ import {
   listarInvestigacoesDaSessao,
   vincularSessaoAInvestigacoes,
   removerVinculoSessao,
+  listarContextoInvestigacoesAtivas,
+  type ContextoInvestigacaoSessao,
 } from "@/lib/clinical-investigation-evidence";
-import type { ClinicalInvestigation } from "@/lib/clinical-investigations";
+import { criarInvestigacao, type ClinicalInvestigation, type InvestigationPriority } from "@/lib/clinical-investigations";
+import { PainelPerguntasSessao } from "@/components/fracta/PainelPerguntasSessao";
 import { useClinicContext } from "../layout";
 import { LineChart, Line, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 
@@ -343,6 +346,11 @@ function SessaoInner() {
   // ── FCRM-002: perguntas clínicas ativas vinculáveis à sessão ────────────────────
   const [pcAtivas, setPcAtivas] = useState<ClinicalInvestigation[]>([])
   const [pcSelecionadas, setPcSelecionadas] = useState<Set<string>>(new Set())
+  // ── FCRM-004: contexto (contagem/última evidência) + captura durante a sessão ────
+  const [pcContexto, setPcContexto] = useState<Map<string, ContextoInvestigacaoSessao>>(new Map())
+  const [showNovaPC, setShowNovaPC] = useState(false)
+  const [npcSalvando, setNpcSalvando] = useState(false)
+  const [npcErro, setNpcErro] = useState<string | null>(null)
 
   // ── Supervisão ────────────────────────────────────────────────────────────────
   const [encaminhamentos, setEncaminhamentos] = useState<Encaminhamento[]>([])
@@ -413,13 +421,28 @@ function SessaoInner() {
   }, [])
 
   // FCRM-002: perguntas clínicas ativas do paciente + pré-marca as já vinculadas à sessão
+  // FCRM-004: recarrega perguntas ativas + contexto (usado no load e após criar na sessão)
+  async function recarregarPerguntasAtivas() {
+    if (!pacienteId) return
+    const [ativas, ctx] = await Promise.all([
+      listarInvestigacoesAtivasDoPaciente(pacienteId),
+      listarContextoInvestigacoesAtivas(pacienteId),
+    ])
+    if (ativas.error === null) setPcAtivas(ativas.data)
+    if (ctx.error === null) setPcContexto(new Map(ctx.data.map(c => [c.id, c])))
+  }
+
   useEffect(() => {
     if (!pacienteId) return
     let cancelado = false
     async function carregarPc() {
-      const res = await listarInvestigacoesAtivasDoPaciente(pacienteId!)
+      const [res, ctx] = await Promise.all([
+        listarInvestigacoesAtivasDoPaciente(pacienteId!),
+        listarContextoInvestigacoesAtivas(pacienteId!),
+      ])
       if (cancelado) return
       if (res.error === null) setPcAtivas(res.data)
+      if (ctx.error === null) setPcContexto(new Map(ctx.data.map(c => [c.id, c])))
 
       if (sessaoDbId) {
         const vin = await listarInvestigacoesDaSessao(sessaoDbId)
@@ -429,6 +452,21 @@ function SessaoInner() {
     carregarPc()
     return () => { cancelado = true }
   }, [pacienteId, sessaoDbId])
+
+  // FCRM-004: cria pergunta clínica durante a sessão e a deixa pré-vinculada
+  async function criarPerguntaNaSessao(p: { title: string; clinicalProblem: string; priority: InvestigationPriority }) {
+    if (!paciente) return
+    setNpcSalvando(true); setNpcErro(null)
+    const res = await criarInvestigacao({
+      patientId: paciente.id, title: p.title, clinicalProblem: p.clinicalProblem, priority: p.priority,
+    })
+    setNpcSalvando(false)
+    if (res.error !== null) { setNpcErro(res.error); return }
+    setShowNovaPC(false)
+    // criada durante ESTA sessão → já entra selecionada para vínculo no encerramento
+    setPcSelecionadas(prev => new Set(prev).add(res.data.id))
+    await recarregarPerguntasAtivas()
+  }
 
 
   // ── Carregar dados ─────────────────────────────────────────────────────────────
@@ -1209,6 +1247,9 @@ function SessaoInner() {
             </div>
           )}
 
+          {/* FCRM-004 (A): Perguntas Clínicas ativas em vista antes de iniciar */}
+          {tipoSessao !== "supervisao" && <PainelPerguntasSessao investigacoes={pcAtivas} />}
+
           <button onClick={iniciarSessao} disabled={!paciente} style={{ padding: 14, borderRadius: 12, border: "none", background: paciente ? "linear-gradient(135deg,#1D9E75,#0f8f7a)" : "rgba(26,58,92,.4)", color: paciente ? "#07111f" : "rgba(160,200,235,.3)", fontWeight: 800, fontSize: ".95rem", cursor: paciente ? "pointer" : "not-allowed", fontFamily: "var(--font-sans)" }}>
             Iniciar sessão →
           </button>
@@ -1354,6 +1395,7 @@ function SessaoInner() {
             salvando={salvandoEnc}
             tipoSessao={tipoSessao}
             investigacoes={pcAtivas}
+            contexto={pcContexto}
             selecionadas={pcSelecionadas}
             onToggleInvestig={(id) => setPcSelecionadas(prev => {
               const next = new Set(prev)
@@ -1477,6 +1519,11 @@ function SessaoInner() {
             </button>
             <button onClick={() => setLibAberta(p => !p)} style={{ padding: "5px 10px", borderRadius: 7, border: `1px solid ${libAberta ? "rgba(139,127,232,.4)" : "rgba(26,58,92,.5)"}`, background: libAberta ? "rgba(139,127,232,.1)" : "transparent", color: libAberta ? "#8B7FE8" : "rgba(160,200,235,.5)", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
               Biblioteca
+            </button>
+            {/* FCRM-004 (B): capturar pergunta clínica no momento em que surge */}
+            <button onClick={() => { setNpcErro(null); setShowNovaPC(true) }} title="Nova Pergunta Clínica"
+              style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(29,158,117,.3)", background: "rgba(29,158,117,.08)", color: "#1D9E75", fontSize: ".68rem", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+              + Pergunta
             </button>
           </div>
         </div>
@@ -1965,6 +2012,7 @@ function SessaoInner() {
             salvando={salvandoEnc}
             tipoSessao={tipoSessao}
             investigacoes={pcAtivas}
+            contexto={pcContexto}
             selecionadas={pcSelecionadas}
             onToggleInvestig={(id) => setPcSelecionadas(prev => {
               const next = new Set(prev)
@@ -1973,6 +2021,15 @@ function SessaoInner() {
             })}
             onCancelar={() => setShowEncModal(false)}
             onConfirmar={confirmarEncerramento}
+          />
+        )}
+
+        {/* FCRM-004 (B): captura de pergunta clínica durante a sessão */}
+        {showNovaPC && (
+          <ModalNovaPerguntaClinica
+            salvando={npcSalvando} erro={npcErro}
+            onCriar={criarPerguntaNaSessao}
+            onFechar={() => { if (!npcSalvando) setShowNovaPC(false) }}
           />
         )}
       </div>
@@ -2899,12 +2956,13 @@ function AvisoTempo({ onContinuar, onEncerrar }: { onContinuar: () => void; onEn
   )
 }
 
-function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setFamiliaComunic, notaEncerr, setNotaEncerr, salvando, tipoSessao, investigacoes, selecionadas, onToggleInvestig, onCancelar, onConfirmar }: {
+function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setFamiliaComunic, notaEncerr, setNotaEncerr, salvando, tipoSessao, investigacoes, contexto, selecionadas, onToggleInvestig, onCancelar, onConfirmar }: {
   segundos: number; totalOps: number; taxaGeral: number
   familiaComunic: boolean | null; setFamiliaComunic: (v: boolean) => void
   notaEncerr: string; setNotaEncerr: (v: string) => void
   salvando: boolean; tipoSessao: TipoSessao
-  investigacoes: ClinicalInvestigation[]; selecionadas: Set<string>; onToggleInvestig: (id: string) => void
+  investigacoes: ClinicalInvestigation[]; contexto: Map<string, ContextoInvestigacaoSessao>
+  selecionadas: Set<string>; onToggleInvestig: (id: string) => void
   onCancelar: () => void; onConfirmar: () => void
 }) {
   const card: React.CSSProperties = { background: "rgba(13,32,53,.9)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 14 }
@@ -2957,13 +3015,22 @@ function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setF
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 168, overflowY: "auto" }}>
               {investigacoes.map(inv => {
                 const marcada = selecionadas.has(inv.id)
+                const ctx = contexto.get(inv.id)
+                const hint = ctx
+                  ? (ctx.evidenceCount === 0
+                      ? "Sem evidências ainda"
+                      : `${ctx.evidenceCount} evidência${ctx.evidenceCount > 1 ? "s" : ""}${ctx.ultimaSessao ? ` · última ${new Date(ctx.ultimaSessao).toLocaleDateString("pt-BR")}` : ""}`)
+                  : null
                 return (
                   <button key={inv.id} type="button" onClick={() => onToggleInvestig(inv.id)}
-                    style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left", padding: "9px 11px", borderRadius: 9, cursor: "pointer", fontFamily: "var(--font-sans)", border: `1px solid ${marcada ? "rgba(29,158,117,.55)" : "rgba(26,58,92,.5)"}`, background: marcada ? "rgba(29,158,117,.12)" : "transparent" }}>
-                    <span style={{ width: 16, height: 16, borderRadius: 5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".7rem", fontWeight: 800, border: `1.5px solid ${marcada ? "#1D9E75" : "rgba(160,200,235,.4)"}`, background: marcada ? "#1D9E75" : "transparent", color: "#fff" }}>
+                    style={{ display: "flex", alignItems: "flex-start", gap: 10, textAlign: "left", padding: "9px 11px", borderRadius: 9, cursor: "pointer", fontFamily: "var(--font-sans)", border: `1px solid ${marcada ? "rgba(29,158,117,.55)" : "rgba(26,58,92,.5)"}`, background: marcada ? "rgba(29,158,117,.12)" : "transparent" }}>
+                    <span style={{ width: 16, height: 16, borderRadius: 5, flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".7rem", fontWeight: 800, border: `1.5px solid ${marcada ? "#1D9E75" : "rgba(160,200,235,.4)"}`, background: marcada ? "#1D9E75" : "transparent", color: "#fff" }}>
                       {marcada ? "✓" : ""}
                     </span>
-                    <span style={{ fontSize: ".78rem", fontWeight: 600, color: marcada ? "#e8f0f8" : "rgba(200,225,245,.75)" }}>{inv.title}</span>
+                    <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                      <span style={{ fontSize: ".78rem", fontWeight: 600, color: marcada ? "#e8f0f8" : "rgba(200,225,245,.75)" }}>{inv.title}</span>
+                      {hint && <span style={{ fontSize: ".64rem", color: "rgba(160,200,235,.45)" }}>{hint}</span>}
+                    </span>
                   </button>
                 )
               })}
@@ -2978,6 +3045,74 @@ function ModalEncerramento({ segundos, totalOps, taxaGeral, familiaComunic, setF
           <button onClick={onConfirmar} disabled={!podeFinalizar || salvando}
             style={{ flex: 2, padding: "11px", borderRadius: 10, border: "none", background: podeFinalizar && !salvando ? "linear-gradient(135deg,#E05A4B,#c04030)" : "rgba(26,58,92,.4)", color: podeFinalizar && !salvando ? "#fff" : "rgba(160,200,235,.3)", fontWeight: 800, fontSize: ".82rem", cursor: podeFinalizar && !salvando ? "pointer" : "not-allowed", fontFamily: "var(--font-sans)" }}>
             {salvando ? "Finalizando..." : "Finalizar sessão →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// FCRM-004 (B): modal mínimo para criar Pergunta Clínica durante a sessão (tema escuro).
+function ModalNovaPerguntaClinica({ onCriar, onFechar, salvando, erro }: {
+  onCriar: (p: { title: string; clinicalProblem: string; priority: InvestigationPriority }) => void
+  onFechar: () => void
+  salvando: boolean
+  erro: string | null
+}) {
+  const [titulo, setTitulo] = useState("")
+  const [problema, setProblema] = useState("")
+  const [prioridade, setPrioridade] = useState<InvestigationPriority>("Medium")
+  const podeSalvar = titulo.trim().length > 0 && !salvando
+
+  const campo: React.CSSProperties = {
+    width: "100%", padding: "10px 12px", borderRadius: 9, border: "1px solid rgba(26,58,92,.4)",
+    background: "rgba(13,32,53,.6)", color: "#e8f0f8", fontSize: ".82rem",
+    fontFamily: "var(--font-sans)", outline: "none", boxSizing: "border-box",
+  }
+  const rotulo: React.CSSProperties = { fontSize: ".72rem", color: "rgba(170,210,245,.7)", marginBottom: 6, display: "block" }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}
+      onClick={onFechar}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "rgba(13,32,53,.95)", border: "1px solid rgba(26,58,92,.6)", borderRadius: 14, padding: 24, width: "100%", maxWidth: 440 }}>
+        <div style={{ fontSize: "1rem", fontWeight: 800, color: "#e8f0f8", marginBottom: 4 }}>Nova Pergunta Clínica</div>
+        <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.5)", marginBottom: 18 }}>
+          Capture a pergunta que surgiu no atendimento. Fica ativa e vinculável a esta sessão.
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={rotulo}>Título *</label>
+          <input value={titulo} onChange={e => setTitulo(e.target.value)} autoFocus
+            placeholder="Ex.: Por que a birra aumenta nas transições?" style={campo} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={rotulo}>Problema clínico (opcional)</label>
+          <textarea value={problema} onChange={e => setProblema(e.target.value)} rows={3}
+            placeholder="Contexto, observações iniciais…" style={{ ...campo, resize: "none" }} />
+        </div>
+        <div style={{ marginBottom: 18 }}>
+          <label style={rotulo}>Prioridade</label>
+          <select value={prioridade} onChange={e => setPrioridade(e.target.value as InvestigationPriority)} style={campo}>
+            <option value="Low">Baixa</option>
+            <option value="Medium">Média</option>
+            <option value="High">Alta</option>
+            <option value="Critical">Crítica</option>
+          </select>
+        </div>
+
+        {erro && (
+          <div style={{ fontSize: ".72rem", color: "#E05A4B", background: "rgba(224,90,75,.08)", border: "1px solid rgba(224,90,75,.2)", borderRadius: 8, padding: "8px 11px", marginBottom: 14 }}>
+            {erro}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onFechar} disabled={salvando} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid rgba(26,58,92,.5)", background: "transparent", color: "rgba(160,200,235,.6)", fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            Cancelar
+          </button>
+          <button onClick={() => onCriar({ title: titulo.trim(), clinicalProblem: problema, priority: prioridade })} disabled={!podeSalvar}
+            style={{ flex: 2, padding: "11px", borderRadius: 10, border: "none", background: podeSalvar ? "linear-gradient(135deg,#1D9E75,#0f8f7a)" : "rgba(26,58,92,.4)", color: podeSalvar ? "#07111f" : "rgba(160,200,235,.3)", fontWeight: 800, fontSize: ".82rem", cursor: podeSalvar ? "pointer" : "not-allowed", fontFamily: "var(--font-sans)" }}>
+            {salvando ? "Criando..." : "Criar pergunta"}
           </button>
         </div>
       </div>

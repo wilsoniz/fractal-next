@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase"
 import {
   listarInvestigacoes,
   type ClinicalInvestigation,
+  type InvestigationPriority,
   type Resultado,
 } from "@/lib/clinical-investigations"
 
@@ -125,6 +126,72 @@ export async function listarInvestigacoesDaSessao(
 
   if (error) return { data: null, error: error.message }
   return { data: (data ?? []).map((r: { investigation_id: string }) => r.investigation_id), error: null }
+}
+
+// ─── FCRM-004: contexto das investigações ATIVAS (contagem + última sessão) ─
+// Para o card de encerramento: quantas evidências cada pergunta já tem e a data
+// da última sessão-evidência. 3 queries no total, independente do nº de perguntas.
+export interface ContextoInvestigacaoSessao {
+  id: string
+  title: string
+  priority: InvestigationPriority
+  evidenceCount: number
+  ultimaSessao: string | null   // ISO — sessoes_v2.inicio da evidência mais recente
+}
+
+export async function listarContextoInvestigacoesAtivas(
+  patientId: string
+): Promise<Resultado<ContextoInvestigacaoSessao[]>> {
+  const { data: invs, error: errInv } = await supabase
+    .from("clinical_investigations")
+    .select("id, title, priority")
+    .eq("patient_id", patientId)
+    .eq("status", "Active")
+    .order("created_at", { ascending: false })
+  if (errInv) return { data: null, error: errInv.message }
+
+  const investigacoes = (invs ?? []) as { id: string; title: string; priority: InvestigationPriority }[]
+  if (investigacoes.length === 0) return { data: [], error: null }
+
+  const invIds = investigacoes.map(i => i.id)
+  const { data: evid, error: errEvid } = await supabase
+    .from("clinical_investigation_evidence")
+    .select("investigation_id, source_id")
+    .eq("source_type", SOURCE_SESSION)
+    .in("investigation_id", invIds)
+  if (errEvid) return { data: null, error: errEvid.message }
+
+  const evidencias = (evid ?? []) as { investigation_id: string; source_id: string }[]
+  const sessionIds = [...new Set(evidencias.map(e => e.source_id))]
+
+  // Datas das sessões-evidência (guarda contra .in([]) vazio)
+  const dataPorSessao = new Map<string, string>()
+  if (sessionIds.length > 0) {
+    const { data: sess, error: errSess } = await supabase
+      .from("sessoes_v2")
+      .select("id, inicio")
+      .in("id", sessionIds)
+    if (errSess) return { data: null, error: errSess.message }
+    for (const s of (sess ?? []) as { id: string; inicio: string | null }[]) {
+      if (s.inicio) dataPorSessao.set(s.id, s.inicio)
+    }
+  }
+
+  const contexto = investigacoes.map(inv => {
+    const daInvestigacao = evidencias.filter(e => e.investigation_id === inv.id)
+    const datas = daInvestigacao
+      .map(e => dataPorSessao.get(e.source_id))
+      .filter((x): x is string => !!x)
+      .sort()
+    return {
+      id: inv.id,
+      title: inv.title,
+      priority: inv.priority,
+      evidenceCount: daInvestigacao.length,
+      ultimaSessao: datas.length > 0 ? datas[datas.length - 1] : null,
+    }
+  })
+  return { data: contexto, error: null }
 }
 
 // ─── Desfazer o vínculo de uma sessão com uma investigação ──────────────────
