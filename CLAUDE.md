@@ -138,6 +138,22 @@ Auditar cada um individualmente.
 - **Plano Terapêutico (PEI+PIC)**: documento de planejamento inicial p/ pais. 8 seções, atrelado ao plano de tratamento, 2 modos (técnico/família), puxa avaliações/repertório/comportamentos/programas automaticamente. Reusa arquitetura do relatório de fase. Fazer spec primeiro (aguarda input da parceira + manuais).
 - **Padrão de qualidade de PDF (transversal)**: paginação inteligente (eliminar "buracos"), marca Fracta discreta no rodapé (boca-a-boca viral), matar "about:blank" (definir title), qualidade de impressão. Vale p/ fase, sessão e PEI. Tratar como "chassi de documento" compartilhado.
 
+**FCRM-001 — ClinicalInvestigation (Pergunta Clínica)** — primeira entidade do Fracta
+Clinical Reasoning Model. Spec completa em `~/Downloads/FCRM-001-spec.md`; migration em
+`~/Downloads/fcrm-001-migration.sql` (aplicar pelo SQL Editor). Escopo: tabela
+`clinical_investigations` + RLS, I/O em `src/lib/clinical-investigations.ts`, card CRUD
+na página do paciente. UI sempre "Pergunta Clínica" (nunca expor o nome interno). Soft-close
+(sem DELETE); valores internos em EN, UI PT-BR com `?? fallback`.
+- **VÍNCULO TERAPEUTA↔PACIENTE (provado via pg_policies jul/2026):** NÃO existe
+  `criancas.terapeuta_id`. O vínculo vive em `planos` — predicado canônico é
+  `patient_id IN (SELECT crianca_id FROM planos WHERE terapeuta_id = auth.uid())`.
+  É a forma das policies reais de `criancas`/`planos`/`plano_protocolos`.
+- **Identidade de terapeuta = `profiles.id = auth.uid()`** (app usa `profiles`, nunca
+  `terapeutas` p/ auth). Por isso `clinical_investigations.created_by → profiles(id)` e
+  `created_by = auth.uid()`. A tabela `terapeutas` é diretório/marketplace, não auth.
+- Pergunta Clínica é **clínico-only** nesta sprint (sem ramo `responsavel_id`; famílias não veem).
+- Trigger próprio `fn_set_updated_at` (a genérica `set_atualizado_em()` grava `atualizado_em` PT; esta tabela usa `updated_at` EN).
+
 NOTA: o fluxo de avançar fase (`gerarRelatorioFase` em page.tsx) ainda passa o paciente 
 sem normalizar EN→PT (`data.name`/`diagnosis`); a aba nova já normaliza. Alinhar quando 
 tocar esse caminho.

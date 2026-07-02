@@ -12,6 +12,7 @@ import { useClinicContext } from "../../layout";
 import { supabase } from "@/lib/supabase";
 import { HistoricoSessoes, ContratoTab } from "./tabs";
 import { RelatoriosTab } from "./relatorios-tab";
+import { PerguntasClinicas } from "@/components/fracta/PerguntasClinicas";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type RadarSnapshot = {
@@ -54,7 +55,7 @@ type VariaveisClinicas = {
   revogacoes_por_sessao: number; tolerancia_exigencia: number; responsividade_reforco: number;
 };
 
-type Tab = "visao-geral" | "programas" | "skill-graph" | "forecast" | "avaliacoes" | "contrato" | "historico" | "jornada" | "relatorios";
+type Tab = "visao-geral" | "programas" | "skill-graph" | "forecast" | "avaliacoes" | "contrato" | "historico" | "jornada" | "relatorios" | "perguntas-clinicas";
 
 // ─── FORECAST GOALS ──────────────────────────────────────────────────────────
 const FORECAST_GOALS: ForecastGoal[] = [
@@ -990,6 +991,7 @@ export default function PerfilPacientePage() {
   const TABS: { id: Tab; label: string }[] = [
     { id: "visao-geral", label: "Visão geral" },
     { id: "jornada", label: "Jornada Clínica" }, // ← nova
+    { id: "perguntas-clinicas", label: "Perguntas Clínicas" },
     { id: "programas", label: "Programas" },
     { id: "skill-graph", label: "Skill Graph" },
     { id: "forecast", label: "Forecast" },
@@ -1819,6 +1821,7 @@ export default function PerfilPacientePage() {
       {/* ── CONTRATO ── */}
       {tab === "contrato" && <ContratoTab criancaId={params.id as string} terapeutaId={terapeuta?.id ?? ""} />}
       {tab === "relatorios" && <RelatoriosTab criancaId={params.id as string} jornada={jornada} paciente={data} terapeuta={terapeuta} />}
+      {tab === "perguntas-clinicas" && <PerguntasClinicas criancaId={params.id as string} />}
 
       {/* Modal adicionar habilidade */}
       {modalHab && (
