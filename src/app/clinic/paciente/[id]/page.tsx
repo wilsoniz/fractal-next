@@ -13,6 +13,8 @@ import { supabase } from "@/lib/supabase";
 import { HistoricoSessoes, ContratoTab } from "./tabs";
 import { RelatoriosTab } from "./relatorios-tab";
 import { PerguntasClinicas } from "@/components/fracta/PerguntasClinicas";
+import { AdicionarProgramaModal } from "@/components/fracta/AdicionarProgramaModal";
+import { listarProgramasDoPlano, type ProgramaDoPlano } from "@/lib/plano-programas";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type RadarSnapshot = {
@@ -597,6 +599,23 @@ export default function PerfilPacientePage() {
 
   const [sugestoes, setSugestoes] = useState<any[]>([])
   const [planoIdAtivo, setPlanoIdAtivo] = useState<string | null>(null)
+  // Treatment-001: programas reais do plano (plano_programas) + modal de adicionar
+  const [programasDoPlano, setProgramasDoPlano] = useState<ProgramaDoPlano[]>([])
+  const [showAddPrograma, setShowAddPrograma] = useState(false)
+
+  async function recarregarProgramasDoPlano() {
+    if (!planoIdAtivo) return
+    const res = await listarProgramasDoPlano(planoIdAtivo)
+    if (res.error === null) setProgramasDoPlano(res.data)
+  }
+  useEffect(() => {
+    if (!planoIdAtivo) { setProgramasDoPlano([]); return }
+    let cancel = false
+    listarProgramasDoPlano(planoIdAtivo).then(res => {
+      if (!cancel && res.error === null) setProgramasDoPlano(res.data)
+    })
+    return () => { cancel = true }
+  }, [planoIdAtivo])
   const [aprovando, setAprovando] = useState<string | null>(null)
 
 
@@ -1480,6 +1499,43 @@ export default function PerfilPacientePage() {
       {/* ── PROGRAMAS ── */}
       {tab === "programas" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* Treatment-001: programas reais do plano (plano_programas) + adicionar */}
+          <div style={{ ...card, padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: ".85rem", fontWeight: 700, color: "#e8f0f8" }}>Programas do plano (ativos)</div>
+                <div style={{ fontSize: ".68rem", color: "rgba(160,200,235,.45)", marginTop: 2 }}>Registrados no plano — usados na sessão</div>
+              </div>
+              <button onClick={() => setShowAddPrograma(true)}
+                style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#1D9E75,#0f8f7a)", color: "#07111f", fontSize: ".72rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                + Adicionar programa
+              </button>
+            </div>
+            {programasDoPlano.length === 0 ? (
+              <div style={{ fontSize: ".72rem", color: "rgba(160,200,235,.4)" }}>Nenhum programa ativo no plano ainda.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {programasDoPlano.map(p => (
+                  <div key={p.planoProgramaId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(26,58,92,.45)" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1D9E75", flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: ".8rem", fontWeight: 600, color: "#e8f0f8" }}>{p.nome}</div>
+                      {p.dominio && <div style={{ fontSize: ".64rem", color: "rgba(160,200,235,.45)" }}>{p.dominio}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {showAddPrograma && (
+            <AdicionarProgramaModal
+              patientId={params.id as string}
+              onFechar={() => setShowAddPrograma(false)}
+              onAdicionado={recarregarProgramasDoPlano}
+            />
+          )}
 
           {/* Sugestões pendentes */}
           {sugestoes.length > 0 && (
