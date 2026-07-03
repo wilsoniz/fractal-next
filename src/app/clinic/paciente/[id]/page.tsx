@@ -14,6 +14,7 @@ import { HistoricoSessoes, ContratoTab } from "./tabs";
 import { RelatoriosTab } from "./relatorios-tab";
 import { PerguntasClinicas } from "@/components/fracta/PerguntasClinicas";
 import { AdicionarProgramaModal } from "@/components/fracta/AdicionarProgramaModal";
+import { ProgramaWorkspace } from "@/components/fracta/ProgramaWorkspace";
 import { listarProgramasDoPlano, type ProgramaDoPlano } from "@/lib/plano-programas";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
@@ -602,6 +603,8 @@ export default function PerfilPacientePage() {
   // Treatment-001: programas reais do plano (plano_programas) + modal de adicionar
   const [programasDoPlano, setProgramasDoPlano] = useState<ProgramaDoPlano[]>([])
   const [showAddPrograma, setShowAddPrograma] = useState(false)
+  // Treatment-003: Program Workspace (modal) — plano_programa_id aberto
+  const [workspacePPId, setWorkspacePPId] = useState<string | null>(null)
 
   async function recarregarProgramasDoPlano() {
     if (!planoIdAtivo) return
@@ -1528,6 +1531,10 @@ export default function PerfilPacientePage() {
                         {p.percentualAtual}%
                       </span>
                     )}
+                    <button onClick={() => setWorkspacePPId(p.planoProgramaId)}
+                      style={{ flexShrink: 0, padding: "5px 11px", borderRadius: 7, border: "1px solid rgba(55,138,221,.35)", background: "rgba(55,138,221,.08)", color: "#378ADD", fontSize: ".66rem", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                      Abrir
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1539,6 +1546,13 @@ export default function PerfilPacientePage() {
               patientId={params.id as string}
               onFechar={() => setShowAddPrograma(false)}
               onAdicionado={recarregarProgramasDoPlano}
+            />
+          )}
+
+          {workspacePPId && (
+            <ProgramaWorkspace
+              planoProgramaId={workspacePPId}
+              onFechar={() => setWorkspacePPId(null)}
             />
           )}
 
