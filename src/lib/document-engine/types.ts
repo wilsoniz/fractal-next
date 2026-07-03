@@ -8,6 +8,7 @@
 
 export type DocumentoTipo =
   | 'relatorio_investigacao'
+  | 'registro_sessao'
   | 'pei'
   | 'pic'
   | 'relatorio_plano_saude'

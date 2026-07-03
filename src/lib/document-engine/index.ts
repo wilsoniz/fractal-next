@@ -8,6 +8,7 @@
 import type { Resultado } from "@/lib/clinical-investigations"
 import type { DocumentoClinico, DocumentoTipo } from "./types"
 import { montarRelatorioInvestigacao } from "./relatorio-investigacao"
+import { montarRegistroSessao } from "./registro-sessao"
 
 // Params de composição (por enquanto todos usam um id da entidade âncora)
 export interface ParamsDocumento {
@@ -18,6 +19,7 @@ type Compositor = (params: ParamsDocumento) => Promise<Resultado<DocumentoClinic
 
 const REGISTRO: Partial<Record<DocumentoTipo, Compositor>> = {
   relatorio_investigacao: ({ id }) => montarRelatorioInvestigacao(id),
+  registro_sessao: ({ id }) => montarRegistroSessao(id),
   // pei / pic / relatorio_plano_saude / relatorio_supervisao → sprints futuras
 }
 
@@ -31,4 +33,5 @@ export async function montarDocumento(
 }
 
 export { montarRelatorioInvestigacao }
+export { montarRegistroSessao }
 export * from "./types"

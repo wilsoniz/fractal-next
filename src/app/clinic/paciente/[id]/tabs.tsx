@@ -1,5 +1,6 @@
 'use client'
 import { abrirRelatorioPDF, dadosDoSummary } from "@/lib/relatorio-pdf";
+import { DocumentoPreview } from "@/components/fracta/DocumentoPreview";
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
@@ -152,6 +153,7 @@ export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string
   const [fDecisao, setFDecisao] = useState<string[]>([])
   const [fNota, setFNota] = useState("")
   const [salvandoAn, setSalvandoAn] = useState(false)
+  const [registroSessaoId, setRegistroSessaoId] = useState<string | null>(null) // FCRM-008: preview do registro clínico
   const OPCOES_PLANO = ["Manter programas atuais","Aumentar critério de maestria","Reduzir nível de ajuda","Introduzir generalização","Revisão de programa","Incluir novos objetivos","Necessidade de supervisão clínica"]
   function iniciarEdicao(s: SessaoHistorico) {
     setEditId(s.id)
@@ -328,7 +330,10 @@ export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string
 
             {estaAberta && (
               <div style={{ borderTop: '1px solid rgba(26,58,92,.3)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+    <button onClick={() => setRegistroSessaoId(s.sessao_id)} style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid rgba(55,138,221,.3)', background: 'rgba(55,138,221,.08)', color: '#378ADD', fontSize: '.68rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+      Ver registro clínico
+    </button>
     <button onClick={() => abrirRelatorioPDF(dadosDoSummary(
       s,
       { inicio: s.inicio, tipo: s.tipo, duracao_segundos: s.duracao_segundos },
@@ -459,6 +464,14 @@ export function HistoricoSessoes({ criancaId, criancaNome }: { criancaId: string
           </div>
         )
       })}
+
+      {registroSessaoId && (
+        <DocumentoPreview
+          tipo="registro_sessao"
+          id={registroSessaoId}
+          onFechar={() => setRegistroSessaoId(null)}
+        />
+      )}
     </div>
   )
 }
