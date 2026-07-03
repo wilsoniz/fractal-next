@@ -18,6 +18,7 @@ import {
 import { ResumoInvestigacao } from "@/components/fracta/ResumoInvestigacao"
 import { ProgramasDaInvestigacao } from "@/components/fracta/ProgramasDaInvestigacao"
 import { TimelineInvestigacao } from "@/components/fracta/TimelineInvestigacao"
+import { DocumentoPreview } from "@/components/fracta/DocumentoPreview"
 
 // ─── Tokens visuais (Petróleo Clínico) ─────────────────────────────────────
 const TEAL = '#1D9E75', AMBER = '#EF9F27', INK = '#1a2e44', RED = '#E05A4B'
@@ -58,6 +59,7 @@ export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
   const [acaoId, setAcaoId] = useState<string | null>(null) // id em ação (fechar/reabrir)
   const [expandido, setExpandido] = useState<Set<string>>(new Set()) // resumos abertos (lazy)
   const [expandidoTimeline, setExpandidoTimeline] = useState<Set<string>>(new Set()) // timelines abertas (lazy)
+  const [relatorioId, setRelatorioId] = useState<string | null>(null) // FCRM-007: preview de documento aberto
 
   function toggleResumo(id: string) {
     setExpandido(prev => {
@@ -190,6 +192,9 @@ export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
                     <button onClick={() => toggleTimeline(inv.id)} style={btnResumo}>
                       {expandidoTimeline.has(inv.id) ? 'Ocultar timeline' : 'Ver timeline'}
                     </button>
+                    <button onClick={() => setRelatorioId(inv.id)} style={btnResumo}>
+                      Ver relatório
+                    </button>
                   </div>
                   {expandido.has(inv.id) && <ResumoInvestigacao investigationId={inv.id} />}
                   {expandido.has(inv.id) && <ProgramasDaInvestigacao investigationId={inv.id} patientId={inv.patient_id} />}
@@ -248,6 +253,15 @@ export function PerguntasClinicas({ criancaId }: { criancaId: string }) {
           </div>
         </div>
       </Modal>
+
+      {/* FCRM-007: preview do Relatório de Investigação Clínica */}
+      {relatorioId && (
+        <DocumentoPreview
+          tipo="relatorio_investigacao"
+          id={relatorioId}
+          onFechar={() => setRelatorioId(null)}
+        />
+      )}
     </div>
   )
 }

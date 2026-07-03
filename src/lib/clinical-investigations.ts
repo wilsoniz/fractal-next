@@ -62,6 +62,24 @@ export async function listarInvestigacoes(
   return { data: lista, error: null }
 }
 
+// ─── Leitura de UMA investigação (getter aditivo — Document Engine) ─────────
+export async function obterInvestigacao(
+  id: string
+): Promise<Resultado<ClinicalInvestigation | null>> {
+  const { data, error } = await supabase
+    .from("clinical_investigations")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (error) {
+    // PGRST116 = 0 linhas (não encontrada ou não visível por RLS) → não é erro
+    if ((error as { code?: string }).code === "PGRST116") return { data: null, error: null }
+    return { data: null, error: error.message }
+  }
+  return { data: data as ClinicalInvestigation, error: null }
+}
+
 // ─── Criação ──────────────────────────────────────────────────────────────
 export async function criarInvestigacao(input: {
   patientId: string
