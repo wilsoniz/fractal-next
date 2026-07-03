@@ -1519,10 +1519,15 @@ export default function PerfilPacientePage() {
                 {programasDoPlano.map(p => (
                   <div key={p.planoProgramaId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(26,58,92,.45)" }}>
                     <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1D9E75", flexShrink: 0 }} />
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontSize: ".8rem", fontWeight: 600, color: "#e8f0f8" }}>{p.nome}</div>
                       {p.dominio && <div style={{ fontSize: ".64rem", color: "rgba(160,200,235,.45)" }}>{p.dominio}</div>}
                     </div>
+                    {p.percentualAtual !== null && (
+                      <span style={{ flexShrink: 0, fontSize: ".68rem", fontWeight: 700, color: "#1D9E75", background: "rgba(29,158,117,.10)", borderRadius: 20, padding: "2px 9px" }}>
+                        {p.percentualAtual}%
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

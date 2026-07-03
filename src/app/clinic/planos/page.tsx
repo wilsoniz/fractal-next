@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useClinicContext } from '../layout'
 import { supabase } from '@/lib/supabase'
+import { listarProgramasDosPlanos, type ProgramaDoPlano } from '@/lib/plano-programas'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,8 @@ interface PlanoIntervencao {
   id: string; nome: string; pacienteNome: string; pacienteId: string
   terapeutaNome: string; dataInicio: string; dataRevisao: string
   status: StatusPlano; alvos: AlvoComportamental[]; protocolos: ProtocoloConduta[]
+  // Treatment-002: programas reais do plano (fonte oficial plano_programas)
+  programasReais: ProgramaDoPlano[]
 }
 
 // ─── Config de envio digital por modo ────────────────────────────────────────
@@ -1202,9 +1205,14 @@ export default function PlanosPage() {
         .order('criado_em', { ascending: false })
       if (data && data.length > 0) {
         const agrupados = new Map<string, PlanoIntervencao>()
+        const planoIdsPorCrianca = new Map<string, string[]>()
         for (const pl of data) {
           const crianca = pl.criancas as any
           if (!crianca) continue
+          // Treatment-002: coleta o id REAL do plano por paciente (para plano_programas)
+          const arrPid = planoIdsPorCrianca.get(crianca.id) ?? []
+          if (pl.id) arrPid.push(pl.id)
+          planoIdsPorCrianca.set(crianca.id, arrPid)
           if (!agrupados.has(crianca.id)) {
             agrupados.set(crianca.id, {
               id: crianca.id,
@@ -1214,6 +1222,7 @@ export default function PlanosPage() {
               dataInicio: pl.criado_em?.slice(0, 7) ?? '', dataRevisao: '',
               status: (pl.status ?? 'ativo') as StatusPlano,
               alvos: [], protocolos: [],
+              programasReais: [],
             })
           }
           const prog = pl.programas as any
@@ -1244,6 +1253,16 @@ export default function PlanosPage() {
           }
         }
         const lista = Array.from(agrupados.values())
+
+        // Treatment-002: programas reais (fonte oficial plano_programas) por plano
+        const todosPlanoIds = Array.from(planoIdsPorCrianca.values()).flat()
+        const progRes = await listarProgramasDosPlanos(todosPlanoIds)
+        if (progRes.error === null) {
+          for (const plano of lista) {
+            const pids = planoIdsPorCrianca.get(plano.pacienteId) ?? []
+            plano.programasReais = pids.flatMap(pid => progRes.data.get(pid) ?? [])
+          }
+        }
 
         // Busca protocolos reais do banco
         const criancaIds = lista.map(p => p.pacienteId)
@@ -1341,7 +1360,7 @@ export default function PlanosPage() {
                         <Badge label={st.label} color={st.color} bg={st.bg} />
                       </div>
                       <div style={{ display: 'flex', gap: 18 }}>
-                        {[{ label: 'Alvos', val: plano.alvos.length }, { label: 'Programas', val: plano.alvos.reduce((acc, a) => acc + a.programas.length, 0) }, { label: 'Protocolos', val: plano.protocolos.length }].map(item => (
+                        {[{ label: 'Alvos', val: plano.alvos.length }, { label: 'Programas', val: plano.programasReais.length }, { label: 'Protocolos', val: plano.protocolos.length }].map(item => (
                           <div key={item.label}>
                             <div style={{ fontSize: 18, fontWeight: 500, color: s.text }}>{item.val}</div>
                             <div style={{ fontSize: 11, color: s.muted }}>{item.label}</div>
@@ -1374,6 +1393,24 @@ export default function PlanosPage() {
                     <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${s.border}`, color: s.muted, cursor: 'pointer' }}>Editar plano</button>
                     <button style={{ fontSize: 12, padding: '6px 13px', borderRadius: 7, background: s.teal, border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>+ Adicionar alvo</button>
                   </div>
+                </div>
+
+                {/* Treatment-002: programas ativos reais (fonte oficial plano_programas) */}
+                <div style={{ padding: '14px 24px', borderBottom: `1px solid ${s.border}` }}>
+                  <div style={{ fontSize: 11, color: s.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Programas ativos do plano</div>
+                  {planoSelecionado.programasReais.length === 0 ? (
+                    <div style={{ fontSize: 12, color: s.muted }}>Nenhum programa ativo no plano.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {planoSelecionado.programasReais.map(pr => (
+                        <div key={pr.planoProgramaId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${s.border}` }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: s.text }}>{pr.nome}</span>
+                          {pr.dominio && <span style={{ fontSize: 10, color: s.muted }}>{pr.dominio}</span>}
+                          {pr.percentualAtual !== null && <span style={{ fontSize: 10, fontWeight: 700, color: s.teal, background: 'rgba(29,158,117,.10)', borderRadius: 20, padding: '1px 8px' }}>{pr.percentualAtual}%</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', borderBottom: `1px solid ${s.border}`, background: 'rgba(0,0,0,0.15)' }}>

@@ -23,6 +23,8 @@ export interface ProgramaDoPlano {
   programaId: string
   nome: string
   dominio: string | null
+  percentualAtual: number | null
+  status: string
 }
 
 function normPrograma(p: unknown): { nome?: string; dominio?: string } {
@@ -76,28 +78,68 @@ export async function listarProgramasCatalogoDisponiveis(
   return { data: disponiveis, error: null }
 }
 
+type LinhaPlanoPrograma = {
+  id: string
+  plano_id?: string
+  programa_id: string
+  percentual_atual: number | null
+  status: string | null
+  programas: unknown
+}
+
+function mapProgramaDoPlano(pp: LinhaPlanoPrograma): ProgramaDoPlano {
+  const m = normPrograma(pp.programas)
+  return {
+    planoProgramaId: pp.id,
+    programaId: pp.programa_id,
+    nome: m.nome ?? "Programa",
+    dominio: m.dominio ?? null,
+    percentualAtual: pp.percentual_atual ?? null,
+    status: pp.status ?? "ativo",
+  }
+}
+
 // ─── Programas ATIVOS do plano (lista aditiva — visibilidade imediata) ──────
 export async function listarProgramasDoPlano(
   planoId: string
 ): Promise<Resultado<ProgramaDoPlano[]>> {
   const { data, error } = await supabase
     .from("plano_programas")
-    .select("id, programa_id, programas:programa_id ( nome, dominio )")
+    .select("id, programa_id, percentual_atual, status, programas:programa_id ( nome, dominio )")
     .eq("plano_id", planoId)
     .eq("status", "ativo")
     .order("ordem")
   if (error) return { data: null, error: error.message }
 
-  const lista = (data ?? []).map((pp: { id: string; programa_id: string; programas: unknown }) => {
-    const m = normPrograma(pp.programas)
-    return {
-      planoProgramaId: pp.id,
-      programaId: pp.programa_id,
-      nome: m.nome ?? "Programa",
-      dominio: m.dominio ?? null,
-    }
-  })
+  const lista = (data ?? []).map((pp) => mapProgramaDoPlano(pp as LinhaPlanoPrograma))
   return { data: lista, error: null }
+}
+
+// ─── Programas ATIVOS de VÁRIOS planos (batch — Treatment-002) ──────────────
+// Retorna Map<planoId, ProgramaDoPlano[]>. Evita N+1 nos consumidores que
+// listam programas de muitos planos (página de Planos).
+export async function listarProgramasDosPlanos(
+  planoIds: string[]
+): Promise<Resultado<Map<string, ProgramaDoPlano[]>>> {
+  if (planoIds.length === 0) return { data: new Map(), error: null }
+
+  const { data, error } = await supabase
+    .from("plano_programas")
+    .select("id, plano_id, programa_id, percentual_atual, status, programas:programa_id ( nome, dominio )")
+    .in("plano_id", planoIds)
+    .eq("status", "ativo")
+    .order("ordem")
+  if (error) return { data: null, error: error.message }
+
+  const mapa = new Map<string, ProgramaDoPlano[]>()
+  for (const pp of (data ?? []) as LinhaPlanoPrograma[]) {
+    const planoId = pp.plano_id ?? ""
+    if (!planoId) continue
+    const arr = mapa.get(planoId) ?? []
+    arr.push(mapProgramaDoPlano(pp))
+    mapa.set(planoId, arr)
+  }
+  return { data: mapa, error: null }
 }
 
 // ─── Adicionar programa ao plano (upsert + RPC baseline) ────────────────────
