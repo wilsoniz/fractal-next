@@ -47,9 +47,9 @@ export function FitExerciseEditor({
       const ok = await updateExercise(editing.id, input);
       if (!ok) { setSaveError("Não foi possível salvar as alterações."); return; }
     } else {
-      const created = await addExercise(planId, dayId, nextDayOrder, input);
-      if (!created) {
-        setSaveError("Não foi possível salvar o exercício. Verifique se as migrations do banco (008) foram aplicadas.");
+      const { data, error } = await addExercise(planId, dayId, nextDayOrder, input);
+      if (!data) {
+        setSaveError(error ? `Não foi possível salvar: ${error}` : "Não foi possível salvar o exercício. Recarregue a página (Cmd+Shift+R) e tente novamente.");
         return;
       }
     }

@@ -248,7 +248,7 @@ export async function addExercise(
   orderIndex: number,
   input: FitWorkoutExerciseInput,
   opts?: { groupId?: string | null; groupOrder?: number },
-): Promise<FitWorkoutExercise | null> {
+): Promise<{ data: FitWorkoutExercise | null; error: string | null }> {
   const { data, error } = await supabase
     .from("fit_workout_exercises")
     .insert({
@@ -261,8 +261,7 @@ export async function addExercise(
     })
     .select()
     .single();
-  if (error) return null;
-  return data as FitWorkoutExercise;
+  return { data: (data as FitWorkoutExercise | null) ?? null, error: error?.message ?? null };
 }
 
 export async function updateExercise(id: string, patch: Partial<FitWorkoutExerciseInput & { order_index: number }>): Promise<boolean> {
