@@ -14,6 +14,7 @@ import {
 } from "@/lib/clinical-investigation-evidence";
 import { criarInvestigacao, type ClinicalInvestigation, type InvestigationPriority } from "@/lib/clinical-investigations";
 import { PainelPerguntasSessao } from "@/components/fracta/PainelPerguntasSessao";
+import { PlanejamentoSessao } from "@/components/fracta/PlanejamentoSessao";
 import { useClinicContext } from "../layout";
 import { LineChart, Line, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 
@@ -1203,24 +1204,9 @@ function SessaoInner() {
             </div>
           </div>
 
-          {/* Roteiro — só para atendimento e AT */}
+          {/* CM-01: Planejamento da Sessão (substitui o antigo "Roteiro da sessão") */}
           {tipoSessao !== "supervisao" && (
-            <div style={{ ...card, padding: 16 }}>
-              <div style={{ fontSize: ".65rem", color: "rgba(170,210,245,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Roteiro da sessão</div>
-              {STAGE_KEYS.map((key, i) => {
-                const cfg = STAGES_CFG[key]
-                return (
-                  <div key={key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < 5 ? "1px solid rgba(26,58,92,.2)" : "none" }}>
-                    <span style={{ fontSize: ".85rem" }}>{cfg.icone}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: ".78rem", fontWeight: 600, color: "#e8f0f8" }}>{cfg.label}</div>
-                      <div style={{ fontSize: ".63rem", color: "rgba(160,200,235,.4)" }}>{cfg.descricao}</div>
-                    </div>
-                    {["preference_assessment", "break"].includes(key) && <span style={{ fontSize: ".58rem", color: "rgba(160,200,235,.3)", background: "rgba(26,58,92,.4)", borderRadius: 20, padding: "2px 7px" }}>opcional</span>}
-                  </div>
-                )
-              })}
-            </div>
+            <PlanejamentoSessao planejados={biblioteca.filter(b => b.planejado).map(p => ({ id: p.id, nome: p.nome }))} />
           )}
 
           {/* Supervisão: contexto */}
@@ -1229,20 +1215,6 @@ function SessaoInner() {
               <div style={{ fontSize: ".65rem", color: "#8B7FE8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Sessão de supervisão</div>
               <div style={{ fontSize: ".78rem", color: "rgba(160,200,235,.6)", lineHeight: 1.6 }}>
                 Esta sessão será registrada com assinatura digital de ambas as partes e contará para o histórico de horas de supervisão válidas para certificação.
-              </div>
-            </div>
-          )}
-
-          {/* Programas planejados */}
-          {biblioteca.filter(b => b.planejado).length > 0 && tipoSessao !== "supervisao" && (
-            <div style={{ ...card, padding: 12 }}>
-              <div style={{ fontSize: ".68rem", color: "rgba(170,210,245,.5)", marginBottom: 8 }}>
-                {biblioteca.filter(b => b.planejado).length} programa(s) no plano
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                {biblioteca.filter(b => b.planejado).map(p => (
-                  <span key={p.id} style={{ fontSize: ".7rem", padding: "3px 10px", borderRadius: 20, background: "rgba(29,158,117,.1)", border: "1px solid rgba(29,158,117,.2)", color: "#1D9E75" }}>{p.nome}</span>
-                ))}
               </div>
             </div>
           )}
