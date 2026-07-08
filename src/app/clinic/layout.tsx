@@ -38,6 +38,7 @@ const NAV_ITEMS_COMPLETO = [
       { href: '/clinic/planos', label: 'Planos', icon: 'M2 4h12M2 8h9M2 12h6' },
       { href: '/clinic/sessao', label: 'Sessão ativa', icon: 'M8 2a6 6 0 100 12A6 6 0 008 2zM8 5v3l2 1.5' },
       { href: '/clinic/avaliacoes', label: 'Avaliações', icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+      { href: '/clinic/biblioteca', label: 'Biblioteca Científica', icon: 'M6 2h4M5 2v4l-2 7a1 1 0 001 1h8a1 1 0 001-1l-2-7V2M6 9h4' },
       { href: '/clinic/evolucao', label: 'Evolução', icon: 'M1 11l4-5 3 3 3-5 4 3M1 13h14' },
       { href: '/clinic/analise', label: 'Análise', icon: 'M2 12h2v2H2zM5 8h2v6H5zM8 10h2v4H8zM11 5h2v9h-2zM14 2h2v12h-2z' },
       { href: '/clinic/agenda', label: 'Agenda', icon: 'M2 3h12a1 1 0 011 1v10a1 1 0 01-1 1H2a1 1 0 01-1-1V4a1 1 0 011-1zM5 3V1M11 3V1M1 7h14' },
@@ -802,6 +803,8 @@ function getPageTitle(pathname: string): string {
     '/clinic/supervisao': 'Supervisão',
     '/clinic/wallet': 'Clinic Wallet',
     '/clinic/avaliacoes': 'Avaliações',
+    '/clinic/biblioteca': 'Biblioteca Científica',
+    '/clinic/biblioteca/preference-assessment': 'Preference Assessment',
     '/clinic/terapeuta': 'Meu Perfil',
   }
   return map[pathname] ?? 'FractaClinic'
