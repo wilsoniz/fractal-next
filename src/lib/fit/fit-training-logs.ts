@@ -16,7 +16,7 @@ export async function createLog(params: {
   dayId: string | null;
   performed_at: string;
   notes: string | null;
-}): Promise<FitTrainingLog | null> {
+}): Promise<{ data: FitTrainingLog | null; error: string | null }> {
   const { data, error } = await supabase
     .from("fit_training_logs")
     .insert({
@@ -28,15 +28,14 @@ export async function createLog(params: {
     })
     .select()
     .single();
-  if (error) return null;
-  return data as FitTrainingLog;
+  return { data: (data as FitTrainingLog | null) ?? null, error: error?.message ?? null };
 }
 
-export async function saveEntries(logId: string, entries: FitTrainingLogEntryInput[]): Promise<boolean> {
-  if (entries.length === 0) return true;
+export async function saveEntries(logId: string, entries: FitTrainingLogEntryInput[]): Promise<{ ok: boolean; error: string | null }> {
+  if (entries.length === 0) return { ok: true, error: null };
   const rows = entries.map((e) => ({ ...e, log_id: logId }));
   const { error } = await supabase.from("fit_training_log_entries").insert(rows);
-  return !error;
+  return { ok: !error, error: error?.message ?? null };
 }
 
 export async function listLogs(patientId: string): Promise<FitTrainingLog[]> {
@@ -62,11 +61,11 @@ export async function listLogEntries(logId: string): Promise<FitTrainingLogEntry
 export async function saveBlockEntries(
   logId: string,
   entries: FitTrainingLogBlockEntryInput[],
-): Promise<boolean> {
-  if (entries.length === 0) return true;
+): Promise<{ ok: boolean; error: string | null }> {
+  if (entries.length === 0) return { ok: true, error: null };
   const rows = entries.map((e) => ({ ...e, log_id: logId }));
   const { error } = await supabase.from("fit_training_log_block_entries").insert(rows);
-  return !error;
+  return { ok: !error, error: error?.message ?? null };
 }
 
 export async function listLogBlockEntries(logId: string): Promise<FitTrainingLogBlockEntry[]> {

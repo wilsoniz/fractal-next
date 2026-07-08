@@ -96,9 +96,9 @@ export function FitWorkoutRunner({
   async function handleFinish() {
     setSaving(true);
     setError(null);
-    const log = await createLog({ patientId, planId, dayId: day.id, performed_at: new Date().toISOString().slice(0, 10), notes: null });
+    const { data: log, error: logErr } = await createLog({ patientId, planId, dayId: day.id, performed_at: new Date().toISOString().slice(0, 10), notes: null });
     if (!log) {
-      setError("Não foi possível salvar o treino.");
+      setError(logErr ? `Não foi possível salvar o treino: ${logErr}` : "Não foi possível salvar o treino.");
       setSaving(false);
       return;
     }
@@ -141,11 +141,12 @@ export function FitWorkoutRunner({
       }),
     );
 
-    const okSimple = await saveEntries(log.id, simplePayload);
-    const okBlocks = await saveBlockEntries(log.id, blockPayload);
+    const { ok: okSimple, error: simpleErr } = await saveEntries(log.id, simplePayload);
+    const { ok: okBlocks, error: blocksErr } = await saveBlockEntries(log.id, blockPayload);
     setSaving(false);
     if (!okSimple || !okBlocks) {
-      setError("Treino criado, mas houve erro ao salvar parte do registro.");
+      const detail = simpleErr ?? blocksErr;
+      setError(detail ? `Treino criado, mas erro ao salvar registro: ${detail}` : "Treino criado, mas houve erro ao salvar parte do registro.");
       return;
     }
     onDone();
