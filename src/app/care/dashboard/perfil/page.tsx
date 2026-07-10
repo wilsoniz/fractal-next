@@ -2,8 +2,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useCareContext } from '../layout'
-import GamificationWidget from '@/components/fracta/GamificationWidget'
-import { buscarGamificacao, buscarConquistas } from '@/lib/fracta/gamification-supabase'
 
 type Perfil = {
   id: string
@@ -24,8 +22,10 @@ export default function PerfilPage() {
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [tab, setTab] = useState<'perfil' | 'notificacoes' | 'conta'>('perfil')
-  const [gamificacao, setGamificacao] = useState({ pontos: 0, streak_atual: 0, streak_max: 0 })
-  const [conquistas, setConquistas] = useState<string[]>([])
+  const [novaSenha, setNovaSenha] = useState('')
+  const [mostrarFormSenha, setMostrarFormSenha] = useState(false)
+  const [salvandoSenha, setSalvandoSenha] = useState(false)
+  const [senhaMsg, setSenhaMsg] = useState<{ ok: boolean; texto: string } | null>(null)
 
   useEffect(() => {
     async function carregar() {
@@ -46,13 +46,29 @@ export default function PerfilPage() {
         setNome(user.user_metadata?.nome || user.email?.split('@')[0] || '')
       }
       setLoading(false)
-      const gam = await buscarGamificacao(user.id)
-      setGamificacao(gam)
-      const conq = await buscarConquistas(user.id)
-      setConquistas(conq)
     }
     carregar()
   }, [])
+
+  async function salvarNovaSenha(e: React.FormEvent) {
+    e.preventDefault()
+    if (novaSenha.length < 6) {
+      setSenhaMsg({ ok: false, texto: 'A senha deve ter ao menos 6 caracteres.' })
+      return
+    }
+    setSalvandoSenha(true)
+    setSenhaMsg(null)
+    const { error } = await supabase.auth.updateUser({ password: novaSenha })
+    setSalvandoSenha(false)
+    if (error) {
+      setSenhaMsg({ ok: false, texto: 'Não foi possível alterar a senha. Tente novamente.' })
+      return
+    }
+    setNovaSenha('')
+    setMostrarFormSenha(false)
+    setSenhaMsg({ ok: true, texto: 'Senha alterada com sucesso!' })
+    setTimeout(() => setSenhaMsg(null), 4000)
+  }
 
   async function salvar() {
     setSalvando(true)
@@ -177,47 +193,16 @@ export default function PerfilPage() {
           }}>{salvando ? 'Salvando...' : 'Salvar alterações'}</button>
         </div>
       )}
-<GamificationWidget
-  pontos={gamificacao.pontos}
-  streak={gamificacao.streak_atual}
-  streakMax={gamificacao.streak_max}
-  atividades={Math.round(gamificacao.pontos / 10)}
-  trilhasConcluidas={conquistas.filter(c => c === 'trilha-concluida').length}
-  avaliacoes={conquistas.filter(c => c === 'avaliacao-2').length + 1}
-  compact={false}
-/>
-      {/* Tab: Notificações */}
+
+      {/* Tab: Notificações — sem controles decorativos (PB-004 D-P2):
+          os toggles voltam quando as notificações existirem de fato */}
       {tab === 'notificacoes' && (
         <div style={card}>
           <div style={{ fontSize: '.75rem', fontWeight: 700, color: '#2BBFA4', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 18 }}>Preferências de notificação</div>
-
-          {[
-            { titulo: 'Lembrete de atividade diária', desc: 'Receba um lembrete para registrar as atividades do dia' },
-            { titulo: 'Novidades do FractaEngine', desc: 'Alertas quando o sistema identificar novas recomendações' },
-            { titulo: 'Relatório semanal', desc: 'Resumo do progresso toda semana' },
-            { titulo: 'Comunicação do terapeuta', desc: 'Notificações de mensagens e atualizações do terapeuta' },
-          ].map((n, i) => (
-            <div key={n.titulo} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: i < 3 ? '1px solid rgba(0,0,0,.05)' : 'none' }}>
-              <div>
-                <div style={{ fontSize: '.88rem', fontWeight: 600, color: '#1E3A5F', marginBottom: 2 }}>{n.titulo}</div>
-                <div style={{ fontSize: '.75rem', color: '#8a9ab8' }}>{n.desc}</div>
-              </div>
-              <div style={{
-                width: 44, height: 24, borderRadius: 12,
-                background: i === 0 || i === 3 ? '#2BBFA4' : 'rgba(0,0,0,.1)',
-                position: 'relative', cursor: 'pointer', flexShrink: 0, marginLeft: 16,
-                transition: 'background .2s',
-              }}>
-                <div style={{
-                  width: 18, height: 18, borderRadius: '50%', background: 'white',
-                  position: 'absolute', top: 3,
-                  left: i === 0 || i === 3 ? 23 : 3,
-                  transition: 'left .2s',
-                  boxShadow: '0 1px 4px rgba(0,0,0,.2)',
-                }} />
-              </div>
-            </div>
-          ))}
+          <p style={{ fontSize: '.88rem', color: '#5a7a9a', lineHeight: 1.7, margin: 0 }}>
+            As notificações do FractaCare ainda não estão ativas. Quando estiverem,
+            você poderá escolher aqui o que deseja receber.
+          </p>
         </div>
       )}
 
@@ -226,12 +211,47 @@ export default function PerfilPage() {
         <div>
           <div style={card}>
             <div style={{ fontSize: '.75rem', fontWeight: 700, color: '#2BBFA4', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 18 }}>Segurança</div>
-            <button style={{
-              width: '100%', padding: '12px', borderRadius: 10,
-              border: '1.5px solid rgba(43,191,164,.3)', background: 'transparent',
-              color: '#2BBFA4', fontWeight: 700, fontSize: '.88rem',
-              cursor: 'pointer', fontFamily: 'var(--font-sans)', marginBottom: 12,
-            }}>Alterar senha</button>
+            {senhaMsg && (
+              <div style={{
+                padding: '10px 14px', marginBottom: 12, borderRadius: 10, fontSize: '.82rem',
+                background: senhaMsg.ok ? 'rgba(43,191,164,.1)' : 'rgba(239,68,68,.08)',
+                border: `1px solid ${senhaMsg.ok ? 'rgba(43,191,164,.25)' : 'rgba(239,68,68,.2)'}`,
+                color: senhaMsg.ok ? '#2BBFA4' : '#dc2626',
+              }}>
+                {senhaMsg.ok ? '✓ ' : '⚠️ '}{senhaMsg.texto}
+              </div>
+            )}
+            {mostrarFormSenha ? (
+              <form onSubmit={salvarNovaSenha}>
+                <label style={{ display: 'block', fontSize: '.75rem', fontWeight: 600, color: '#5a7a9a', marginBottom: 6 }}>Nova senha</label>
+                <input
+                  type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)}
+                  placeholder="Mínimo 6 caracteres" minLength={6} required
+                  style={{ ...inp, marginBottom: 12 }}
+                />
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button type="button" onClick={() => { setMostrarFormSenha(false); setNovaSenha(''); setSenhaMsg(null) }} style={{
+                    flex: 1, padding: '12px', borderRadius: 10,
+                    border: '1.5px solid rgba(0,0,0,.1)', background: 'transparent',
+                    color: '#64748b', fontWeight: 600, fontSize: '.85rem',
+                    cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                  }}>Cancelar</button>
+                  <button type="submit" disabled={salvandoSenha} style={{
+                    flex: 2, padding: '12px', borderRadius: 10, border: 'none',
+                    background: salvandoSenha ? 'rgba(43,191,164,.4)' : 'linear-gradient(135deg,#2BBFA4,#1e9e88)',
+                    color: 'white', fontWeight: 700, fontSize: '.85rem',
+                    cursor: salvandoSenha ? 'default' : 'pointer', fontFamily: 'var(--font-sans)',
+                  }}>{salvandoSenha ? 'Salvando...' : 'Salvar nova senha'}</button>
+                </div>
+              </form>
+            ) : (
+              <button onClick={() => setMostrarFormSenha(true)} style={{
+                width: '100%', padding: '12px', borderRadius: 10,
+                border: '1.5px solid rgba(43,191,164,.3)', background: 'transparent',
+                color: '#2BBFA4', fontWeight: 700, fontSize: '.88rem',
+                cursor: 'pointer', fontFamily: 'var(--font-sans)',
+              }}>Alterar senha</button>
+            )}
           </div>
 
           <div style={card}>

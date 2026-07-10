@@ -477,17 +477,6 @@ export default function CareDashboardLayout({
                     ))}
                   </svg>
                   {aba.key === 'meu-filho' ? labelFilho : aba.label}
-                  {/* Badge avaliação pendente */}
-                  {aba.key === 'avaliacao' && (
-                    <span style={{
-                      marginLeft: 'auto',
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: '#2BBFA4',
-                      display: 'inline-block',
-                    }} />
-                  )}
                 </Link>
               )
             })}

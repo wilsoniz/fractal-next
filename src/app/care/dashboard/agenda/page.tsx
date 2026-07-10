@@ -171,6 +171,9 @@ export default function AgendaPage() {
     const fim = new Date()
     fim.setDate(fim.getDate() + 60)
 
+    // PB-004 D-AG1: a Agenda exibe apenas compromissos reais — sem sugestões
+    // sintéticas de atividade nem placeholder de sessão clínica. O tipo
+    // sessao_clinica permanece como encaixe da integração com o Clinic (D-AG3).
     const { data } = await supabase
       .from('agenda_eventos')
       .select('*')
@@ -179,59 +182,7 @@ export default function AgendaPage() {
       .lte('data_hora', fim.toISOString())
       .order('data_hora', { ascending: true })
 
-    // Gerar eventos de atividade dos planos ativos
-    const { data: planos } = await supabase
-      .from('planos')
-      .select('id, programas(nome, dominio)')
-      .eq('crianca_id', criancaAtiva!.id)
-      .eq('status', 'ativo')
-
-    const eventosAtividade: Evento[] = []
-    if (planos && planos.length > 0) {
-      // Gerar sugestão para hoje e próximos 6 dias
-      for (let i = 0; i < 7; i++) {
-        const dia = new Date()
-        dia.setDate(dia.getDate() + i)
-        dia.setHours(9, 0, 0, 0)
-
-        for (const plano of planos.slice(0, 2)) {
-          const prog = plano.programas as any
-          if (!prog) continue
-          eventosAtividade.push({
-            id: `atividade-${plano.id}-${i}`,
-            tipo: 'atividade',
-            titulo: prog.nome,
-            descricao: `Domínio: ${prog.dominio}`,
-            data_hora: dia.toISOString(),
-            duracao_minutos: 15,
-            status: 'agendado',
-            origem: 'engine',
-            criado_em: new Date().toISOString(),
-          })
-        }
-      }
-    }
-
-    // Placeholder sessão clínica
-    const eventoClinic: Evento[] = [{
-      id: 'clinic-placeholder',
-      tipo: 'sessao_clinica',
-      titulo: 'Sessão com terapeuta',
-      descricao: 'Conecte-se ao FractaClinic para agendar sessões',
-      data_hora: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      duracao_minutos: 60,
-      status: 'agendado',
-      origem: 'clinic',
-      criado_em: new Date().toISOString(),
-    }]
-
-    const todosEventos = [
-      ...(data ?? []),
-      ...eventosAtividade,
-      ...eventoClinic,
-    ].sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime())
-
-    setEventos(todosEventos)
+    setEventos(data ?? [])
     setLoading(false)
   }
 
@@ -522,7 +473,6 @@ export default function AgendaPage() {
                     {evsDia.map(ev => {
                       const config = TIPO_CONFIG[ev.tipo]
                       const statusCfg = STATUS_CONFIG[ev.status]
-                      const isPlaceholder = ev.id.startsWith('atividade-') || ev.id === 'clinic-placeholder'
 
                       return (
                         <div
@@ -551,15 +501,6 @@ export default function AgendaPage() {
                               <span style={{ fontSize: 14, fontWeight: 700, color: '#1E3A5F' }}>
                                 {ev.titulo}
                               </span>
-                              {isPlaceholder && (
-                                <span style={{
-                                  fontSize: 9, fontWeight: 700, padding: '2px 6px',
-                                  borderRadius: 99, background: 'rgba(148,163,184,.15)',
-                                  color: '#94a3b8',
-                                }}>
-                                  Sugestão
-                                </span>
-                              )}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                               <span style={{ fontSize: 12, color: '#64748b' }}>
@@ -586,7 +527,7 @@ export default function AgendaPage() {
                           </div>
 
                           {/* Ação */}
-                          {!isPlaceholder && ev.status === 'agendado' && (
+                          {ev.status === 'agendado' && (
                             <button
                               onClick={() => marcarRealizado(ev.id)}
                               style={{
