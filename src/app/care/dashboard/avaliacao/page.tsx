@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase'
 import { useCareContext } from '../layout'
 import FractaRadarChart from '@/components/fracta/FractaRadarChart'
 import type { ScoresRadar } from '@/components/fracta/FractaRadarChart'
+import FractaForecastCard from '../components/FractaForecastCard'
 
 // ─────────────────────────────────────────────
 // TIPOS
@@ -418,6 +419,14 @@ export default function AvaliacaoPage() {
           </div>
         )}
       </BlocoContainer>
+
+      {/* Fracta Forecast — leitura projetiva, mora na Avaliação (PB-004 D-AV5),
+          somente na voz de pais (FractaForecastCard não exibe a voz clinic). */}
+      {criancaAtiva && (
+        <div style={{ marginBottom: 12 }}>
+          <FractaForecastCard criancaId={criancaAtiva.id} nomeCrianca={nomeFilho} />
+        </div>
+      )}
 
       {/* ══════════════════════════════════════
           BLOCO 2 — TRIAGEM DE DESENVOLVIMENTO

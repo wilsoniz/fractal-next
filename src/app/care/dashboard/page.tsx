@@ -7,7 +7,6 @@ import { FractaLogo } from '@/components/fracta/FractaLogo'
 import { FractalTriangle } from '@/components/fracta/FractalTriangle'
 import { getDashboardData } from '@/lib/queries/learner'
 import type { RadarSnapshotDB } from '@/lib/database.types'
-import FractaForecastCard from './components/FractaForecastCard'
 import { useCareContext } from './layout'
 import FractaRadarChart from '@/components/fracta/FractaRadarChart'
 import type { ScoresRadar } from '@/components/fracta/FractaRadarChart'
@@ -49,7 +48,6 @@ const { criancaAtiva, nomeResp } = useCareContext()
     comunicacao: 50, social: 50, atencao: 50, regulacao: 50,
     brincadeira: 50, flexibilidade: 50, autonomia: 50, motivacao: 50,
   })
-  const [sessoes,     setSessoes]     = useState(0)
   const [atividades,  setAtividades]  = useState<{ id: string; nome: string; dominio: string; tempo: string; cor: string; icon: string }[]>([])
   const [barsVisible, setBarsVisible] = useState(false)
   const [loading,     setLoading]     = useState(true)
@@ -70,13 +68,6 @@ const { criancaAtiva, nomeResp } = useCareContext()
       .limit(1)
       .single()
 
-    const { data: sessoesData } = await supabase
-      .from('sessoes')
-      .select('id')
-      .eq('crianca_id', criancaAtiva!.id)
-
-    setSessoes(sessoesData?.length ?? 0)
-
     if (radar) {
       // ── 1. Scores base da última avaliação
       const s: Record<DomKey, number> = {
@@ -90,26 +81,9 @@ const { criancaAtiva, nomeResp } = useCareContext()
         motivacao:     radar.score_motivacao     ?? 50,
       }
 
-      // ── 2. Mesclar com score_atual dos planos (70% avaliação + 30% planos)
-      const { data: planosScores } = await supabase
-        .from('planos')
-        .select('score_atual, programas(dominio)')
-        .eq('crianca_id', criancaAtiva!.id)
-        .eq('status', 'ativo')
-        .not('score_atual', 'is', null)
-
-      if (planosScores && planosScores.length > 0) {
-        const novosScores = { ...s }
-        for (const pl of planosScores) {
-          const dominio = (pl.programas as any)?.dominio as DomKey
-          if (dominio && pl.score_atual !== null) {
-            novosScores[dominio] = Math.round(s[dominio] * 0.7 + pl.score_atual * 0.3)
-          }
-        }
-        setScores(novosScores)
-      } else {
-        setScores(s)
-      }
+      // PB-004 D-H5: a Home não produz métrica própria — consome o radar canônico
+      // (radar_snapshots) diretamente, sem recalcular. O antigo blend 70/30 saiu.
+      setScores(s)
     } else {
       // Fallback: sessionStorage (logo após avaliação do Capture)
       const radarStr = sessionStorage.getItem('fracta_radar')
@@ -212,11 +186,10 @@ const { criancaAtiva, nomeResp } = useCareContext()
         </div>
       </div>
 
-      {/* ── STATS */}
+      {/* ── STATS — PB-004 D-H1: a Home responde ao estado atual do dia; métricas
+          históricas ('desde o início', 'média geral') pertencem às telas donas. */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 16 }}>
         {[
-          { label: 'Atividades realizadas', val: sessoes.toString() || '0', sub: 'desde o início',            acc: true  },
-          { label: 'Média geral',           val: `${Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 8)}%`, sub: 'no mapa de habilidades', acc: true  },
           { label: 'Atividades disponíveis', val: atividades.length.toString(), sub: 'para praticar hoje', acc: false, subCor: '#2BBFA4' },
         ].map(s => (
           <div key={s.label} style={card}>
@@ -239,7 +212,7 @@ const { criancaAtiva, nomeResp } = useCareContext()
                 Comparado ao esperado para a idade
               </div>
             </div>
-            <Link href="/care/dashboard/meu-filho" style={{ fontSize: '.68rem', color: '#2BBFA4', textDecoration: 'none', fontWeight: 600 }}>
+            <Link href="/care/dashboard/avaliacao" style={{ fontSize: '.68rem', color: '#2BBFA4', textDecoration: 'none', fontWeight: 600 }}>
               Ver evolução →
             </Link>
           </div>
@@ -255,14 +228,6 @@ const { criancaAtiva, nomeResp } = useCareContext()
 
         {/* COLUNA DIREITA */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          {/* FORECAST */}
-          {criancaAtiva && (
-            <FractaForecastCard
-              criancaId={criancaAtiva.id}
-              nomeCrianca={primeiroNome}
-            />
-          )}
 
           {/* ATIVIDADES DO DIA */}
           <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
