@@ -1,9 +1,28 @@
-# PB-004 · CM-A2 — Registro de Bloqueios
+# PB-004 · CM-A2 — Registro de Bloqueios e Encerramento
 
 > **Camada: Implementação** (convenção D6) · 10/07/2026
 > Itens do CM-A2 que **não são implementáveis sem uma decisão/conteúdo ainda não
 > especificado** nos documentos aprovados. Conforme o protocolo desta fase, ficam
 > registrados como bloqueio — **não resolvidos por interpretação própria**.
+
+## STATUS: CM-A2 CONCLUÍDO (10/07/2026)
+
+**Entregas implementadas (verificadas, no `main`):**
+- CM-A1 — correções independentes (reset de senha, controles decorativos, estados
+  vazios honestos, órfãs).
+- Forecast → Avaliação; Home enxuta (estado atual, sem blend, radar→Avaliação).
+- Radar/histórico/contadores fora de Meu Filho; custódia de laudos → Meu Filho.
+- Guia Familiar: nome único; sem progresso fictício; **indicadores/barras de
+  progresso removidos** (sem persistência real — D-GF3 + "nenhuma interface
+  decorativa"); trilhas e aulas preservadas, sem modelo provisório de progresso.
+
+**Pendências que saem com o CM-A2 (não resolvidas — corretas):**
+- **BLQ-1, BLQ-2, BLQ-3**: bloqueados por conteúdo/decisão (ver abaixo). Próximo bloco
+  pequeno = conteúdo clínico + contratos que destravam esses três.
+- **D-AG4** (export "próximo compromisso" p/ Home): **adiada** — a Home não tem vitrine
+  aprovada para consumi-lo; export sem consumidor seria código morto.
+- **D-A2** (Atividades: consistência primeiro): **vinculada ao desbloqueio do BLQ-2** —
+  entra junto com o modelo de métricas e o catálogo.
 
 ## Implementado no CM-A2 (realocação de propriedade — totalmente especificado)
 

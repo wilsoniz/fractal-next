@@ -119,10 +119,6 @@ export default function AprendizadoPage() {
   const [trilhaAberta, setTrilhaAberta] = useState<string | null>(null)
   const [aulaAberta, setAulaAberta] = useState<string | null>(null)
 
-  const totalAulas = TRILHAS.reduce((a, t) => a + t.total, 0)
-  const totalConcluidas = TRILHAS.reduce((a, t) => a + t.concluidas, 0)
-  const pct = Math.round((totalConcluidas / totalAulas) * 100)
-
   const trilha = TRILHAS.find(t => t.id === trilhaAberta)
   const aula = trilha?.aulas.find(a => a.id === aulaAberta)
 
@@ -175,7 +171,6 @@ export default function AprendizadoPage() {
 
   // ── Tela de trilha ──
   if (trilha) {
-    const progPct = Math.round((trilha.concluidas / trilha.total) * 100)
     return (
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 16px 40px', boxSizing: 'border-box' as const, width: '100%' }}>
         <button onClick={() => setTrilhaAberta(null)} style={{
@@ -192,33 +187,26 @@ export default function AprendizadoPage() {
             </div>
           )}
           <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1E3A5F', marginBottom: 8 }}>{trilha.titulo}</div>
-          <p style={{ fontSize: '.85rem', color: '#5a7a9a', lineHeight: 1.7, marginBottom: 16 }}>{trilha.desc}</p>
-
-          {/* Progresso */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '.75rem', color: '#8a9ab8' }}>
-            <span>{trilha.concluidas} de {trilha.total} aulas concluídas</span>
-            <span style={{ color: trilha.cor, fontWeight: 700 }}>{progPct}%</span>
-          </div>
-          <div style={{ height: 6, background: 'rgba(0,0,0,.06)', borderRadius: 99 }}>
-            <div style={{ height: '100%', width: `${progPct}%`, background: trilha.cor, borderRadius: 99, transition: 'width .5s' }} />
-          </div>
+          <p style={{ fontSize: '.85rem', color: '#5a7a9a', lineHeight: 1.7, marginBottom: 4 }}>{trilha.desc}</p>
+          <div style={{ fontSize: '.75rem', color: '#8a9ab8' }}>{trilha.total} aulas</div>
         </div>
 
+        {/* PB-004 D-GF3: aulas numeradas (índice), sem estado de conclusão. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {trilha.aulas.map((a, i) => (
             <button key={a.id} onClick={() => setAulaAberta(a.id)} style={{
               display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px',
-              background: 'white', border: `1px solid ${a.concluida ? trilha.cor + '30' : 'rgba(0,0,0,.06)'}`,
+              background: 'white', border: '1px solid rgba(0,0,0,.06)',
               borderRadius: 14, cursor: 'pointer', textAlign: 'left',
               fontFamily: 'var(--font-sans)', transition: 'all .15s',
             }}>
               <div style={{
                 width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                background: a.concluida ? trilha.cor : 'rgba(0,0,0,.05)',
+                background: 'rgba(0,0,0,.05)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '.8rem', fontWeight: 800,
-                color: a.concluida ? 'white' : '#8a9ab8',
-              }}>{a.concluida ? '✓' : i + 1}</div>
+                color: '#8a9ab8',
+              }}>{i + 1}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '.88rem', fontWeight: 600, color: '#1E3A5F', marginBottom: 2 }}>{a.titulo}</div>
                 <div style={{ fontSize: '.72rem', color: '#8a9ab8' }}>{a.duracao}</div>
@@ -241,20 +229,12 @@ export default function AprendizadoPage() {
         <p style={{ fontSize: '.85rem', color: '#8a9ab8' }}>Trilhas de orientação parental baseadas em ABA</p>
       </div>
 
-      {/* Progresso geral */}
+      {/* PB-004 D-GF3: sem indicadores de progresso enquanto não houver persistência
+          real de conclusão. Mantida uma introdução acolhedora, sem números. */}
       <div style={{ background: 'linear-gradient(135deg,#1E3A5F,#2A7BA8)', borderRadius: 20, padding: '20px', marginBottom: 24, color: 'white', width: '100%', boxSizing: 'border-box' as const }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: '.72rem', color: 'rgba(255,255,255,.6)', marginBottom: 2 }}>Seu progresso</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{totalConcluidas} de {totalAulas} aulas</div>
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#2BBFA4' }}>{pct}%</div>
-        </div>
-        <div style={{ height: 6, background: 'rgba(255,255,255,.15)', borderRadius: 99 }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: '#2BBFA4', borderRadius: 99 }} />
-        </div>
-        <div style={{ fontSize: '.72rem', color: 'rgba(255,255,255,.5)', marginTop: 8 }}>
-          Continue aprendendo para apoiar melhor o desenvolvimento de {criancaAtiva?.nome.split(' ')[0] ?? 'seu filho'}
+        <div style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 4 }}>Aprenda a apoiar {criancaAtiva?.nome.split(' ')[0] ?? 'seu filho'}</div>
+        <div style={{ fontSize: '.8rem', color: 'rgba(255,255,255,.7)', lineHeight: 1.6 }}>
+          Trilhas curtas de orientação parental, em linguagem do dia a dia, baseadas em ABA.
         </div>
       </div>
 
@@ -276,11 +256,8 @@ export default function AprendizadoPage() {
             </div>
             <p style={{ fontSize: '.82rem', color: '#5a7a9a', lineHeight: 1.65, marginBottom: 14 }}>{t.desc}</p>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '.75rem' }}>
-              <span style={{ color: '#8a9ab8' }}>{t.total} aulas · {t.concluidas} concluídas</span>
-              <span style={{ color: t.cor, fontWeight: 700 }}>Continuar →</span>
-            </div>
-            <div style={{ height: 4, background: 'rgba(0,0,0,.06)', borderRadius: 99, marginTop: 10 }}>
-              <div style={{ height: '100%', width: `${Math.round((t.concluidas/t.total)*100)}%`, background: t.cor, borderRadius: 99 }} />
+              <span style={{ color: '#8a9ab8' }}>{t.total} aulas</span>
+              <span style={{ color: t.cor, fontWeight: 700 }}>Ver trilha →</span>
             </div>
           </button>
         </div>
@@ -299,14 +276,10 @@ export default function AprendizadoPage() {
             <div style={{ width: 44, height: 44, borderRadius: 14, background: `${t.cor}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>{t.icon}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '.88rem', fontWeight: 700, color: '#1E3A5F', marginBottom: 2 }}>{t.dominio}</div>
-              <div style={{ fontSize: '.78rem', color: '#8a9ab8', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.titulo}</div>
-              <div style={{ height: 3, background: 'rgba(0,0,0,.06)', borderRadius: 99 }}>
-                <div style={{ height: '100%', width: `${Math.round((t.concluidas/t.total)*100)}%`, background: t.cor, borderRadius: 99 }} />
-              </div>
+              <div style={{ fontSize: '.78rem', color: '#8a9ab8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.titulo}</div>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontSize: '.75rem', fontWeight: 700, color: t.cor }}>{Math.round((t.concluidas/t.total)*100)}%</div>
-              <div style={{ fontSize: '.68rem', color: '#aabbcc', marginTop: 2 }}>{t.total} aulas</div>
+              <div style={{ fontSize: '.68rem', color: '#aabbcc' }}>{t.total} aulas</div>
             </div>
           </button>
         ))}
