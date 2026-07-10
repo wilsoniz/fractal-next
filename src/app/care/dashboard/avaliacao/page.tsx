@@ -4,11 +4,12 @@
  * Aba: Avaliação
  * src/app/care/dashboard/avaliacao/page.tsx
  *
- * 4 blocos:
+ * Blocos:
  *   1. Mapa de Habilidades — radar atual + histórico de snapshots
  *   2. Triagem de Desenvolvimento — 39 perguntas da planilha
- *   3. Laudos e Diagnósticos — upload + formulário
- *   4. Do Terapeuta — placeholder
+ *   3. Do Terapeuta — placeholder
+ *
+ * Laudos migraram para a custódia de Meu Filho (PB-004 D-AV8/D-MF5).
  */
 
 import { useState, useEffect, useRef } from 'react'
@@ -570,14 +571,14 @@ export default function AvaliacaoPage() {
           leituras, mas não o gerencia. */}
 
       {/* ══════════════════════════════════════
-          BLOCO 4 — DO TERAPEUTA
+          BLOCO 3 — DO TERAPEUTA
       ══════════════════════════════════════ */}
       <BlocoContainer
-        numero={4}
+        numero={3}
         titulo="Do Terapeuta"
         subtitulo="Avaliações enviadas pelo seu terapeuta"
-        aberto={blocoAberto === 4}
-        onToggle={() => setBlocoAberto(blocoAberto === 4 ? 0 as any : 4)}
+        aberto={blocoAberto === 3}
+        onToggle={() => setBlocoAberto(blocoAberto === 3 ? 0 as any : 3)}
         cor="#F59E0B"
         badge="Em breve"
         badgeCor="#94a3b8"
