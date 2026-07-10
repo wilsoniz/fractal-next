@@ -18,9 +18,13 @@ import { FitSection, fitFieldStyle } from "@/components/fit/FitSection";
 import { FitWorkoutPlanCard } from "@/components/fit/FitWorkoutPlanCard";
 import { FitWorkoutPlanForm, type FitWorkoutPlanInput } from "@/components/fit/FitWorkoutPlanForm";
 import { FitExerciseEditor } from "@/components/fit/FitExerciseEditor";
+import { FitWorkoutRegister } from "@/components/fit/FitWorkoutRegister";
 import { WORKOUT_PLAN_STATUS_LABELS, type FitWorkoutPlan, type FitWorkoutPlanFull } from "@/lib/fit/types";
 
+type PanelMode = "prescrever" | "registrar";
+
 export function FitTreinosPanel({ patientId }: { patientId: string }) {
+  const [mode, setMode] = useState<PanelMode>("prescrever");
   const [plans, setPlans] = useState<FitWorkoutPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -52,12 +56,44 @@ export function FitTreinosPanel({ patientId }: { patientId: string }) {
 
   if (loading) return <div style={{ color: "#8ea3c0" }}>Carregando…</div>;
 
+  const modeToggle = (
+    <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      {(["prescrever", "registrar"] as PanelMode[]).map((m) => {
+        const active = mode === m;
+        return (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: `1px solid ${active ? "rgba(124,92,252,.5)" : "rgba(90,110,160,.35)"}`, background: active ? "rgba(124,92,252,.14)" : "transparent", color: active ? "#b7a6ff" : "#c5d2e6", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}
+          >
+            {m === "prescrever" ? "Prescrever" : "Registrar treino realizado"}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  if (mode === "registrar") {
+    return (
+      <div>
+        {modeToggle}
+        <FitWorkoutRegister patientId={patientId} />
+      </div>
+    );
+  }
+
   if (selectedId) {
-    return <PlanBuilder planId={selectedId} onBack={() => { setSelectedId(null); loadPlans(); }} />;
+    return (
+      <div>
+        {modeToggle}
+        <PlanBuilder planId={selectedId} onBack={() => { setSelectedId(null); loadPlans(); }} />
+      </div>
+    );
   }
 
   return (
     <div>
+      {modeToggle}
       <FitCard style={{ marginBottom: 16 }}>
         <div style={{ fontSize: ".85rem", fontWeight: 700, color: "#f2f6ff", marginBottom: 8 }}>Novo treino</div>
         <div style={{ display: "flex", gap: 8 }}>
