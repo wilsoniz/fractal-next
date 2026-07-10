@@ -5,8 +5,6 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useCareContext } from '../layout'
-import FractaRadarChart from '@/components/fracta/FractaRadarChart'
-import type { ScoresRadar } from '@/components/fracta/FractaRadarChart'
 import { Suspense } from 'react'
 
 type Crianca = {
@@ -17,19 +15,6 @@ type Crianca = {
   diagnostico: string | null
   observacoes: string | null
   ativo: boolean
-}
-
-type RadarSnapshot = {
-  id: string
-  criado_em: string
-  score_comunicacao: number
-  score_social: number
-  score_atencao: number
-  score_regulacao: number
-  score_brincadeira: number
-  score_flexibilidade: number
-  score_autonomia: number
-  score_motivacao: number
 }
 
 type Laudo = {
@@ -54,11 +39,6 @@ function calcularIdade(dataNasc: string | null, idadeAnos: number | null): strin
   return '—'
 }
 
-function mediaSnapshot(s: RadarSnapshot): number {
-  return Math.round((s.score_comunicacao + s.score_social + s.score_atencao + s.score_regulacao +
-    s.score_brincadeira + s.score_flexibilidade + s.score_autonomia + s.score_motivacao) / 8)
-}
-
 function getIniciais(nome: string): string {
   return nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
 }
@@ -75,10 +55,13 @@ function MeuFilhoPageInner() {
   const { criancaAtiva, criancas, setCriancaAtiva, recarregarCriancas } = useCareContext()
   const searchParams = useSearchParams()
 
-  const [snapshots,      setSnapshots]      = useState<RadarSnapshot[]>([])
   const [laudos,         setLaudos]         = useState<Laudo[]>([])
-  const [sessoes,        setSessoes]        = useState<{ id: string }[]>([])
   const [loading,        setLoading]        = useState(true)
+  // PB-004 D-MF5: Meu Filho é a custódia oficial do laudo (cadastro + exibição).
+  const [formLaudo,      setFormLaudo]      = useState({ cid: '', diagnostico: '', especialidades: '', horas_tratamento_semana: '', profissional_emissor: '', data_laudo: '', notas: '' })
+  const [salvandoLaudo,  setSalvandoLaudo]  = useState(false)
+  const [laudoSalvo,     setLaudoSalvo]     = useState(false)
+  const [mostrarFormLaudo, setMostrarFormLaudo] = useState(false)
   const [editando,       setEditando]       = useState(false)
   const [formPerfil,     setFormPerfil]     = useState({ nome: '', data_nascimento: '', diagnostico: '', observacoes: '' })
   const [salvandoPerfil, setSalvandoPerfil] = useState(false)
@@ -104,16 +87,12 @@ function MeuFilhoPageInner() {
 
   async function carregarDados() {
     setLoading(true)
-    const [{ data: snaps }, { data: laud }, { data: sess }] = await Promise.all([
-      supabase.from('radar_snapshots').select('*').eq('crianca_id', criancaAtiva!.id)
-        .order('criado_em', { ascending: false }).limit(8),
-      supabase.from('laudos').select('*').eq('crianca_id', criancaAtiva!.id)
-        .order('criado_em', { ascending: false }),
-      supabase.from('sessoes').select('id').eq('crianca_id', criancaAtiva!.id),
-    ])
-    setSnapshots(snaps ?? [])
+    // PB-004 D-MF4: Meu Filho carrega apenas o que é seu (laudos, responsáveis).
+    // Radar/sessões são leitura, cuja dona é a Avaliação — não são buscados aqui.
+    const { data: laud } = await supabase.from('laudos').select('*')
+      .eq('crianca_id', criancaAtiva!.id)
+      .order('criado_em', { ascending: false })
     setLaudos(laud ?? [])
-    setSessoes(sess ?? [])
 
     // Carregar responsáveis vinculados via crianca_responsaveis
     const { data: vinculos } = await supabase
@@ -234,17 +213,29 @@ function MeuFilhoPageInner() {
     setTimeout(() => setConviteCopiado(false), 3000)
   }
 
-  const snapshotAtual = snapshots[0]
-  const scoresAtuais: ScoresRadar = snapshotAtual ? {
-    comunicacao:  snapshotAtual.score_comunicacao,
-    social:       snapshotAtual.score_social,
-    atencao:      snapshotAtual.score_atencao,
-    regulacao:    snapshotAtual.score_regulacao,
-    brincadeira:  snapshotAtual.score_brincadeira,
-    flexibilidade:snapshotAtual.score_flexibilidade,
-    autonomia:    snapshotAtual.score_autonomia,
-    motivacao:    snapshotAtual.score_motivacao,
-  } : { comunicacao:50, social:50, atencao:50, regulacao:50, brincadeira:50, flexibilidade:50, autonomia:50, motivacao:50 }
+  // PB-004 D-MF5/D-AV8: cadastro de laudo mora aqui (custódia), saiu da Avaliação.
+  async function salvarLaudo() {
+    if (!criancaAtiva) return
+    setSalvandoLaudo(true)
+    const especialidades = formLaudo.especialidades.split(',').map(s => s.trim()).filter(Boolean)
+    await supabase.from('laudos').insert({
+      crianca_id: criancaAtiva.id,
+      responsavel_id: (await supabase.auth.getUser()).data.user?.id,
+      cid: formLaudo.cid || null,
+      diagnostico: formLaudo.diagnostico || null,
+      especialidades,
+      horas_tratamento_semana: formLaudo.horas_tratamento_semana ? parseInt(formLaudo.horas_tratamento_semana) : null,
+      profissional_emissor: formLaudo.profissional_emissor || null,
+      data_laudo: formLaudo.data_laudo || null,
+      notas: formLaudo.notas || null,
+    })
+    await carregarDados()
+    setFormLaudo({ cid: '', diagnostico: '', especialidades: '', horas_tratamento_semana: '', profissional_emissor: '', data_laudo: '', notas: '' })
+    setMostrarFormLaudo(false)
+    setLaudoSalvo(true)
+    setTimeout(() => setLaudoSalvo(false), 3000)
+    setSalvandoLaudo(false)
+  }
 
   const card: React.CSSProperties = {
     background: 'rgba(255,255,255,.84)', backdropFilter: 'blur(14px)',
@@ -332,20 +323,9 @@ function MeuFilhoPageInner() {
               fontSize: 14, fontWeight: 700, cursor: 'pointer',
             }}>{salvandoPerfil ? 'Salvando...' : 'Salvar alterações'}</button>
           </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)' }}>
-            {[
-              { label: 'Sessões',    val: sessoes.length   },
-              { label: 'Avaliações', val: snapshots.length },
-              { label: 'Laudos',     val: laudos.length    },
-            ].map((s, i) => (
-              <div key={s.label} style={{ padding: '16px', textAlign: 'center', borderRight: i < 2 ? '1px solid rgba(43,191,164,.08)' : 'none' }}>
-                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2BBFA4', lineHeight: 1 }}>{s.val}</div>
-                <div style={{ fontSize: 11, color: '#8a9ab8', marginTop: 4 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-        )}
+        ) : null /* PB-004 D-MF4: contadores derivados (sessões/avaliações/laudos)
+            saíram — são leitura, não identidade. Os laudos seguem listados na seção
+            de laudos abaixo. */}
       </div>
 
       {/* ── MEUS FILHOS */}
@@ -425,61 +405,31 @@ function MeuFilhoPageInner() {
         )}
       </div>
 
-      {/* ── EVOLUÇÃO DO RADAR */}
-      {snapshots.length > 0 && (
-        <div style={card}>
-          <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(43,191,164,.08)' }}>
-            <div style={{ fontSize: '.88rem', fontWeight: 800, color: '#1E3A5F' }}>Evolução do mapa de habilidades</div>
+      {/* Radar, histórico e forecast migraram para a Avaliação (PB-004 D-MF4/D-AV5):
+          são leitura de estado/projeção — a dona é a Avaliação. Meu Filho guarda
+          identidade e documentação, não leitura de desenvolvimento. */}
+
+      {/* ── LAUDOS E DOCUMENTAÇÃO (custódia — PB-004 D-MF5) */}
+      <div style={card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: '1px solid rgba(43,191,164,.08)' }}>
+          <div>
+            <div style={{ fontSize: '.88rem', fontWeight: 800, color: '#1E3A5F' }}>Laudos e diagnósticos</div>
             <div style={{ fontSize: '.72rem', color: '#8a9ab8', marginTop: 2 }}>
-              {snapshots.length} avaliação{snapshots.length !== 1 ? 'ões' : ''} registrada{snapshots.length !== 1 ? 's' : ''}
+              {laudos.length > 0
+                ? `${laudos.length} laudo${laudos.length !== 1 ? 's' : ''} cadastrado${laudos.length !== 1 ? 's' : ''}`
+                : 'Documentos da criança ficam guardados aqui'}
             </div>
           </div>
-          <div style={{ padding: '20px', display: 'flex', justifyContent: 'center' }}>
-            <FractaRadarChart scores={scoresAtuais} idadeAnos={criancaAtiva.idade_anos ?? 4} size={220} animated />
-          </div>
-          {snapshots.length > 1 && (
-            <div style={{ padding: '0 20px 20px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#8a9ab8', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Histórico</div>
-              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-                {snapshots.map((snap, i) => {
-                  const media = mediaSnapshot(snap)
-                  const delta = i < snapshots.length - 1 ? media - mediaSnapshot(snapshots[i + 1]) : null
-                  return (
-                    <div key={snap.id} style={{
-                      minWidth: 76, padding: '12px', borderRadius: 14, flexShrink: 0, textAlign: 'center',
-                      background: i === 0 ? 'linear-gradient(135deg,rgba(43,191,164,.15),rgba(43,191,164,.05))' : 'rgba(0,0,0,.03)',
-                      border: i === 0 ? '1px solid rgba(43,191,164,.25)' : '1px solid rgba(0,0,0,.06)',
-                    }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: i === 0 ? '#2BBFA4' : '#1E3A5F', lineHeight: 1 }}>{media}</div>
-                      {delta !== null && (
-                        <div style={{ fontSize: 11, fontWeight: 700, color: delta >= 0 ? '#2BBFA4' : '#ef4444', marginTop: 2 }}>
-                          {delta >= 0 ? '+' : ''}{delta}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 10, color: '#8a9ab8', marginTop: 4 }}>
-                        {new Date(snap.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                      </div>
-                      {i === 0 && <div style={{ fontSize: 9, color: '#2BBFA4', fontWeight: 700, marginTop: 2 }}>ATUAL</div>}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+          {!mostrarFormLaudo && (
+            <button onClick={() => setMostrarFormLaudo(true)} style={{
+              padding: '7px 14px', borderRadius: 10, border: 'none',
+              background: 'rgba(42,123,168,.1)', color: '#2A7BA8',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            }}>+ Adicionar</button>
           )}
         </div>
-      )}
 
-      {/* Forecast e previsibilidade migraram para a Avaliação (PB-004 D-MF4/D-AV5):
-          são leitura de estado/projeção, cuja dona é a Avaliação. A voz clinic do
-          forecast não é exibida em telas de família (D-AV5). */}
-
-      {/* ── LAUDOS */}
-      {laudos.length > 0 && (
-        <div style={card}>
-          <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(43,191,164,.08)' }}>
-            <div style={{ fontSize: '.88rem', fontWeight: 800, color: '#1E3A5F' }}>Laudos e diagnósticos</div>
-            <div style={{ fontSize: '.72rem', color: '#8a9ab8', marginTop: 2 }}>{laudos.length} laudo{laudos.length !== 1 ? 's' : ''} cadastrado{laudos.length !== 1 ? 's' : ''}</div>
-          </div>
+        {laudos.length > 0 && (
           <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {laudos.map(l => (
               <div key={l.id} style={{ padding: '14px', borderRadius: 14, background: 'rgba(42,123,168,.06)', border: '1px solid rgba(42,123,168,.15)' }}>
@@ -502,8 +452,60 @@ function MeuFilhoPageInner() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+
+        {laudoSalvo && (
+          <div style={{ padding: '0 20px', marginTop: laudos.length > 0 ? 0 : 16 }}>
+            <div style={{ fontSize: 13, color: '#2BBFA4', fontWeight: 600 }}>✓ Laudo salvo com sucesso!</div>
+          </div>
+        )}
+
+        {mostrarFormLaudo && (
+          <div style={{ padding: '18px 20px', borderTop: laudos.length > 0 ? '1px solid rgba(43,191,164,.08)' : 'none' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', marginBottom: 14 }}>Novo laudo / diagnóstico</div>
+            {[
+              { key: 'cid', label: 'CID (código)', placeholder: 'ex: F84.0' },
+              { key: 'diagnostico', label: 'Diagnóstico', placeholder: 'ex: Transtorno do Espectro Autista' },
+              { key: 'especialidades', label: 'Especialidades recomendadas', placeholder: 'ex: Fonoaudiologia, Terapia Ocupacional' },
+              { key: 'horas_tratamento_semana', label: 'Horas de tratamento por semana', placeholder: 'ex: 10' },
+              { key: 'profissional_emissor', label: 'Profissional emissor', placeholder: 'ex: Dr. João Silva — Neuropediatra' },
+              { key: 'data_laudo', label: 'Data do laudo', placeholder: '', type: 'date' },
+              { key: 'notas', label: 'Notas adicionais', placeholder: 'Observações relevantes...', textarea: true },
+            ].map(campo => (
+              <div key={campo.key} style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{campo.label}</label>
+                {campo.textarea ? (
+                  <textarea
+                    value={formLaudo[campo.key as keyof typeof formLaudo]}
+                    onChange={e => setFormLaudo(prev => ({ ...prev, [campo.key]: e.target.value }))}
+                    placeholder={campo.placeholder} rows={3}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(0,0,0,.1)', fontSize: 13, fontFamily: 'var(--font-sans)', resize: 'vertical', boxSizing: 'border-box', background: 'rgba(255,255,255,.8)' }}
+                  />
+                ) : (
+                  <input
+                    type={campo.type ?? 'text'}
+                    value={formLaudo[campo.key as keyof typeof formLaudo]}
+                    onChange={e => setFormLaudo(prev => ({ ...prev, [campo.key]: e.target.value }))}
+                    placeholder={campo.placeholder}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(0,0,0,.1)', fontSize: 13, fontFamily: 'var(--font-sans)', boxSizing: 'border-box', background: 'rgba(255,255,255,.8)' }}
+                  />
+                )}
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button onClick={() => setMostrarFormLaudo(false)} style={{
+                flex: 1, padding: '11px', border: '1.5px solid rgba(0,0,0,.1)', background: 'transparent',
+                borderRadius: 12, color: '#64748b', fontSize: 14, cursor: 'pointer',
+              }}>Cancelar</button>
+              <button onClick={salvarLaudo} disabled={salvandoLaudo} style={{
+                flex: 2, padding: '11px', background: 'linear-gradient(135deg,#2A7BA8,#1a5a8a)',
+                color: 'white', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700,
+                cursor: 'pointer', boxShadow: '0 4px 16px rgba(42,123,168,.3)',
+              }}>{salvandoLaudo ? 'Salvando...' : 'Salvar laudo'}</button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ── RESPONSÁVEIS VINCULADOS */}
       {responsaveis.length > 0 && (

@@ -36,18 +36,6 @@ type RadarSnapshot = {
   score_motivacao: number
 }
 
-type Laudo = {
-  id: string
-  cid: string | null
-  diagnostico: string | null
-  especialidades: string[]
-  horas_tratamento_semana: number | null
-  profissional_emissor: string | null
-  data_laudo: string | null
-  arquivo_url: string | null
-  notas: string | null
-  criado_em: string
-}
 
 type TriagemResultado = {
   area: string
@@ -151,23 +139,11 @@ export default function AvaliacaoPage() {
   const [salvandoTriagem, setSalvandoTriagem] = useState(false)
   const [triagempasso, setTriagemPasso] = useState(0) // 0 = início, 1 = em progresso, 2 = resultado
 
-  // Bloco 3 — Laudos
-  const [laudos, setLaudos] = useState<Laudo[]>([])
-  const [formLaudo, setFormLaudo] = useState({
-    cid: '', diagnostico: '', especialidades: '',
-    horas_tratamento_semana: '', profissional_emissor: '',
-    data_laudo: '', notas: '',
-  })
-  const [salvandoLaudo, setSalvandoLaudo] = useState(false)
-  const [laudoSalvo, setLaudoSalvo] = useState(false)
-  const [mostrarFormLaudo, setMostrarFormLaudo] = useState(false)
-
   // ── Carregar dados
   useEffect(() => {
     if (!criancaAtiva) return
     carregarSnapshots()
     carregarTriagens()
-    carregarLaudos()
   }, [criancaAtiva])
 
   async function carregarSnapshots() {
@@ -200,14 +176,6 @@ export default function AvaliacaoPage() {
     }
   }
 
-  async function carregarLaudos() {
-    const { data } = await supabase
-      .from('laudos')
-      .select('*')
-      .eq('crianca_id', criancaAtiva!.id)
-      .order('criado_em', { ascending: false })
-    setLaudos(data ?? [])
-  }
 
   // ── Calcular resultado da triagem
   function calcularResultadoTriagem(): TriagemResultado[] {
@@ -239,33 +207,6 @@ export default function AvaliacaoPage() {
     await carregarTriagens()
     setTriagemPasso(2)
     setSalvandoTriagem(false)
-  }
-
-  // ── Salvar laudo
-  async function salvarLaudo() {
-    if (!criancaAtiva) return
-    setSalvandoLaudo(true)
-    const especialidades = formLaudo.especialidades
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-    await supabase.from('laudos').insert({
-      crianca_id: criancaAtiva.id,
-      responsavel_id: (await supabase.auth.getUser()).data.user?.id,
-      cid: formLaudo.cid || null,
-      diagnostico: formLaudo.diagnostico || null,
-      especialidades,
-      horas_tratamento_semana: formLaudo.horas_tratamento_semana ? parseInt(formLaudo.horas_tratamento_semana) : null,
-      profissional_emissor: formLaudo.profissional_emissor || null,
-      data_laudo: formLaudo.data_laudo || null,
-      notas: formLaudo.notas || null,
-    })
-    await carregarLaudos()
-    setFormLaudo({ cid: '', diagnostico: '', especialidades: '', horas_tratamento_semana: '', profissional_emissor: '', data_laudo: '', notas: '' })
-    setMostrarFormLaudo(false)
-    setLaudoSalvo(true)
-    setTimeout(() => setLaudoSalvo(false), 3000)
-    setSalvandoLaudo(false)
   }
 
   const nomeFilho = criancaAtiva?.nome.split(' ')[0] ?? '—'
@@ -624,176 +565,9 @@ export default function AvaliacaoPage() {
         )}
       </BlocoContainer>
 
-      {/* ══════════════════════════════════════
-          BLOCO 3 — LAUDOS E DIAGNÓSTICOS
-      ══════════════════════════════════════ */}
-      <BlocoContainer
-        numero={3}
-        titulo="Laudos e Diagnósticos"
-        subtitulo={laudos.length > 0
-          ? `${laudos.length} laudo${laudos.length > 1 ? 's' : ''} cadastrado${laudos.length > 1 ? 's' : ''}`
-          : 'Opcional — enriquece o perfil'}
-        aberto={blocoAberto === 3}
-        onToggle={() => setBlocoAberto(blocoAberto === 3 ? 0 as any : 3)}
-        cor="#2A7BA8"
-      >
-        {/* Lista de laudos */}
-        {laudos.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            {laudos.map(l => (
-              <div key={l.id} style={{
-                padding: '14px 16px', marginBottom: 8,
-                background: 'rgba(42,123,168,.06)',
-                border: '1px solid rgba(42,123,168,.15)',
-                borderRadius: 14,
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                  <div>
-                    {l.cid && (
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '2px 8px',
-                        background: 'rgba(42,123,168,.12)', color: '#2A7BA8',
-                        borderRadius: 99, marginRight: 8,
-                      }}>
-                        {l.cid}
-                      </span>
-                    )}
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F' }}>
-                      {l.diagnostico ?? 'Sem diagnóstico especificado'}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: 11, color: '#8a9ab8' }}>
-                    {l.data_laudo ? new Date(l.data_laudo).toLocaleDateString('pt-BR') : '—'}
-                  </span>
-                </div>
-                {l.especialidades?.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
-                    {l.especialidades.map(e => (
-                      <span key={e} style={{
-                        fontSize: 10, padding: '2px 7px',
-                        background: 'rgba(43,191,164,.1)', color: '#2BBFA4',
-                        borderRadius: 99, fontWeight: 600,
-                      }}>{e}</span>
-                    ))}
-                  </div>
-                )}
-                {l.horas_tratamento_semana && (
-                  <div style={{ fontSize: 12, color: '#64748b' }}>
-                    {l.horas_tratamento_semana}h/semana de tratamento recomendadas
-                  </div>
-                )}
-                {l.profissional_emissor && (
-                  <div style={{ fontSize: 11, color: '#8a9ab8', marginTop: 2 }}>
-                    Por: {l.profissional_emissor}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Formulário de novo laudo */}
-        {mostrarFormLaudo ? (
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', marginBottom: 14 }}>Novo laudo / diagnóstico</div>
-            {[
-              { key: 'cid', label: 'CID (código)', placeholder: 'ex: F84.0' },
-              { key: 'diagnostico', label: 'Diagnóstico', placeholder: 'ex: Transtorno do Espectro Autista' },
-              { key: 'especialidades', label: 'Especialidades recomendadas', placeholder: 'ex: Fonoaudiologia, Terapia Ocupacional' },
-              { key: 'horas_tratamento_semana', label: 'Horas de tratamento por semana', placeholder: 'ex: 10' },
-              { key: 'profissional_emissor', label: 'Profissional emissor', placeholder: 'ex: Dr. João Silva — Neuropediatra' },
-              { key: 'data_laudo', label: 'Data do laudo', placeholder: '', type: 'date' },
-              { key: 'notas', label: 'Notas adicionais', placeholder: 'Observações relevantes...', textarea: true },
-            ].map(campo => (
-              <div key={campo.key} style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>
-                  {campo.label}
-                </label>
-                {campo.textarea ? (
-                  <textarea
-                    value={formLaudo[campo.key as keyof typeof formLaudo]}
-                    onChange={e => setFormLaudo(prev => ({ ...prev, [campo.key]: e.target.value }))}
-                    placeholder={campo.placeholder}
-                    rows={3}
-                    style={{
-                      width: '100%', padding: '10px 12px', borderRadius: 10,
-                      border: '1.5px solid rgba(0,0,0,.1)', fontSize: 13,
-                      fontFamily: 'var(--font-sans)', resize: 'vertical', boxSizing: 'border-box',
-                      background: 'rgba(255,255,255,.8)',
-                    }}
-                  />
-                ) : (
-                  <input
-                    type={campo.type ?? 'text'}
-                    value={formLaudo[campo.key as keyof typeof formLaudo]}
-                    onChange={e => setFormLaudo(prev => ({ ...prev, [campo.key]: e.target.value }))}
-                    placeholder={campo.placeholder}
-                    style={{
-                      width: '100%', padding: '10px 12px', borderRadius: 10,
-                      border: '1.5px solid rgba(0,0,0,.1)', fontSize: 13,
-                      fontFamily: 'var(--font-sans)', boxSizing: 'border-box',
-                      background: 'rgba(255,255,255,.8)',
-                    }}
-                  />
-                )}
-              </div>
-            ))}
-
-            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <button
-                onClick={() => setMostrarFormLaudo(false)}
-                style={{
-                  flex: 1, padding: '11px', border: '1.5px solid rgba(0,0,0,.1)',
-                  background: 'transparent', borderRadius: 12,
-                  color: '#64748b', fontSize: 14, cursor: 'pointer',
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={salvarLaudo}
-                disabled={salvandoLaudo}
-                style={{
-                  flex: 2, padding: '11px',
-                  background: 'linear-gradient(135deg,#2A7BA8,#1a5a8a)',
-                  color: 'white', border: 'none', borderRadius: 12,
-                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(42,123,168,.3)',
-                }}
-              >
-                {salvandoLaudo ? 'Salvando...' : 'Salvar laudo'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: laudos.length > 0 ? '0' : '16px 0' }}>
-            {laudos.length === 0 && (
-              <p style={{ color: '#8a9ab8', fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
-                Cadastre laudos médicos, diagnósticos e especialidades recomendadas.
-                Isso enriquece o perfil de {nomeFilho} e permite atividades mais específicas.
-              </p>
-            )}
-            {laudoSalvo && (
-              <div style={{ fontSize: 13, color: '#2BBFA4', fontWeight: 600, marginBottom: 12 }}>
-                ✓ Laudo salvo com sucesso!
-              </div>
-            )}
-            <button
-              onClick={() => setMostrarFormLaudo(true)}
-              style={{
-                padding: '11px 24px',
-                border: '1.5px solid rgba(42,123,168,.4)',
-                background: 'rgba(255,255,255,.7)',
-                color: '#2A7BA8', borderRadius: 50,
-                fontWeight: 700, fontSize: '.82rem', cursor: 'pointer',
-                backdropFilter: 'blur(8px)',
-              }}
-            >
-              + Adicionar laudo
-            </button>
-          </div>
-        )}
-      </BlocoContainer>
+      {/* Laudos migraram para a custódia de Meu Filho (PB-004 D-AV8/D-MF5).
+          A Avaliação usa o laudo como fonte externa de evidência em suas
+          leituras, mas não o gerencia. */}
 
       {/* ══════════════════════════════════════
           BLOCO 4 — DO TERAPEUTA
