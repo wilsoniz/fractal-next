@@ -4,7 +4,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePatient } from "../_context";
+import { signOutFit } from "@/lib/fit/supabase-fit";
 import { listActivePlans } from "@/lib/fit/fit-workouts";
 import { listLogs } from "@/lib/fit/fit-training-logs";
 import { listCheckins } from "@/lib/fit/fit-checkins";
@@ -18,10 +20,16 @@ function daysAgo(dateStr: string): number {
 
 export default function PatientHome() {
   const patient = usePatient();
+  const router = useRouter();
   const [plan, setPlan] = useState<FitWorkoutPlan | null>(null);
   const [logsWeek, setLogsWeek] = useState(0);
   const [lastCheckin, setLastCheckin] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  async function handleLogout() {
+    await signOutFit();
+    router.replace("/consultoria/login");
+  }
 
   useEffect(() => {
     (async () => {
@@ -39,9 +47,17 @@ export default function PatientHome() {
 
   return (
     <div>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: ".8rem", color: "#8ea3c0" }}>Olá,</div>
-        <h1 style={{ margin: "2px 0 0", fontSize: "1.5rem", fontWeight: 800, color: "#f2f6ff" }}>{firstName}</h1>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
+        <div>
+          <div style={{ fontSize: ".8rem", color: "#8ea3c0" }}>Olá,</div>
+          <h1 style={{ margin: "2px 0 0", fontSize: "1.5rem", fontWeight: 800, color: "#f2f6ff" }}>{firstName}</h1>
+        </div>
+        <button
+          onClick={handleLogout}
+          style={{ flexShrink: 0, marginTop: 4, padding: "7px 14px", borderRadius: 9, border: "1px solid rgba(224,90,75,.35)", background: "transparent", color: "#f0857a", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: ".8rem", fontWeight: 600 }}
+        >
+          Sair
+        </button>
       </div>
 
       <FitCard style={{ marginBottom: 14 }}>
