@@ -33,11 +33,11 @@ const TRILHAS: Trilha[] = [
     cor: '#2BBFA4',
     icon: '💬',
     total: 5,
-    concluidas: 2,
+    concluidas: 0,
     recomendada: true,
     aulas: [
-      { id: 'c1', titulo: 'O que é comunicação funcional', duracao: '4 min', concluida: true },
-      { id: 'c2', titulo: 'Como criar oportunidades de pedido', duracao: '5 min', concluida: true },
+      { id: 'c1', titulo: 'O que é comunicação funcional', duracao: '4 min', concluida: false },
+      { id: 'c2', titulo: 'Como criar oportunidades de pedido', duracao: '5 min', concluida: false },
       { id: 'c3', titulo: 'Entendendo o Mando na prática', duracao: '4 min', concluida: false },
       { id: 'c4', titulo: 'Quando ajudar e quando esperar', duracao: '3 min', concluida: false },
       { id: 'c5', titulo: 'Registrando comunicações em casa', duracao: '3 min', concluida: false },
@@ -161,14 +161,14 @@ export default function AprendizadoPage() {
           </p>
         </div>
 
-        <button onClick={() => {
-          setAulaAberta(null)
-        }} style={{
-          width: '100%', marginTop: 16, padding: '13px', borderRadius: 12, border: 'none',
-          background: `linear-gradient(135deg,${trilha.cor},${trilha.cor}cc)`,
-          color: 'white', fontWeight: 800, fontSize: '.9rem',
+        {/* PB-004 D-GF3: sem "marcar como concluída" que não persiste — a navegação
+            de volta fica no botão "← Voltar para a trilha" no topo. */}
+        <button onClick={() => setAulaAberta(null)} style={{
+          width: '100%', marginTop: 16, padding: '13px', borderRadius: 12,
+          border: `1.5px solid ${trilha.cor}55`, background: 'transparent',
+          color: trilha.cor, fontWeight: 700, fontSize: '.9rem',
           cursor: 'pointer', fontFamily: 'var(--font-sans)',
-        }}>✓ Marcar como concluída</button>
+        }}>← Voltar para a trilha</button>
       </div>
     )
   }
@@ -237,7 +237,7 @@ export default function AprendizadoPage() {
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1E3A5F', marginBottom: 4 }}>Aprendizado</h1>
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1E3A5F', marginBottom: 4 }}>Guia Familiar</h1>
         <p style={{ fontSize: '.85rem', color: '#8a9ab8' }}>Trilhas de orientação parental baseadas em ABA</p>
       </div>
 
