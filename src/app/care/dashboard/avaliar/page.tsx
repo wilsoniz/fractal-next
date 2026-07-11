@@ -248,6 +248,7 @@ function AvaliarPageInner() {
   const [respostas, setRespostas] = useState<Respostas>({})
   const [pergAtual, setPergAtual] = useState(0)
   const [scores, setScores] = useState<Record<DomKey, number> | null>(null)
+  const [erroSalvar, setErroSalvar] = useState<string | null>(null)
 
   useEffect(() => {
   async function carregar() {
@@ -298,37 +299,46 @@ function AvaliarPageInner() {
   async function salvar(resps: Respostas, pergs: Pergunta[]) {
     if (!crianca) return
     setFase("salvando")
+    setErroSalvar(null)
     const sc = calcularScores(resps, pergs)
     setScores(sc)
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('radar_snapshots').insert({
-        crianca_id: crianca.id,
-        score_comunicacao: sc.comunicacao,
-        score_social: sc.social,
-        score_atencao: sc.atencao,
-        score_regulacao: sc.regulacao,
-        score_brincadeira: sc.brincadeira,
-        score_flexibilidade: sc.flexibilidade,
-        score_autonomia: sc.autonomia,
-        score_motivacao: sc.motivacao,
-      })
-      await supabase.from('avaliacoes').insert({
-        crianca_id: crianca.id,
-        responsavel_id: user.id,
-        idade_crianca: crianca.idade_anos,
-        respostas: resps,
-        score_comunicacao: sc.comunicacao,
-        score_social: sc.social,
-        score_atencao: sc.atencao,
-        score_regulacao: sc.regulacao,
-        score_brincadeira: sc.brincadeira,
-        score_flexibilidade: sc.flexibilidade,
-        score_autonomia: sc.autonomia,
-        score_motivacao: sc.motivacao,
-        score_geral: Math.round(Object.values(sc).reduce((a,b)=>a+b,0)/8),
-        tipo: 'care_internal', origem: 'web', convertido: true,
-      })
+    if (!user) {
+      setErroSalvar("Sua sessão expirou. Entre novamente para salvar a avaliação.")
+      setFase("resultado")
+      return
+    }
+    // CM-CARE-AUTO-01: falha de gravação NUNCA é silenciosa — a família precisa
+    // saber se a avaliação foi salva (era o ponto cego que escondia erros de RLS).
+    const { error: errRadar } = await supabase.from('radar_snapshots').insert({
+      crianca_id: crianca.id,
+      score_comunicacao: sc.comunicacao,
+      score_social: sc.social,
+      score_atencao: sc.atencao,
+      score_regulacao: sc.regulacao,
+      score_brincadeira: sc.brincadeira,
+      score_flexibilidade: sc.flexibilidade,
+      score_autonomia: sc.autonomia,
+      score_motivacao: sc.motivacao,
+    })
+    const { error: errAval } = await supabase.from('avaliacoes').insert({
+      crianca_id: crianca.id,
+      responsavel_id: user.id,
+      idade_crianca: crianca.idade_anos,
+      respostas: resps,
+      score_comunicacao: sc.comunicacao,
+      score_social: sc.social,
+      score_atencao: sc.atencao,
+      score_regulacao: sc.regulacao,
+      score_brincadeira: sc.brincadeira,
+      score_flexibilidade: sc.flexibilidade,
+      score_autonomia: sc.autonomia,
+      score_motivacao: sc.motivacao,
+      score_geral: Math.round(Object.values(sc).reduce((a,b)=>a+b,0)/8),
+      tipo: 'care_internal', origem: 'web', convertido: true,
+    })
+    if (errRadar || errAval) {
+      setErroSalvar("A avaliação foi concluída, mas houve um problema ao salvar. Tente novamente em instantes.")
     }
     setFase("resultado")
   }
@@ -486,12 +496,27 @@ function AvaliarPageInner() {
                 )
               })}
             </div>
+            {erroSalvar && (
+              <div style={{background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.2)",borderRadius:12,padding:"12px 16px",marginBottom:14,fontSize:".82rem",color:"#dc2626"}}>
+                ⚠️ {erroSalvar}
+              </div>
+            )}
+            {/* CM-CARE-AUTO-01: ponte avaliação → recomendação (era a ruptura do pipeline) */}
+            {!erroSalvar && (
+              <button onClick={()=>router.push(`/care/atividade?criancaId=${crianca?.id}`)} style={{
+                width:"100%",padding:"14px",borderRadius:50,border:"none",
+                background:"linear-gradient(135deg,#2BBFA4,#7AE040)",
+                color:"white",fontWeight:800,fontSize:".92rem",cursor:"pointer",
+                fontFamily:"var(--font-sans)",boxShadow:"0 4px 18px rgba(43,191,164,.35)",
+                marginBottom:10,
+              }}>Ver recomendação de atividade →</button>
+            )}
             <button onClick={()=>router.push('/care/dashboard/avaliacao')} style={{
-              width:"100%",padding:"13px",borderRadius:50,border:"none",
-              background:"linear-gradient(135deg,#2BBFA4,#7AE040)",
-              color:"white",fontWeight:800,fontSize:".9rem",cursor:"pointer",
+              width:"100%",padding:"13px",borderRadius:50,
+              border:"1.5px solid rgba(43,191,164,.3)",background:"transparent",
+              color:"#2A7BA8",fontWeight:700,fontSize:".88rem",cursor:"pointer",
               fontFamily:"var(--font-sans)",
-            }}>Ver dashboard atualizado →</button>
+            }}>Ver mapa completo</button>
           </div>
         )}
       </div>

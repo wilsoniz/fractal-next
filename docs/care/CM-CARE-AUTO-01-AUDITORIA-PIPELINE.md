@@ -53,18 +53,50 @@ carregamento da página, antes de a família ver qualquer coisa** — início si
    sem considerar `crianca_responsaveis`. RLS sem policy = **0 linhas sem erro**
    (armadilha conhecida) — e os inserts do fluxo ignoram `error`.
 
-### SQL de verificação para o Wil (SQL Editor)
+### Resultado da verificação (pg_policies, 11/07/2026 — respondido pelo Wil)
+
+| Tabela | Situação | Veredito |
+|---|---|---|
+| `planos` | **Única policy: `terapeuta_id = auth.uid()`** | 🔴 **CAUSA-RAIZ**: nenhum responsável cria/lê planos — para NENHUMA criança. Todo o fluxo de atividades da família era rejeitado pela RLS (e o código ignorava o erro). |
+| `radar_snapshots` | Policies de dono direto + **`radar_open` (true/true)** | 🔴 **FURO DE SEGURANÇA**: qualquer autenticado lê/escreve o radar de qualquer criança. É por ela que crianças FFS "funcionavam". Remover e substituir por policies corretas. |
+| `sessoes` | `responsavel_id = auth.uid()` | 🟡 Funciona para o pai executor (qualquer origem de criança); co-responsável não vê as sessões do outro (follow-up, não bloqueia). |
+| `avaliacoes` | `responsavel_id = auth.uid() OR responsavel_id IS NULL` | 🟢 Funciona (o `IS NULL` cobre o funil anônimo da captura). |
+| (todas) | Nenhuma considera `crianca_responsaveis` | 🟠 Crianças FFS/convite dependem disso em `planos` e `radar_snapshots`. |
+
+### SQL para o Wil aplicar (SQL Editor) — desbloqueio do pipeline
 
 ```sql
-select tablename, policyname, cmd, qual, with_check
-from pg_policies
-where tablename in ('planos','sessoes','avaliacoes','radar_snapshots')
-order by tablename, cmd;
+-- 1) PLANOS: responsáveis (diretos ou via vínculo) acessam/criam planos das suas crianças
+create policy "planos_responsavel"
+on public.planos for all to authenticated
+using (
+  crianca_id in (select id from public.criancas where responsavel_id = auth.uid())
+  or crianca_id in (select crianca_id from public.crianca_responsaveis where responsavel_id = auth.uid())
+)
+with check (
+  crianca_id in (select id from public.criancas where responsavel_id = auth.uid())
+  or crianca_id in (select crianca_id from public.crianca_responsaveis where responsavel_id = auth.uid())
+);
+
+-- 2) RADAR: cobre vínculo indireto (crianca_responsaveis) com policy correta
+create policy "radar_responsavel_vinculo"
+on public.radar_snapshots for all to authenticated
+using (
+  crianca_id in (select crianca_id from public.crianca_responsaveis where responsavel_id = auth.uid())
+)
+with check (
+  crianca_id in (select crianca_id from public.crianca_responsaveis where responsavel_id = auth.uid())
+);
+
+-- 3) SEGURANÇA: remover o acesso aberto ao radar
+--    (verificar antes se o Clinic/terapeuta precisa de policy própria de radar —
+--     se precisar: policy via planos.terapeuta_id ANTES do drop)
+drop policy "radar_open" on public.radar_snapshots;
 ```
 
-Pergunta a responder: as policies de **INSERT** dessas 4 tabelas aceitam um
-responsável vinculado só por `crianca_responsaveis`? Se não, precisamos de policies
-novas (schema/SQL = Wil) antes de o pipeline funcionar para crianças FFS.
+Após aplicar: recarregar o schema cache do PostgREST. Nota: as duas policies de dono
+direto duplicadas em `radar_snapshots`/`avaliacoes`/`sessoes` são inofensivas
+(limpeza opcional).
 
 ## 6. Tabelas e funções participantes
 

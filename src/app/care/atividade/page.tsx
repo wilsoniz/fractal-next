@@ -9,7 +9,13 @@ import { supabase } from "@/lib/supabase";
 
 // ─── TIPOS ────────────────────────────────────────────────
 type Resultado = "acerto" | "ajuda" | "nao";
-type Fase = "loading" | "instrucao" | "pratica" | "resultado";
+type Fase = "loading" | "recomendacao" | "instrucao" | "pratica" | "resultado";
+
+const NOMES_DOM: Record<string, string> = {
+  comunicacao: "Comunicação", social: "Interação social", atencao: "Atenção",
+  regulacao: "Regulação", brincadeira: "Brincadeira", flexibilidade: "Flexibilidade",
+  autonomia: "Autonomia", motivacao: "Motivação",
+};
 
 interface PassoPrograma {
   titulo?: string;
@@ -106,6 +112,8 @@ function AtividadePageInner() {
   const [pressed,     setPressed]     = useState<Resultado|null>(null);
   const [salvando,    setSalvando]    = useState(false);
   const [erroMsg,     setErroMsg]     = useState("");
+  const [dominioRec,  setDominioRec]  = useState<string | null>(null);
+  const [aceitando,   setAceitando]   = useState(false);
 
   useEffect(() => { carregarAtividade(); }, []);
 
@@ -131,97 +139,96 @@ function AtividadePageInner() {
     setCriancaId(crianca.id);
     setNomeCrianca(crianca.nome);
 
-    // 3. Busca ou cria plano para o programa selecionado
+    // 3. Busca plano existente — NUNCA cria silenciosamente (PB-004 D-A6):
+    //    sem plano aceito, a família vê a RECOMENDAÇÃO com o motivo e decide.
     let planoAtivo: Plano | null = null;
 
     if (planoIdUrl) {
-  // Busca diretamente pelo ID do plano
-  const { data: planoExistente } = await supabase
-    .from("planos")
-    .select("id, programa_id, status, tipo_plano, score_inicio")
-    .eq("id", planoIdUrl)
-    .single()
-  planoAtivo = planoExistente ?? null
-
-} else if (programaIdUrl) {
-  // Busca por programa_id (compatibilidade com links antigos)
-  const { data: planoExistente } = await supabase
-    .from("planos")
-    .select("id, programa_id, status, tipo_plano, score_inicio")
-    .eq("crianca_id", crianca.id)
-    .eq("programa_id", programaIdUrl)
-    .eq("status", "ativo")
-    .single()
-  if (planoExistente) {
-    planoAtivo = planoExistente
-  } else {
-    const { data: novoPlano } = await supabase
-      .from("planos")
-      .insert({
-        crianca_id: crianca.id,
-        programa_id: programaIdUrl,
-        status: "ativo",
-        prioridade: 2,
-        tipo_plano: "principal",
-        gerado_por: "engine",
-        iniciado_em: new Date().toISOString(),
-      })
-      .select("id, programa_id, status, tipo_plano, score_inicio")
-      .single()
-    planoAtivo = novoPlano ?? null
-  }
-}
-
-    // 4. Se ainda nao tiver plano, cria baseado no radar
-    if (!planoAtivo) {
-      planoAtivo = await criarPlanoInicial(crianca.id, user.id);
+      // Plano já aceito anteriormente — segue direto para a execução
+      const { data: planoExistente } = await supabase
+        .from("planos")
+        .select("id, programa_id, status, tipo_plano, score_inicio")
+        .eq("id", planoIdUrl)
+        .maybeSingle();
+      planoAtivo = planoExistente ?? null;
+    } else if (programaIdUrl) {
+      // Link antigo por programa: usa plano ativo se existir; senão vira
+      // recomendação com este programa (aceite explícito antes de criar).
+      const { data: planoExistente } = await supabase
+        .from("planos")
+        .select("id, programa_id, status, tipo_plano, score_inicio")
+        .eq("crianca_id", crianca.id)
+        .eq("programa_id", programaIdUrl)
+        .eq("status", "ativo")
+        .maybeSingle();
+      if (planoExistente) {
+        planoAtivo = planoExistente;
+      } else {
+        await prepararRecomendacao(crianca.id, programaIdUrl);
+        return;
+      }
+    } else {
+      // Sem parâmetros: retoma o plano ativo mais recente (já aceito), se houver
+      const { data: planoExistente } = await supabase
+        .from("planos")
+        .select("id, programa_id, status, tipo_plano, score_inicio")
+        .eq("crianca_id", crianca.id)
+        .eq("status", "ativo")
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      planoAtivo = planoExistente ?? null;
     }
 
     if (!planoAtivo) {
-      setErroMsg("Não foi possível carregar uma atividade. Volte ao painel e faça a avaliação primeiro.");
-      setFase("instrucao");
+      // Nenhum plano aceito ainda → recomendação a partir da avaliação
+      await prepararRecomendacao(crianca.id, null);
       return;
     }
 
     setPlano(planoAtivo);
-
-    // 5. Busca o programa
-    const { data: prog } = await supabase
-      .from("programas")
-      .select("*")
-      .eq("id", planoAtivo.programa_id)
-      .single();
-
+    const prog = await buscarPrograma(planoAtivo.programa_id);
     if (!prog) {
       setErroMsg("Programa não encontrado.");
       setFase("instrucao");
       return;
     }
+    setPrograma(prog);
+    setFase("instrucao");
+  }
 
-    // Garante que passos é array
+  async function buscarPrograma(programaId: string): Promise<Programa | null> {
+    const { data: prog } = await supabase
+      .from("programas")
+      .select("*")
+      .eq("id", programaId)
+      .maybeSingle();
+    if (!prog) return null;
     const passos = Array.isArray(prog.passos)
       ? prog.passos
       : typeof prog.passos === "string"
       ? JSON.parse(prog.passos)
       : [];
-
-    setPrograma({ ...prog, passos });
-    setFase("instrucao");
+    return { ...prog, passos };
   }
 
-  async function criarPlanoInicial(criancaId: string, userId: string): Promise<Plano | null> {
-    // Pega o radar mais recente
+  // Recomendação (PB-004 / CM-CARE-AUTO-01): identifica a prioridade a partir da
+  // ÚLTIMA avaliação (menor domínio do radar), seleciona uma prática compatível e
+  // apresenta o MOTIVO à família — o plano só nasce no aceite.
+  async function prepararRecomendacao(criancaId: string, programaIdPre: string | null) {
+    let dominioPrioritario = "comunicacao";
+    let temRadar = false;
+
     const { data: radar } = await supabase
       .from("radar_snapshots")
       .select("*")
       .eq("crianca_id", criancaId)
       .order("criado_em", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    // Determina domínio prioritário
-    let dominioPrioritario = "comunicacao";
     if (radar) {
+      temRadar = true;
       const scores: Record<string, number> = {
         comunicacao:   radar.score_comunicacao   ?? 50,
         social:        radar.score_social        ?? 50,
@@ -235,34 +242,68 @@ function AtividadePageInner() {
       dominioPrioritario = Object.entries(scores).sort(([,a],[,b]) => a - b)[0][0];
     }
 
-    // Pega programa do domínio prioritário de nível iniciante
-    const { data: prog } = await supabase
-      .from("programas")
-      .select("id")
-      .eq("dominio", dominioPrioritario)
-      .eq("nivel", "iniciante")
-      .eq("ativo", true)
-      .limit(1)
-      .single();
+    if (!temRadar && !programaIdPre) {
+      setErroMsg("Antes da primeira atividade, faça a avaliação — é ela que nos diz por onde começar.");
+      setFase("instrucao");
+      return;
+    }
 
-    if (!prog) return null;
+    // Programa candidato: o pré-selecionado (link antigo) ou o iniciante do domínio
+    let prog: Programa | null = null;
+    if (programaIdPre) {
+      prog = await buscarPrograma(programaIdPre);
+    } else {
+      const { data: cand } = await supabase
+        .from("programas")
+        .select("*")
+        .eq("dominio", dominioPrioritario)
+        .eq("nivel", "iniciante")
+        .eq("ativo", true)
+        .limit(1)
+        .maybeSingle();
+      if (cand) {
+        const passos = Array.isArray(cand.passos) ? cand.passos
+          : typeof cand.passos === "string" ? JSON.parse(cand.passos) : [];
+        prog = { ...cand, passos };
+      }
+    }
 
-    // Cria o plano
-    const { data: novoPlano } = await supabase
+    if (!prog) {
+      setErroMsg("Não encontramos uma prática disponível agora. Tente novamente mais tarde.");
+      setFase("instrucao");
+      return;
+    }
+
+    setPrograma(prog);
+    setDominioRec(programaIdPre ? prog.dominio : dominioPrioritario);
+    setFase("recomendacao");
+  }
+
+  // Aceite explícito da família (D-A6): só aqui o plano é criado — com erro visível.
+  async function aceitarRecomendacao() {
+    if (!criancaId || !programa) return;
+    setAceitando(true);
+    const { data: novoPlano, error } = await supabase
       .from("planos")
       .insert({
-        crianca_id:   criancaId,
-        programa_id:  prog.id,
-        status:       "ativo",
-        prioridade:   1,
-        tipo_plano:   "principal",
-        gerado_por:   "engine",
-        iniciado_em:  new Date().toISOString(),
+        crianca_id: criancaId,
+        programa_id: programa.id,
+        status: "ativo",
+        prioridade: 1,
+        tipo_plano: "principal",
+        gerado_por: "engine",
+        iniciado_em: new Date().toISOString(),
       })
       .select("id, programa_id, status, tipo_plano, score_inicio")
       .single();
-
-    return novoPlano ?? null;
+    setAceitando(false);
+    if (error || !novoPlano) {
+      setErroMsg("Não foi possível iniciar a prática. Tente novamente — se o problema continuar, saia e entre de novo na conta.");
+      return;
+    }
+    setPlano(novoPlano);
+    setErroMsg("");
+    setFase("instrucao");
   }
 
   function registrar(tipo: Resultado) {
@@ -313,7 +354,12 @@ function AtividadePageInner() {
       concluida:        true,
     });
 
-    if (error) console.error("Erro ao salvar sessão:", error);
+    if (error) {
+      // Falha visível (CM-CARE-AUTO-01) — o registro é parte do valor da prática.
+      setErroMsg("A prática foi concluída, mas o registro não pôde ser salvo. Verifique sua conexão e tente novamente mais tarde.");
+      setSalvando(false);
+      return;
+    }
 
     // Atualiza score_atual no plano
     const taxaAcerto = Math.round((acertos / TOTAL_TENTATIVAS) * 100);
@@ -331,7 +377,7 @@ function AtividadePageInner() {
   const ajudas     = tentativas.filter(t => t === "ajuda").length;
   const naoResp    = tentativas.filter(t => t === "nao").length;
   const msg        = gerarMensagem(tentativas, nomeCrianca);
-  const pct        = fase === "instrucao" ? 33 : fase === "pratica" ? 66 : 100;
+  const pct        = fase === "recomendacao" ? 10 : fase === "instrucao" ? 33 : fase === "pratica" ? 66 : 100;
 
   const card: React.CSSProperties = {
     background: "rgba(255,255,255,.84)", backdropFilter: "blur(14px)",
@@ -362,7 +408,7 @@ function AtividadePageInner() {
         </Link>
         <FractaLogo logo="care" height={28} alt="FractaCare" />
         <span style={{ fontSize: ".72rem", color: "#8a9ab8" }}>
-          Passo {fase === "instrucao" ? 1 : fase === "pratica" ? 2 : 3} de 3
+          {fase === "recomendacao" ? "Recomendação" : `Passo ${fase === "instrucao" ? 1 : fase === "pratica" ? 2 : 3} de 3`}
         </span>
       </nav>
 
@@ -371,7 +417,8 @@ function AtividadePageInner() {
         <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#2BBFA4,#7AE040)", borderRadius: "0 2px 2px 0", transition: "width .6s ease" }} />
       </div>
 
-      {/* FASE INDICATOR */}
+      {/* FASE INDICATOR (oculto na recomendação — a jornada de 3 passos começa no aceite) */}
+      {fase !== "recomendacao" && (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, padding: "24px 0 4px" }}>
         {["Instrução","Praticar","Resultado"].map((label, i) => {
           const step    = i + 1;
@@ -391,6 +438,7 @@ function AtividadePageInner() {
           );
         })}
       </div>
+      )}
 
       {/* CONTEÚDO */}
       <div style={{ maxWidth: 540, margin: "0 auto", padding: "16px 18px 120px" }}>
@@ -402,6 +450,53 @@ function AtividadePageInner() {
             <br />
             <Link href="/care" style={{ color: "#2BBFA4", fontWeight: 700, textDecoration: "none", fontSize: ".82rem", marginTop: 8, display: "inline-block" }}>← Voltar ao painel</Link>
           </div>
+        )}
+
+        {/* ── FASE 0: RECOMENDAÇÃO COM ACEITE (PB-004 D-A6 / CM-CARE-AUTO-01) ── */}
+        {fase === "recomendacao" && programa && (
+          <>
+            <div style={{ background: "linear-gradient(135deg,rgba(43,191,164,.1),rgba(42,123,168,.07))", border: "1px solid rgba(43,191,164,.2)", borderRadius: 22, padding: "20px 22px", marginBottom: 16 }}>
+              <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em", color: "#2BBFA4", marginBottom: 10 }}>
+                Nossa recomendação
+              </div>
+              <p style={{ fontSize: ".92rem", color: "#1E3A5F", lineHeight: 1.7, margin: 0 }}>
+                Com base nas respostas da avaliação, <strong style={{ color: "#2BBFA4" }}>{NOMES_DOM[dominioRec ?? programa.dominio] ?? programa.dominio}</strong> parece
+                ser uma boa prioridade para {nomeCrianca} começar. Selecionamos uma prática
+                simples para o dia a dia.
+              </p>
+            </div>
+
+            <div style={card}>
+              <div style={{ display: "inline-block", background: "rgba(43,191,164,.1)", color: "#2BBFA4", fontSize: ".62rem", fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", padding: "4px 12px", borderRadius: 50, marginBottom: 12 }}>
+                {NOMES_DOM[programa.dominio] ?? programa.dominio}
+              </div>
+              <h1 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#1E3A5F", marginBottom: 6 }}>{programa.nome}</h1>
+              {programa.subtitulo && <p style={{ fontSize: ".82rem", color: "#2BBFA4", fontWeight: 600, marginBottom: 10 }}>{programa.subtitulo}</p>}
+              <p style={{ fontSize: ".88rem", color: "#5a7a9a", lineHeight: 1.65, marginBottom: 14 }}>{programa.objetivo}</p>
+              <div style={{ fontSize: ".78rem", color: "#8a9ab8" }}>
+                ⏱ {programa.tempo_minutos} min · nível {programa.nivel}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20 }}>
+                <button onClick={aceitarRecomendacao} disabled={aceitando} style={{
+                  padding: "15px", borderRadius: 50, border: "none",
+                  background: aceitando ? "rgba(43,191,164,.4)" : "linear-gradient(135deg,#2BBFA4,#7AE040)",
+                  color: "white", fontFamily: "var(--font-sans)", fontWeight: 800, fontSize: ".95rem",
+                  cursor: aceitando ? "default" : "pointer",
+                  boxShadow: aceitando ? "none" : "0 4px 18px rgba(43,191,164,.35)",
+                }}>
+                  {aceitando ? "Iniciando..." : "Começar esta prática →"}
+                </button>
+                <Link href="/care/dashboard" style={{
+                  padding: "12px", borderRadius: 50, textAlign: "center",
+                  border: "1.5px solid rgba(43,191,164,.25)", color: "#2A7BA8",
+                  fontWeight: 600, fontSize: ".85rem", textDecoration: "none",
+                }}>
+                  Agora não
+                </Link>
+              </div>
+            </div>
+          </>
         )}
 
         {/* ── FASE 1: INSTRUÇÃO ── */}
@@ -569,7 +664,8 @@ function AtividadePageInner() {
         )}
       </div>
 
-      {/* BOTÃO FIXO */}
+      {/* BOTÃO FIXO (oculto na recomendação — aceite acontece no card) */}
+      {fase !== "recomendacao" && (
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(255,255,255,.88)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(43,191,164,.15)", padding: "14px 20px", zIndex: 50 }}>
         <div style={{ maxWidth: 540, margin: "0 auto", display: "flex", gap: 10, alignItems: "center" }}>
           {fase === "pratica" && (
@@ -588,6 +684,7 @@ function AtividadePageInner() {
           )}
         </div>
       </div>
+      )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
