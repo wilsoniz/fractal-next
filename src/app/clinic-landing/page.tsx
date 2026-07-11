@@ -5,21 +5,25 @@ import { FractaLogo } from "@/components/fracta/FractaLogo";
 
 // ── DADOS ────────────────────────────────────────────────────────────────────
 
+// CM-LP-A1 T5: soluções que dependem do Marketplace são marcadas como futuras.
 const problemas = [
   {
     titulo: "Captação sem consistência",
     problema: "Um mês com agenda cheia, três com lacunas. Indicações esporádicas tornam a renda imprevisível.",
-    solucao: "Demanda contínua de famílias qualificadas via FractaEngine.",
+    solucao: "Estamos construindo o Marketplace que conectará famílias preparadas pelo FractaCare ao seu perfil.",
+    futuro: true,
   },
   {
     titulo: "Dependência de clínicas",
     problema: "Clínicas cobram autonomia clínica, percentual alto e limitam suas condições de atendimento.",
     solucao: "Atendimento direto, com suas regras, sua agenda e sua abordagem.",
+    futuro: false,
   },
   {
     titulo: "Gestão fragmentada",
     problema: "Prontuário em papel, dados em planilha, comunicação por WhatsApp. Nada pensa na lógica ABA.",
     solucao: "Programas, sessões, dados e relatórios em um único ambiente integrado.",
+    futuro: false,
   },
 ];
 
@@ -37,26 +41,26 @@ const levels = [
   { nivel: "Nível 4", nome: "Supervisor / BCBA", desc: "Credencial BCBA ou equivalente, supervisão ativa" },
 ];
 
+// CM-LP-A1 T8/T9: só ferramentas que existem hoje; claims de integração/marketplace saíram.
 const ferramentas = [
   { icon: "🧠", titulo: "Registro por operante", desc: "SD, resposta, dica e latência. Dados reais." },
   { icon: "📊", titulo: "Análise funcional", desc: "Registro ABC estruturado, hipóteses de função." },
   { icon: "📋", titulo: "Programas de ensino", desc: "DTT, NET, MTS com critério de domínio e generalização." },
-  { icon: "🔗", titulo: "Base unificada", desc: "Dados clínicos alimentam o radar do FractaCare." },
-  { icon: "⚡", titulo: "Captação via Engine", desc: "Perfil completo antes da primeira sessão." },
+  { icon: "🔗", titulo: "Base unificada", desc: "Todos os dados clínicos da criança em um só lugar." },
+  { icon: "🎯", titulo: "Planejamento de sessão", desc: "Objetivos e programas organizados antes de atender." },
   { icon: "📈", titulo: "Relatórios automáticos", desc: "Evolução por habilidade exportável para supervisão." },
 ];
 
+// CM-LP-A1 T11/T12: itens dependentes de Marketplace/produto futuro marcados.
 const modelo = [
-  { n: "01", titulo: "Pacientes via Fracta", desc: "O FractaEngine conecta famílias ao seu perfil. Comissão apenas sobre sessões realizadas. Sem mensalidade." },
-  { n: "02", titulo: "Pacientes particulares", desc: "Use a plataforma para gerir seus pacientes por valor fixo por paciente ativo." },
-  { n: "03", titulo: "Trilhas contextuais", desc: "Conteúdo de desenvolvimento ativado pelo que você está aplicando — não cursos genéricos." },
+  { n: "01", titulo: "Pacientes via Fracta", desc: "Quando o Marketplace estiver disponível: o FractaEngine conectará famílias ao seu perfil, com comissão apenas sobre sessões realizadas. Sem mensalidade.", futuro: true },
+  { n: "02", titulo: "Pacientes particulares", desc: "Use a plataforma para gerir seus pacientes por valor fixo por paciente ativo.", futuro: false },
+  { n: "03", titulo: "Trilhas contextuais", desc: "Conteúdo de desenvolvimento ativado pelo que você está aplicando — não cursos genéricos.", futuro: true },
 ];
 
-const depoimentos = [
-  { texto: "Em seis semanas minha agenda estava cheia. Completei o perfil, passei pelo processo de seleção e o engine fez o trabalho.", nome: "Carolina Amaral", sub: "Terapeuta ABA · Belo Horizonte", init: "CA", g: "linear-gradient(135deg,#00c9a7,#1e90ff)" },
-  { texto: "As famílias chegam já com o perfil preenchido, entendem o processo e reconhecem a abordagem. O vínculo terapêutico é diferente desde o início.", nome: "Rafael Ferreira", sub: "BCBA · São Paulo", init: "RF", g: "linear-gradient(135deg,#1e90ff,#7c3aed)" },
-  { texto: "A estrutura de programas é o que eu sempre quis. Treino direto, generalização e equivalência com critérios claros.", nome: "Beatriz Nunes", sub: "Terapeuta Sênior · Recife", init: "BN", g: "linear-gradient(135deg,#7bed9f,#00c9a7)" },
-];
+// CM-LP-A1 T2: depoimentos fictícios removidos — jamais atribuir credencial
+// profissional (ex.: BCBA) a pessoas inexistentes. Voltam apenas com depoimentos
+// reais e autorizados.
 
 // ── COMPONENTE PRINCIPAL ──────────────────────────────────────────────────────
 
@@ -141,22 +145,23 @@ export default function ClinicLandingPage() {
 
       {/* ── HERO ── */}
       <section style={{ padding: "60px 20px 48px", maxWidth: 680, margin: "0 auto" }}>
+        {/* CM-LP-A1 T1: métrica fabricada removida do selo */}
         <div style={{
           display: "inline-flex", alignItems: "center", gap: 8,
           background: "rgba(29,158,117,.12)", border: "1px solid rgba(29,158,117,.25)",
           borderRadius: 50, padding: "4px 14px", marginBottom: 20,
         }}>
           <span style={{ fontSize: ".65rem", fontWeight: 700, color: "#1D9E75", textTransform: "uppercase", letterSpacing: ".1em" }}>Para terapeutas ABA</span>
-          <span style={{ fontSize: ".7rem", color: "rgba(255,255,255,.4)" }}>+320 já na plataforma</span>
         </div>
 
         <h1 style={{ fontSize: "clamp(2rem,5vw,3.5rem)", fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.03em", marginBottom: 20 }}>
           Sem captação consistente, não há pacientes.<br />
-          <span style={{ color: "#1D9E75" }}>Sem previsibilidade, não há controle</span>
+          <span style={{ color: "#1D9E75" }}>Sem previsibilidade, não há controle.</span>
         </h1>
 
+        {/* CM-LP-A1 T3: presente e futuro separados com honestidade */}
         <p style={{ fontSize: "1rem", color: "rgba(255,255,255,.55)", lineHeight: 1.75, marginBottom: 32, maxWidth: 520 }}>
-          O FractaClinic conecta você a famílias já preparadas pelo FractaCare — pais que buscam um terapeuta qualificado. Você atende com autonomia. Nós estruturamos o caminho.
+          O FractaClinic estrutura sua prática hoje — programas, sessões, dados e relatórios pensados na lógica ABA. E estamos construindo o Marketplace que conectará famílias preparadas pelo FractaCare a terapeutas qualificados. Você atende com autonomia. Nós estruturamos o caminho.
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 340 }}>
@@ -173,8 +178,9 @@ export default function ClinicLandingPage() {
           }}>Entender o modelo</a>
         </div>
 
+        {/* CM-LP-A1 T4: trio reescrito — hoje vs. em desenvolvimento */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginTop: 40, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,.08)" }}>
-          {[["Sem mensalidade","para começar"],["Perfil completo","antes da 1ª sessão"],["Seleção por mérito","processo transparente"]].map(([v,l]) => (
+          {[["Gestão clínica completa","disponível hoje"],["Lógica ABA de ponta a ponta","programas, sessões, dados"],["Marketplace de famílias","em desenvolvimento"]].map(([v,l]) => (
             <div key={l}>
               <div style={{ fontSize: ".78rem", fontWeight: 700, color: "#1D9E75" }}>{v}</div>
               <div style={{ fontSize: ".65rem", color: "rgba(255,255,255,.3)", marginTop: 3 }}>{l}</div>
@@ -200,7 +206,9 @@ export default function ClinicLandingPage() {
                 <div style={{ fontSize: ".95rem", fontWeight: 700, marginBottom: 8 }}>{p.titulo}</div>
                 <div style={{ fontSize: ".82rem", color: "rgba(255,255,255,.45)", lineHeight: 1.7, marginBottom: 14 }}>{p.problema}</div>
                 <div style={{ height: 1, background: "rgba(29,158,117,.2)", marginBottom: 12 }} />
-                <div style={{ fontSize: ".82rem", color: "#1D9E75", lineHeight: 1.65 }}>Com o FractaClinic: {p.solucao}</div>
+                <div style={{ fontSize: ".82rem", color: "#1D9E75", lineHeight: 1.65 }}>
+                  {p.futuro ? "Em desenvolvimento: " : "Com o FractaClinic: "}{p.solucao}
+                </div>
               </div>
             ))}
           </div>
@@ -210,12 +218,16 @@ export default function ClinicLandingPage() {
       {/* ── COMO FUNCIONA ── */}
       <section id="como" style={{ padding: "60px 20px" }}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
-          <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".14em", color: "#1D9E75", marginBottom: 10 }}>Como funciona</div>
+          {/* CM-LP-A1 T6: fluxo do Marketplace = visão futura, declarada como tal */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <span style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".14em", color: "#1D9E75" }}>Como vai funcionar</span>
+            <span style={{ fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "rgba(255,255,255,.45)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 50, padding: "3px 10px" }}>Marketplace · em desenvolvimento</span>
+          </div>
           <h2 style={{ fontSize: "clamp(1.6rem,4vw,2.4rem)", fontWeight: 800, letterSpacing: "-.02em", marginBottom: 12 }}>
             Seu perfil. Suas regras.<br />Pacientes chegando.
           </h2>
           <p style={{ fontSize: ".9rem", color: "rgba(255,255,255,.45)", lineHeight: 1.75, marginBottom: 28 }}>
-            O FractaEngine analisa o perfil clínico da criança e conecta a família ao terapeuta mais adequado.
+            A visão que estamos construindo: o FractaEngine analisará o perfil clínico da criança e conectará a família ao terapeuta mais adequado. Crie seu perfil hoje para entrar na lista de interesse.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {steps.map(s => (
@@ -239,7 +251,11 @@ export default function ClinicLandingPage() {
       {/* ── SELEÇÃO ── */}
       <section id="selecao" style={{ padding: "60px 20px", background: "rgba(255,255,255,.02)" }}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
-          <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".14em", color: "#1D9E75", marginBottom: 10 }}>Processo de seleção</div>
+          {/* CM-LP-A1 T7: senioridade ligada à distribuição = Marketplace futuro */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 10 }}>
+            <span style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".14em", color: "#1D9E75" }}>Processo de seleção</span>
+            <span style={{ fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "rgba(255,255,255,.45)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 50, padding: "3px 10px" }}>Em desenvolvimento</span>
+          </div>
           <h2 style={{ fontSize: "clamp(1.6rem,4vw,2.4rem)", fontWeight: 800, letterSpacing: "-.02em", marginBottom: 12, textAlign: "center" }}>
             Qualidade clínica garantida com transparência.
           </h2>
@@ -261,7 +277,11 @@ export default function ClinicLandingPage() {
       {/* ── FERRAMENTAS ── */}
       <section style={{ padding: "60px 20px" }}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
-          <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".14em", color: "#1D9E75", marginBottom: 10, textAlign: "center" }}>Clínica completa</div>
+          {/* CM-LP-A1 T10: ferramentas reais, marcadas como disponíveis hoje */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 10 }}>
+            <span style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".14em", color: "#1D9E75" }}>Clínica completa</span>
+            <span style={{ fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "#07111f", background: "#1D9E75", borderRadius: 50, padding: "3px 10px" }}>Disponível hoje</span>
+          </div>
           <h2 style={{ fontSize: "clamp(1.6rem,4vw,2.4rem)", fontWeight: 800, letterSpacing: "-.02em", marginBottom: 28, textAlign: "center" }}>
             Tudo que você precisa para atender
           </h2>
@@ -291,35 +311,13 @@ export default function ClinicLandingPage() {
             {modelo.map(m => (
               <div key={m.n} style={card}>
                 <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "rgba(29,158,117,.25)", marginBottom: 8, lineHeight: 1 }}>{m.n}</div>
-                <div style={{ fontSize: ".9rem", fontWeight: 700, marginBottom: 8 }}>{m.titulo}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: ".9rem", fontWeight: 700 }}>{m.titulo}</span>
+                  {m.futuro && (
+                    <span style={{ fontSize: ".58rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "rgba(255,255,255,.45)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 50, padding: "2px 8px" }}>Em desenvolvimento</span>
+                  )}
+                </div>
                 <div style={{ fontSize: ".8rem", color: "rgba(255,255,255,.45)", lineHeight: 1.7 }}>{m.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── DEPOIMENTOS ── */}
-      <section id="depoimentos" style={{ padding: "60px 20px" }}>
-        <div style={{ maxWidth: 680, margin: "0 auto" }}>
-          <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".14em", color: "#1D9E75", marginBottom: 10, textAlign: "center" }}>Depoimentos</div>
-          <h2 style={{ fontSize: "clamp(1.6rem,4vw,2.2rem)", fontWeight: 800, letterSpacing: "-.02em", marginBottom: 28, textAlign: "center" }}>
-            O que terapeutas estão dizendo
-          </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {depoimentos.map(d => (
-              <div key={d.nome} style={card}>
-                <div style={{ display: "flex", gap: 2, marginBottom: 14 }}>
-                  {[...Array(5)].map((_,i) => <span key={i} style={{ color: "#1D9E75" }}>★</span>)}
-                </div>
-                <p style={{ fontSize: ".88rem", color: "rgba(255,255,255,.65)", lineHeight: 1.75, marginBottom: 18 }}>"{d.texto}"</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: d.g, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".62rem", fontWeight: 800 }}>{d.init}</div>
-                  <div>
-                    <div style={{ fontSize: ".85rem", fontWeight: 700 }}>{d.nome}</div>
-                    <div style={{ fontSize: ".7rem", color: "rgba(255,255,255,.35)" }}>{d.sub}</div>
-                  </div>
-                </div>
               </div>
             ))}
           </div>
@@ -333,8 +331,9 @@ export default function ClinicLandingPage() {
           <h2 style={{ fontSize: "clamp(1.6rem,4vw,2.2rem)", fontWeight: 800, letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 20, textAlign: "center" }}>
             Sua agenda previsível.<br />Sua autonomia preservada.
           </h2>
+          {/* CM-LP-A1 T13: bullets do que existe hoje + futuro declarado */}
           <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
-            {["Indicações de pacientes qualificados pelo FractaEngine","Seleção transparente com definição de nível de senioridade","Estrutura clínica completa: programas, sessões e relatórios","Sem mensalidade — comissão apenas sobre sessões realizadas"].map(b => (
+            {["Estrutura clínica completa: programas, sessões, dados e relatórios","Pensado na lógica ABA, do registro por operante ao relatório","Sem mensalidade para começar","Prioridade na lista de interesse do Marketplace (em desenvolvimento)"].map(b => (
               <li key={b} style={{ display: "flex", gap: 10, fontSize: ".82rem", color: "rgba(255,255,255,.65)" }}>
                 <span style={{ color: "#1D9E75", fontWeight: 800, flexShrink: 0 }}>—</span>
                 {b}
@@ -348,7 +347,7 @@ export default function ClinicLandingPage() {
             boxShadow: "0 6px 24px rgba(29,158,117,.35)",
           }}>Criar perfil no FractaClinic</Link>
           <p style={{ fontSize: ".7rem", color: "rgba(255,255,255,.25)", textAlign: "center", marginTop: 12 }}>
-            Sem mensalidade obrigatória · Comissão apenas quando você atende
+            Sem mensalidade obrigatória para começar
           </p>
         </div>
       </section>
@@ -363,7 +362,7 @@ export default function ClinicLandingPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 28 }}>
             {[
               { title: "Plataforma", links: [["#proposta","O problema"],["#como","Como funciona"],["#selecao","Seleção"],["#modelo","Modelo"]] },
-              { title: "Fracta", links: [["/","Fracta Behavior"],["/care","FractaCare"],["#","Privacidade"]] },
+              { title: "Fracta", links: [["/","Fracta Behavior"],["/care","FractaCare"]] },
             ].map(col => (
               <div key={col.title}>
                 <div style={{ fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em", color: "rgba(255,255,255,.2)", marginBottom: 12 }}>{col.title}</div>
@@ -376,7 +375,7 @@ export default function ClinicLandingPage() {
             ))}
           </div>
           <div style={{ borderTop: "1px solid rgba(255,255,255,.06)", paddingTop: 16, fontSize: ".7rem", color: "rgba(255,255,255,.2)" }}>
-            © 2025 Fracta Behavior. Todos os direitos reservados.
+            © 2026 Fracta Behavior. Todos os direitos reservados.
           </div>
         </div>
       </footer>
