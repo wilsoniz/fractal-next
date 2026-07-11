@@ -4,7 +4,7 @@ import { useState } from "react";
 import { FractaLogo } from "@/components/fracta/FractaLogo";
 
 const steps = [
-  { n: "1", titulo: "Você responde a avaliação", desc: "14 perguntas simples sobre o dia a dia do seu filho. Leva menos de 2 minutos." },
+  { n: "1", titulo: "Você responde a avaliação", desc: "Perguntas simples sobre o dia a dia, adaptadas à idade do seu filho. Leva cerca de 3 minutos." },
   { n: "2", titulo: "Geramos o mapa de habilidades", desc: "O FractaEngine analisa as respostas e cria um radar personalizado de desenvolvimento." },
   { n: "3", titulo: "Você recebe atividades personalizadas", desc: "Planos simples, em linguagem acessível, para praticar em casa." },
   { n: "4", titulo: "Acompanhamos o progresso", desc: "O sistema se adapta ao seu filho e registra cada avanço ao longo do tempo." },
@@ -36,17 +36,14 @@ const paraQuem = [
   },
 ];
 
-const depoimentos = [
-  { texto: "Em 3 semanas meu filho começou a pedir as coisas de forma diferente. As atividades são simples mas fazem toda a diferença.", nome: "Mariana A.", sub: "Mãe do Lucas, 4 anos", init: "MA", g: "linear-gradient(135deg,#2BBFA4,#2A7BA8)" },
-  { texto: "Finalmente algo que não me faz sentir que estou errando. O mapa mostrou o que meu filho já tem e onde pode crescer.", nome: "Ricardo F.", sub: "Pai da Sofia, 3 anos", init: "RF", g: "linear-gradient(135deg,#4FC3D8,#2A7BA8)" },
-  { texto: "As birras diminuíram muito depois que comecei a aplicar as estratégias. Um divisor de águas para nós.", nome: "Camila S.", sub: "Mãe do Pedro, 5 anos", init: "CS", g: "linear-gradient(135deg,#7AE040,#2BBFA4)" },
-];
+// CM-LP-A1 C4: depoimentos fictícios removidos — voltam apenas quando houver
+// depoimentos reais e autorizados de famílias do teste.
 
 const faqs = [
   { q: "O FractaCare substitui o acompanhamento profissional?", a: "Não. É um complemento poderoso para o trabalho em casa, mas não substitui profissionais como psicólogos e terapeutas." },
   { q: "Preciso ter conhecimento em ABA para usar?", a: "De jeito nenhum. Toda linguagem técnica é traduzida para o dia a dia. Feito para pais, não especialistas." },
   { q: "Para qual faixa etária funciona?", a: "Desenvolvido para crianças de 1 a 8 anos. As atividades e o radar se adaptam à idade informada." },
-  { q: "A avaliação inicial é mesmo gratuita?", a: "Sim, 100% gratuita e sem cartão de crédito. 14 perguntas, radar de desenvolvimento e primeiras atividades — sem pagar nada." },
+  { q: "O FractaCare é gratuito?", a: "Sim. O FractaCare é gratuito para famílias — avaliação, mapa de habilidades e atividades, sem cartão de crédito e sem cobrança. Essa é uma decisão do Fracta: famílias não pagam." },
 ];
 
 function FaqItem({ q, a }: { q: string; a: string }) {
@@ -119,7 +116,7 @@ export default function CapturePage() {
           background: "rgba(255,255,255,.98)", borderBottom: "1px solid rgba(43,191,164,.15)",
           padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12,
         }}>
-          {[["#como-funciona","Como funciona"],["#dominios","Habilidades"],["#depoimentos","Depoimentos"],["#faq","Dúvidas"]].map(([href,label]) => (
+          {[["#como-funciona","Como funciona"],["#dominios","Habilidades"],["#faq","Dúvidas"]].map(([href,label]) => (
             <a key={href} href={href} onClick={() => setMenuOpen(false)} style={{ fontSize: ".9rem", fontWeight: 600, color: "#1E3A5F", textDecoration: "none", padding: "8px 0", borderBottom: "1px solid rgba(0,0,0,.05)" }}>{label}</a>
           ))}
           <Link href="/care/login" onClick={() => setMenuOpen(false)} style={{ fontSize: ".9rem", fontWeight: 600, color: "#2BBFA4", textDecoration: "none", padding: "8px 0" }}>Entrar na minha conta</Link>
@@ -156,10 +153,11 @@ export default function CapturePage() {
           }}>Como funciona</a>
         </div>
 
+        {/* CM-LP-A1 C1–C3: métricas fabricadas removidas; só fatos verdadeiros */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginTop: 36, paddingTop: 28, borderTop: "1px solid rgba(43,191,164,.15)" }}>
-          {[["4.800+","Famílias ativas"],["40+","Atividades"],["2 min","Para avaliar"]].map(([v,l]) => (
+          {[["Gratuito","para famílias, sempre"],["Sem cartão","nenhuma cobrança"],["~3 min","para avaliar"]].map(([v,l]) => (
             <div key={l}>
-              <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "#1E3A5F" }}>{v}</div>
+              <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "#1E3A5F" }}>{v}</div>
               <div style={{ fontSize: ".65rem", color: "#8a9ab8", marginTop: 3 }}>{l}</div>
             </div>
           ))}
@@ -232,31 +230,6 @@ export default function CapturePage() {
         </div>
       </section>
 
-      {/* DEPOIMENTOS */}
-      <section id="depoimentos" style={{ padding: "52px 20px" }}>
-        <div style={{ maxWidth: 680, margin: "0 auto" }}>
-          <div style={{ fontSize: ".62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".14em", color: "#2BBFA4", marginBottom: 8, textAlign: "center" }}>O que os pais dizem</div>
-          <h2 style={{ fontSize: "clamp(1.6rem,4vw,2.2rem)", fontWeight: 800, letterSpacing: "-.02em", textAlign: "center", marginBottom: 24 }}>Famílias que já sentiram a diferença</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {depoimentos.map(d => (
-              <div key={d.nome} style={card}>
-                <div style={{ display: "flex", gap: 2, marginBottom: 12 }}>
-                  {[...Array(5)].map((_,i) => <span key={i} style={{ color: "#2BBFA4" }}>★</span>)}
-                </div>
-                <p style={{ fontSize: ".88rem", color: "#3a5a7a", lineHeight: 1.75, marginBottom: 16 }}>"{d.texto}"</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: d.g, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".62rem", fontWeight: 800, color: "white" }}>{d.init}</div>
-                  <div>
-                    <div style={{ fontSize: ".82rem", fontWeight: 700 }}>{d.nome}</div>
-                    <div style={{ fontSize: ".68rem", color: "#8a9ab8" }}>{d.sub}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* FAQ */}
       <section id="faq" style={{ padding: "52px 20px", background: "rgba(255,255,255,.5)" }}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
@@ -275,7 +248,7 @@ export default function CapturePage() {
             Seu filho tem habilidades<br />prontas para crescer.
           </h2>
           <p style={{ fontSize: ".9rem", color: "rgba(255,255,255,.7)", marginBottom: 28, lineHeight: 1.75 }}>
-            Descubra quais são em 2 minutos. Grátis, sem cartão de crédito.
+            Descubra quais são em cerca de 3 minutos. Gratuito para famílias, sem cartão de crédito.
           </p>
           <Link href="/captura/avaliacao" style={{
             display: "block", padding: "15px 32px", borderRadius: 50,
@@ -283,7 +256,7 @@ export default function CapturePage() {
             textDecoration: "none", boxShadow: "0 6px 28px rgba(0,0,0,.2)",
           }}>✦ Começar avaliação gratuita</Link>
           <div style={{ fontSize: ".72rem", color: "rgba(255,255,255,.4)", marginTop: 12 }}>
-            Gratuito · Sem cartão · 2 minutos
+            Gratuito para famílias · Sem cartão · ~3 minutos
           </div>
         </div>
       </section>
@@ -298,7 +271,7 @@ export default function CapturePage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
             {[
               { title: "Plataforma", links: [["#como-funciona","Como funciona"],["#dominios","Habilidades"],["#faq","Dúvidas"]] },
-              { title: "Fracta", links: [["/","Fracta Behavior"],["/clinic-landing","Para terapeutas"],["#","Privacidade"]] },
+              { title: "Fracta", links: [["/","Fracta Behavior"],["/clinic-landing","Para terapeutas"]] },
             ].map(col => (
               <div key={col.title}>
                 <div style={{ fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em", color: "#aabbcc", marginBottom: 12 }}>{col.title}</div>
@@ -311,7 +284,7 @@ export default function CapturePage() {
             ))}
           </div>
           <div style={{ borderTop: "1px solid rgba(43,191,164,.1)", paddingTop: 16, fontSize: ".7rem", color: "#aabbcc" }}>
-            © 2025 Fracta Behavior. Todos os direitos reservados.
+            © 2026 Fracta Behavior. Todos os direitos reservados.
           </div>
         </div>
       </footer>
