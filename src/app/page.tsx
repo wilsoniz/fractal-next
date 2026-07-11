@@ -169,8 +169,7 @@ export default function HomePage() {
           © 2026 Fracta Behavior. Todos os direitos reservados.
         </span>
         <div style={{ display: 'flex', gap: 16 }}>
-          {/* Privacidade/Termos voltam quando as páginas reais existirem (ordem geral, item 3) */}
-          {[['Contato', 'mailto:contato@fractabehavior.com']].map(([label, href]) => (
+          {[['Privacidade', '/privacidade'], ['Termos', '/termos'], ['Contato', 'mailto:contato@fractabehavior.com']].map(([label, href]) => (
             <a key={label} href={href} style={{ fontSize: 11, color: 'rgba(232,237,242,0.25)', textDecoration: 'none' }}>
               {label}
             </a>

@@ -362,7 +362,7 @@ export default function ClinicLandingPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 28 }}>
             {[
               { title: "Plataforma", links: [["#proposta","O problema"],["#como","Como funciona"],["#selecao","Seleção"],["#modelo","Modelo"]] },
-              { title: "Fracta", links: [["/","Fracta Behavior"],["/care","FractaCare"]] },
+              { title: "Fracta", links: [["/","Fracta Behavior"],["/care","FractaCare"],["/privacidade","Privacidade"],["/termos","Termos"]] },
             ].map(col => (
               <div key={col.title}>
                 <div style={{ fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em", color: "rgba(255,255,255,.2)", marginBottom: 12 }}>{col.title}</div>

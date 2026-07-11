@@ -271,7 +271,7 @@ export default function CapturePage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
             {[
               { title: "Plataforma", links: [["#como-funciona","Como funciona"],["#dominios","Habilidades"],["#faq","Dúvidas"]] },
-              { title: "Fracta", links: [["/","Fracta Behavior"],["/clinic-landing","Para terapeutas"]] },
+              { title: "Fracta", links: [["/","Fracta Behavior"],["/clinic-landing","Para terapeutas"],["/privacidade","Privacidade"],["/termos","Termos"]] },
             ].map(col => (
               <div key={col.title}>
                 <div style={{ fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em", color: "#aabbcc", marginBottom: 12 }}>{col.title}</div>
