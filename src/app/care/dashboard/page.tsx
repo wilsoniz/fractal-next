@@ -35,6 +35,20 @@ function getTagDominio(score: number): { tag: string; tc: string; tt: string } {
   return              { tag: 'Atenção',    tc: 'rgba(239,68,68,.10)',  tt: '#b91c1c' }
 }
 
+// Linha de orientação — RESTAURADA em 11/07/2026 (fluxo de autonomia): após a
+// avaliação, a família precisa de UMA frase do que fazer, não só números.
+// INTERIM até o BLQ-1 definir a leitura canônica exportada pela Avaliação (D-AV6);
+// rótulo "FractaEngine" pendente da decisão de naming (DEP-6).
+function gerarMensagemEngine(scores: Record<DomKey, number>, nome: string): string {
+  const menor = DOMINIOS.map(d => ({ ...d, val: scores[d.key] ?? 50 })).sort((a, b) => a.val - b.val)[0]
+  const media = Object.values(scores).reduce((a, b) => a + b, 0) / 8
+  if (media >= 70)
+    return `${nome} apresenta um perfil sólido. O FractaEngine identificou que ele está pronto para avançar em <strong style="color:#2BBFA4">${menor.nome.toLowerCase()}</strong>.`
+  if (media >= 50)
+    return `O FractaEngine identificou habilidades emergentes em <strong style="color:#2BBFA4">${menor.nome.toLowerCase()}</strong>. Práticas simples no dia a dia trarão avanços rápidos.`
+  return `${nome} está em um momento importante. Foque em <strong style="color:#2BBFA4">${menor.nome.toLowerCase()}</strong> — uma habilidade-chave que desbloqueará outras.`
+}
+
 export default function CareDashboardPage() {
 const { criancaAtiva, nomeResp } = useCareContext()
   const [isMobile, setIsMobile] = useState(false)
@@ -229,6 +243,18 @@ const { criancaAtiva, nomeResp } = useCareContext()
         {/* COLUNA DIREITA */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+          {/* ORIENTAÇÃO — restaurada 11/07/2026 (fluxo de autonomia); interim do BLQ-1 */}
+          <div style={{ background: 'linear-gradient(135deg,rgba(43,191,164,.1),rgba(42,123,168,.07))', border: '1px solid rgba(43,191,164,.2)', borderRadius: 22, padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <FractaLogo logo="engine" height={20} alt="FractaEngine" />
+              <span style={{ fontSize: '.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.09em', color: '#2BBFA4' }}>FractaEngine</span>
+            </div>
+            <p
+              style={{ fontSize: '.85rem', color: '#1E3A5F', lineHeight: 1.65, margin: 0 }}
+              dangerouslySetInnerHTML={{ __html: gerarMensagemEngine(scores, primeiroNome) }}
+            />
+          </div>
+
           {/* ATIVIDADES DO DIA */}
           <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid rgba(43,191,164,.08)' }}>
@@ -239,18 +265,23 @@ const { criancaAtiva, nomeResp } = useCareContext()
                 </span>
               )}
             </div>
-            {/* Estado vazio honesto (PB-004 D-H4): sem atividades sintéticas */}
+            {/* Estado vazio honesto (D-H4) que preserva o fluxo de autonomia
+                (11/07/2026): sem atividades sintéticas, mas com a porta de entrada
+                REAL — /care/atividade cria a primeira atividade a partir da
+                avaliação da criança. */}
             {atividades.length === 0 && (
               <div style={{ padding: '24px 18px', textAlign: 'center' }}>
                 <p style={{ fontSize: '.82rem', color: '#8a9ab8', lineHeight: 1.6, margin: '0 0 14px' }}>
                   {primeiroNome} ainda não tem atividades ativas.
+                  A primeira é criada a partir da avaliação.
                 </p>
-                <Link href="/care/dashboard/avaliacao" style={{
-                  display: 'inline-block', padding: '9px 20px', borderRadius: 50,
-                  border: '1.5px solid rgba(43,191,164,.4)', background: 'rgba(255,255,255,.7)',
-                  color: '#2BBFA4', fontWeight: 700, fontSize: '.78rem', textDecoration: 'none',
+                <Link href={`/care/atividade?criancaId=${criancaAtiva?.id}`} style={{
+                  display: 'inline-block', padding: '10px 22px', borderRadius: 50, border: 'none',
+                  background: 'linear-gradient(135deg,#2BBFA4,#7AE040)',
+                  color: 'white', fontWeight: 700, fontSize: '.8rem', textDecoration: 'none',
+                  boxShadow: '0 3px 12px rgba(43,191,164,.3)',
                 }}>
-                  Fazer avaliação para receber atividades
+                  Começar primeira atividade
                 </Link>
               </div>
             )}

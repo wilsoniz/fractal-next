@@ -115,14 +115,21 @@ function AtividadePageInner() {
     if (!user) { router.replace("/care/login"); return; }
     setUserId(user.id);
 
-    // 2. Criança
+    // 2. Criança — acesso decidido pela RLS (inclui vínculos via
+    // crianca_responsaveis; criancas.responsavel_id é null em cadastros via
+    // Clinic/FFS). Não filtrar por responsavel_id. Fluxo de autonomia, 11/07/2026.
     const criancaIdParam = searchParams.get("criancaId");
-    const query = supabase.from("criancas").select("id, nome").eq("responsavel_id", user.id).eq("ativo", true);
+    const query = supabase.from("criancas").select("id, nome").eq("ativo", true);
     if (criancaIdParam) query.eq("id", criancaIdParam);
-    const { data: crianca } = await query.limit(1).single();
-    if (!crianca) { router.replace("/care"); return; }
-      setCriancaId(crianca.id);
-      setNomeCrianca(crianca.nome);
+    const { data: crianca } = await query.limit(1).maybeSingle();
+    if (!crianca) {
+      // Erro visível — nunca redirect mudo (a família precisa entender o que houve).
+      setErroMsg("Não encontramos o perfil da criança. Volte ao painel e tente novamente.");
+      setFase("instrucao");
+      return;
+    }
+    setCriancaId(crianca.id);
+    setNomeCrianca(crianca.nome);
 
     // 3. Busca ou cria plano para o programa selecionado
     let planoAtivo: Plano | null = null;

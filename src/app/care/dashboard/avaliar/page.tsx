@@ -254,15 +254,18 @@ function AvaliarPageInner() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/care/login'); return }
 
+    // Fluxo de autonomia (11/07/2026): o acesso à criança é decidido pela RLS —
+    // inclui vínculos via crianca_responsaveis (ex.: cadastro pelo Clinic/FFS, em
+    // que criancas.responsavel_id é null). Não filtrar por responsavel_id.
+    // Mesmo padrão do layout do dashboard.
     const baseQ = supabase.from('criancas')
       .select('id, nome, idade_anos, data_nascimento, genero')
-      .eq('responsavel_id', user.id)
       .eq('ativo', true)
 
     const { data } = await (criancaIdParam
       ? baseQ.eq('id', criancaIdParam)
-      : baseQ.order('criado_em', { ascending: true }).limit(1)
-    ).single()
+      : baseQ.order('criado_em', { ascending: true })
+    ).limit(1).maybeSingle()
 
     if (data) setCrianca(data)
     setFase("confirmacao")
@@ -356,6 +359,25 @@ function AvaliarPageInner() {
           <div style={{...card,textAlign:"center",padding:"48px"}}>
             <div style={{width:32,height:32,borderRadius:"50%",border:"3px solid rgba(43,191,164,.2)",borderTopColor:"#2BBFA4",animation:"spin 1s linear infinite",margin:"0 auto"}} />
             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          </div>
+        )}
+
+        {/* ERRO — criança não encontrada (nunca renderizar em branco) */}
+        {fase==="confirmacao" && !crianca && (
+          <div style={{...card,textAlign:"center"}}>
+            <div style={{fontSize:"2rem",marginBottom:12}}>⚠️</div>
+            <h2 style={{fontSize:"1.15rem",fontWeight:800,color:"#1E3A5F",marginBottom:8}}>
+              Não encontramos o perfil da criança
+            </h2>
+            <p style={{fontSize:".85rem",color:"#5a7a9a",lineHeight:1.7,marginBottom:20}}>
+              Volte ao painel e tente novamente. Se o problema continuar, saia e entre de novo na sua conta.
+            </p>
+            <button onClick={()=>router.push('/care/dashboard')} style={{
+              padding:"12px 28px",borderRadius:50,border:"none",
+              background:"linear-gradient(135deg,#2BBFA4,#7AE040)",
+              color:"white",fontWeight:700,fontSize:".88rem",cursor:"pointer",
+              fontFamily:"var(--font-sans)",
+            }}>Voltar ao painel</button>
           </div>
         )}
 
