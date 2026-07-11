@@ -49,28 +49,28 @@ export default function HomePage() {
       </section>
 
       {/* ── Plataformas ── */}
-      <div style={{ padding: '32px 20px' }}>
+      <div className="platform-section" style={{ padding: '32px 20px' }}>
 
-        {/* Care */}
+        {/* Care — cor oficial do Care (#2BBFA4), não a do Clinic (CM-LP-A1 H6) */}
         <div style={cardStyle}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/fracta-care.png" alt="FractaCare" style={logoStyle} />
-          <span style={{ ...tagStyle, background: 'rgba(29,158,117,0.12)', color: '#1D9E75' }}>Para famílias</span>
+          <span style={{ ...tagStyle, background: 'rgba(43,191,164,0.12)', color: '#2BBFA4' }}>Para famílias</span>
           <p style={descStyle}>
             Acompanhe o desenvolvimento do seu filho com atividades personalizadas baseadas em ciência comportamental.
           </p>
           <div style={featuresStyle}>
-            {['Mapa de habilidades por domínio', 'Atividades guiadas para o cotidiano', 'Evolução registrada em tempo real', 'Conexão com o terapeuta da criança'].map(f => (
+            {['Mapa de habilidades por domínio', 'Atividades guiadas para o cotidiano', 'Evolução registrada a cada prática', 'Conexão com o terapeuta da criança · em breve'].map(f => (
               <div key={f} style={featureItemStyle}>
-                <div style={{ ...dotStyle, background: 'rgba(29,158,117,0.6)' }} />{f}
+                <div style={{ ...dotStyle, background: 'rgba(43,191,164,0.6)' }} />{f}
               </div>
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-            <Link href="/care/login" style={{ ...ctaStyle, color: '#1D9E75', borderColor: 'rgba(29,158,117,0.3)' }}>
+            <Link href="/care/login" style={{ ...ctaStyle, color: '#2BBFA4', borderColor: 'rgba(43,191,164,0.3)' }}>
               Acessar FractaCare
             </Link>
-            <Link href="/captura" style={{ ...saibaMaisStyle, color: 'rgba(29,158,117,0.7)' }}>
+            <Link href="/captura" style={{ ...saibaMaisStyle, color: 'rgba(43,191,164,0.7)' }}>
               Saiba mais sobre o FractaCare
             </Link>
           </div>
@@ -101,11 +101,14 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Spark */}
+        {/* Spark — em desenvolvimento; link /spark removido (rota não existe — CM-LP-A1 H1) */}
         <div style={cardStyle}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/fracta-spark.png" alt="Fracta Spark" style={logoStyle} />
-          <span style={{ ...tagStyle, background: 'rgba(239,159,39,0.12)', color: '#EF9F27' }}>Para a criança</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <span style={{ ...tagStyle, background: 'rgba(239,159,39,0.12)', color: '#EF9F27' }}>Para a criança</span>
+            <span style={{ ...tagStyle, background: 'rgba(232,237,242,0.08)', color: 'rgba(232,237,242,0.5)' }}>Em desenvolvimento</span>
+          </div>
           <p style={descStyle}>
             Interface de treino digital enviada pelo terapeuta. A criança executa, o sistema registra cada tentativa.
           </p>
@@ -115,11 +118,6 @@ export default function HomePage() {
                 <div style={{ ...dotStyle, background: 'rgba(239,159,39,0.6)' }} />{f}
               </div>
             ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-            <Link href="/spark" style={{ ...saibaMaisStyle, color: 'rgba(239,159,39,0.8)', border: '0.5px solid rgba(239,159,39,0.3)', borderRadius: 6, padding: '9px 16px', textAlign: 'center' }}>
-              Saiba mais do Spark
-            </Link>
           </div>
         </div>
 
@@ -144,10 +142,10 @@ export default function HomePage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
-            { dot: '#1D9E75', title: 'Matching inteligente', desc: 'conecta a demanda da família ao perfil do terapeuta' },
             { dot: '#378ADD', title: 'Previsibilidade clínica', desc: 'analisa tendência de evolução por domínio' },
             { dot: '#EF9F27', title: 'Intervenção guiada', desc: 'recomendações baseadas em dados de tentativas' },
-            { dot: '#8B7FE8', title: 'Radar compartilhado', desc: 'mesmos dados, visões distintas para família e terapeuta' },
+            { dot: '#1D9E75', title: 'Matching inteligente · em desenvolvimento', desc: 'conectará a demanda da família ao perfil do terapeuta' },
+            { dot: '#8B7FE8', title: 'Radar compartilhado · em desenvolvimento', desc: 'mesmos dados, visões distintas para família e terapeuta' },
           ].map(({ dot, title, desc }) => (
             <div key={title} style={{
               background: 'rgba(13,32,53,0.75)', border: '0.5px solid rgba(26,58,92,0.5)',
@@ -168,10 +166,11 @@ export default function HomePage() {
         display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', textAlign: 'center',
       }}>
         <span style={{ fontSize: 11, color: 'rgba(232,237,242,0.2)' }}>
-          © 2025 Fracta Behavior. Todos os direitos reservados.
+          © 2026 Fracta Behavior. Todos os direitos reservados.
         </span>
         <div style={{ display: 'flex', gap: 16 }}>
-          {[['Privacidade', '#'], ['Termos', '#'], ['Contato', 'mailto:contato@fractabehavior.com']].map(([label, href]) => (
+          {/* Privacidade/Termos voltam quando as páginas reais existirem (ordem geral, item 3) */}
+          {[['Contato', 'mailto:contato@fractabehavior.com']].map(([label, href]) => (
             <a key={label} href={href} style={{ fontSize: 11, color: 'rgba(232,237,242,0.25)', textDecoration: 'none' }}>
               {label}
             </a>
@@ -179,22 +178,18 @@ export default function HomePage() {
         </div>
       </footer>
 
-      {/* ── Responsividade desktop ── */}
+      {/* ── Responsividade desktop (CM-LP-A1 H5: grid aplicado de fato; CSS órfão removido) ── */}
       <style>{`
         @media (min-width: 768px) {
           .platform-section {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 1px;
-            background: rgba(255,255,255,0.06);
-            border-radius: 12px;
-            overflow: hidden;
+            gap: 16px;
+            max-width: 1080px;
+            margin: 0 auto;
           }
-          .engine-inner {
-            display: flex;
-            flex-direction: row;
-            gap: 60px;
-            align-items: flex-start;
+          .platform-section > div {
+            margin-bottom: 0;
           }
           footer {
             flex-direction: row !important;
