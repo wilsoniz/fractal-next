@@ -25,6 +25,7 @@ type Laudo = {
   horas_tratamento_semana: number | null
   profissional_emissor: string | null
   data_laudo: string | null
+  arquivo_url: string | null
 }
 
 function calcularIdade(dataNasc: string | null, idadeAnos: number | null): string {
@@ -59,6 +60,8 @@ function MeuFilhoPageInner() {
   const [loading,        setLoading]        = useState(true)
   // PB-004 D-MF5: Meu Filho é a custódia oficial do laudo (cadastro + exibição).
   const [formLaudo,      setFormLaudo]      = useState({ cid: '', diagnostico: '', especialidades: '', horas_tratamento_semana: '', profissional_emissor: '', data_laudo: '', notas: '' })
+  const [arquivoLaudo,   setArquivoLaudo]   = useState<File | null>(null)
+  const [erroLaudo,      setErroLaudo]      = useState<string | null>(null)
   const [salvandoLaudo,  setSalvandoLaudo]  = useState(false)
   const [laudoSalvo,     setLaudoSalvo]     = useState(false)
   const [mostrarFormLaudo, setMostrarFormLaudo] = useState(false)
@@ -214,11 +217,44 @@ function MeuFilhoPageInner() {
   }
 
   // PB-004 D-MF5/D-AV8: cadastro de laudo mora aqui (custódia), saiu da Avaliação.
+  // Upload de PDF opcional para o bucket privado 'laudos' (caminho {crianca_id}/...).
   async function salvarLaudo() {
     if (!criancaAtiva) return
+    setErroLaudo(null)
+
+    // Valida o arquivo (opcional) antes de qualquer escrita.
+    if (arquivoLaudo) {
+      if (arquivoLaudo.type !== 'application/pdf') {
+        setErroLaudo('O anexo precisa ser um arquivo PDF.')
+        return
+      }
+      if (arquivoLaudo.size > 10 * 1024 * 1024) {
+        setErroLaudo('O PDF deve ter no máximo 10 MB.')
+        return
+      }
+    }
+
     setSalvandoLaudo(true)
+
+    // Sobe o PDF primeiro (se houver); só grava o laudo se o upload funcionar.
+    let arquivoPath: string | null = null
+    if (arquivoLaudo) {
+      const nomeSeguro = arquivoLaudo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const path = `${criancaAtiva.id}/${Date.now()}-${nomeSeguro}`
+      const { error: upErr } = await supabase.storage.from('laudos').upload(path, arquivoLaudo, {
+        contentType: 'application/pdf',
+        upsert: false,
+      })
+      if (upErr) {
+        setErroLaudo('Não foi possível enviar o PDF. Tente novamente.')
+        setSalvandoLaudo(false)
+        return
+      }
+      arquivoPath = path
+    }
+
     const especialidades = formLaudo.especialidades.split(',').map(s => s.trim()).filter(Boolean)
-    await supabase.from('laudos').insert({
+    const { error: insErr } = await supabase.from('laudos').insert({
       crianca_id: criancaAtiva.id,
       responsavel_id: (await supabase.auth.getUser()).data.user?.id,
       cid: formLaudo.cid || null,
@@ -228,13 +264,30 @@ function MeuFilhoPageInner() {
       profissional_emissor: formLaudo.profissional_emissor || null,
       data_laudo: formLaudo.data_laudo || null,
       notas: formLaudo.notas || null,
+      arquivo_url: arquivoPath,
     })
+    if (insErr) {
+      // Evita órfão no Storage se o registro falhar.
+      if (arquivoPath) await supabase.storage.from('laudos').remove([arquivoPath])
+      setErroLaudo('Não foi possível salvar o laudo. Tente novamente.')
+      setSalvandoLaudo(false)
+      return
+    }
+
     await carregarDados()
     setFormLaudo({ cid: '', diagnostico: '', especialidades: '', horas_tratamento_semana: '', profissional_emissor: '', data_laudo: '', notas: '' })
+    setArquivoLaudo(null)
     setMostrarFormLaudo(false)
     setLaudoSalvo(true)
     setTimeout(() => setLaudoSalvo(false), 3000)
     setSalvandoLaudo(false)
+  }
+
+  // Abre o PDF do laudo via signed URL temporária (bucket privado).
+  async function verPdfLaudo(path: string) {
+    const { data, error } = await supabase.storage.from('laudos').createSignedUrl(path, 3600)
+    if (error || !data) { setErroLaudo('Não foi possível abrir o PDF.'); return }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
   }
 
   const card: React.CSSProperties = {
@@ -449,6 +502,13 @@ function MeuFilhoPageInner() {
                 )}
                 {l.horas_tratamento_semana && <div style={{ fontSize: 12, color: '#64748b' }}>{l.horas_tratamento_semana}h/semana recomendadas</div>}
                 {l.profissional_emissor && <div style={{ fontSize: 11, color: '#8a9ab8', marginTop: 2 }}>Por: {l.profissional_emissor}</div>}
+                {l.arquivo_url && (
+                  <button onClick={() => verPdfLaudo(l.arquivo_url as string)} style={{
+                    marginTop: 8, padding: '6px 12px', borderRadius: 8, border: '1.5px solid rgba(42,123,168,.3)',
+                    background: 'white', color: '#2A7BA8', fontSize: 12, fontWeight: 700,
+                    cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                  }}>📄 Ver PDF</button>
+                )}
               </div>
             ))}
           </div>
@@ -492,8 +552,29 @@ function MeuFilhoPageInner() {
                 )}
               </div>
             ))}
+
+            {/* Anexo PDF (opcional) — bucket privado 'laudos' */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Anexar PDF do laudo (opcional)</label>
+              <input
+                type="file" accept="application/pdf"
+                onChange={e => { setArquivoLaudo(e.target.files?.[0] ?? null); setErroLaudo(null) }}
+                style={{ width: '100%', fontSize: 12, fontFamily: 'var(--font-sans)', color: '#1E3A5F' }}
+              />
+              {arquivoLaudo && (
+                <div style={{ fontSize: 11, color: '#2A7BA8', marginTop: 4 }}>📄 {arquivoLaudo.name}</div>
+              )}
+              <div style={{ fontSize: 10, color: '#aabbcc', marginTop: 3 }}>PDF até 10 MB. O arquivo fica privado.</div>
+            </div>
+
+            {erroLaudo && (
+              <div style={{ padding: '10px 12px', marginBottom: 12, borderRadius: 10, fontSize: 12, background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', color: '#dc2626' }}>
+                ⚠️ {erroLaudo}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <button onClick={() => setMostrarFormLaudo(false)} style={{
+              <button onClick={() => { setMostrarFormLaudo(false); setArquivoLaudo(null); setErroLaudo(null) }} style={{
                 flex: 1, padding: '11px', border: '1.5px solid rgba(0,0,0,.1)', background: 'transparent',
                 borderRadius: 12, color: '#64748b', fontSize: 14, cursor: 'pointer',
               }}>Cancelar</button>
