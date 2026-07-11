@@ -63,40 +63,56 @@ carregamento da página, antes de a família ver qualquer coisa** — início si
 | `avaliacoes` | `responsavel_id = auth.uid() OR responsavel_id IS NULL` | 🟢 Funciona (o `IS NULL` cobre o funil anônimo da captura). |
 | (todas) | Nenhuma considera `crianca_responsaveis` | 🟠 Crianças FFS/convite dependem disso em `planos` e `radar_snapshots`. |
 
-### SQL para o Wil aplicar (SQL Editor) — desbloqueio do pipeline
+### SQL aplicado (versão FINAL, corrigida em 11/07)
+
+> ⚠️ **Armadilha descoberta na primeira versão:** as policies de `criancas`
+> consultam `planos` (predicado do terapeuta); uma policy de `planos` que consulte
+> `criancas` diretamente fecha um **ciclo de RLS → recursão infinita → toda leitura
+> de `criancas` falha** (as crianças "somem" do app). Correção padrão: mover a
+> checagem para função `SECURITY DEFINER` (ignora RLS internamente, quebra o ciclo).
+> **Regra para o futuro: policy nunca consulta diretamente tabela cujas policies
+> apontam de volta — usar função SECURITY DEFINER.**
 
 ```sql
--- 1) PLANOS: responsáveis (diretos ou via vínculo) acessam/criam planos das suas crianças
-create policy "planos_responsavel"
-on public.planos for all to authenticated
-using (
-  crianca_id in (select id from public.criancas where responsavel_id = auth.uid())
-  or crianca_id in (select crianca_id from public.crianca_responsaveis where responsavel_id = auth.uid())
-)
-with check (
-  crianca_id in (select id from public.criancas where responsavel_id = auth.uid())
-  or crianca_id in (select crianca_id from public.crianca_responsaveis where responsavel_id = auth.uid())
-);
+-- 0) Função que decide se o usuário é responsável pela criança (quebra o ciclo)
+create or replace function public.eh_responsavel_da_crianca(cid uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from criancas c
+    where c.id = cid and c.responsavel_id = auth.uid()
+  ) or exists (
+    select 1 from crianca_responsaveis cr
+    where cr.crianca_id = cid and cr.responsavel_id = auth.uid()
+  );
+$$;
 
--- 2) RADAR: cobre vínculo indireto (crianca_responsaveis) com policy correta
-create policy "radar_responsavel_vinculo"
-on public.radar_snapshots for all to authenticated
-using (
-  crianca_id in (select crianca_id from public.crianca_responsaveis where responsavel_id = auth.uid())
-)
-with check (
-  crianca_id in (select crianca_id from public.crianca_responsaveis where responsavel_id = auth.uid())
-);
+-- 1) PLANOS: responsáveis acessam/criam planos das suas crianças
+drop policy if exists "planos_responsavel" on public.planos;
+create policy "planos_responsavel" on public.planos
+for all to authenticated
+using ( public.eh_responsavel_da_crianca(crianca_id) )
+with check ( public.eh_responsavel_da_crianca(crianca_id) );
+
+-- 2) RADAR: vínculo indireto coberto com a mesma função
+drop policy if exists "radar_responsavel_vinculo" on public.radar_snapshots;
+create policy "radar_responsavel_vinculo" on public.radar_snapshots
+for all to authenticated
+using ( public.eh_responsavel_da_crianca(crianca_id) )
+with check ( public.eh_responsavel_da_crianca(crianca_id) );
 
 -- 3) SEGURANÇA: remover o acesso aberto ao radar
---    (verificar antes se o Clinic/terapeuta precisa de policy própria de radar —
---     se precisar: policy via planos.terapeuta_id ANTES do drop)
-drop policy "radar_open" on public.radar_snapshots;
+drop policy if exists "radar_open" on public.radar_snapshots;
 ```
 
-Após aplicar: recarregar o schema cache do PostgREST. Nota: as duas policies de dono
-direto duplicadas em `radar_snapshots`/`avaliacoes`/`sessoes` são inofensivas
-(limpeza opcional).
+Após aplicar: recarregar o schema cache do PostgREST. Notas: `criancas` já possui a
+policy de família correta ("Responsável acessa suas crianças", incl.
+`crianca_responsaveis`); as policies duplicadas de dono direto em
+`radar_snapshots`/`avaliacoes`/`sessoes` são inofensivas (limpeza opcional).
 
 ## 6. Tabelas e funções participantes
 
