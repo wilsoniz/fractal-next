@@ -338,6 +338,9 @@ function AvaliarPageInner() {
       tipo: 'care_internal', origem: 'web', convertido: true,
     })
     if (errRadar || errAval) {
+      // Diagnóstico p/ dev (família vê só a mensagem amigável): qual insert e por quê.
+      if (errRadar) console.error('[avaliar] radar_snapshots insert falhou:', errRadar)
+      if (errAval)  console.error('[avaliar] avaliacoes insert falhou:', errAval)
       setErroSalvar("A avaliação foi concluída, mas houve um problema ao salvar. Tente novamente em instantes.")
     }
     setFase("resultado")

@@ -251,6 +251,17 @@ export default function ResultadoPage() {
     }
 
     if (data.user) {
+      // Robustez (Opção A, "Confirm email" desligado): garante sessão ativa antes
+      // de criar a criança — o insert depende de auth.uid(). Se por algum motivo a
+      // sessão não veio do signUp, estabelece via signIn.
+      if (!data.session) {
+        const { data: loginData, error: loginErr } = await signIn(cadEmail, cadSenha);
+        if (loginErr || !loginData.session) {
+          setErro("Sua conta foi criada! Confirme seu e-mail (ou tente entrar) para ativar o cadastro.");
+          setLoading(false);
+          return;
+        }
+      }
       await finalizarCadastro(data.user.id);
     }
   }
@@ -263,15 +274,23 @@ export default function ResultadoPage() {
     const idadeNum = parseInt(idade) || 3;
     const anoNasc  = new Date().getFullYear() - idadeNum;
 
-    const { data: criancaData } = await supabase
+    const { data: criancaData, error: errCrianca } = await supabase
       .from("criancas")
       .insert({ responsavel_id: userId, nome, data_nascimento: `${anoNasc}-01-01`, idade_anos: idadeNum })
       .select()
       .single();
 
-    // 4. Salva radar
-    if (criancaData && scores) {
-      await supabase.from("radar_snapshots").insert({
+    // Falha NUNCA silenciosa: sem a criança, não redirecionar para um painel vazio.
+    if (errCrianca || !criancaData) {
+      console.error("[captura] criancas insert falhou:", errCrianca);
+      setErro("Sua conta foi criada, mas não conseguimos cadastrar a criança. Entre na sua conta e adicione o perfil em 'Meu Filho'. Se o problema continuar, fale com o suporte.");
+      setLoading(false);
+      return;
+    }
+
+    // 4. Salva radar (erro visível — não bloqueia a entrada, mas registra)
+    if (scores) {
+      const { error: errRadar } = await supabase.from("radar_snapshots").insert({
         crianca_id:          criancaData.id,
         score_comunicacao:   scores.comunicacao   ?? null,
         score_social:        scores.social        ?? null,
@@ -282,6 +301,7 @@ export default function ResultadoPage() {
         score_autonomia:     scores.autonomia     ?? null,
         score_motivacao:     scores.motivacao     ?? null,
       });
+      if (errRadar) console.error("[captura] radar_snapshots insert falhou:", errRadar);
 
       // 5. Salva avaliação
       const avalId = sessionStorage.getItem("fracta_avaliacao_id");
