@@ -578,9 +578,7 @@ function responder(valor: number) {
         score_flexibilidade: scores.flexibilidade,
         score_autonomia: scores.autonomia,
         score_motivacao: scores.motivacao,
-        score_geral: Math.round(
-          Object.values(scores).reduce((a, b) => a + b, 0) / 8
-        ),
+        // score_geral NÃO é enviado: é coluna GERADA pelo banco (428C9).
         // Valores conforme os CHECKs de avaliacoes (tipo/origem) — os antigos
         // 'captura'/'web' violavam ambos e o insert falhava com 400.
         tipo: "rapida",

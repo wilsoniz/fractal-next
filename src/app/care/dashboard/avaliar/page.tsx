@@ -337,7 +337,8 @@ function AvaliarPageInner() {
       score_flexibilidade: sc.flexibilidade,
       score_autonomia: sc.autonomia,
       score_motivacao: sc.motivacao,
-      score_geral: Math.round(Object.values(sc).reduce((a,b)=>a+b,0)/8),
+      // score_geral NÃO é enviado: é coluna GERADA pelo banco (428C9) —
+      // mesma armadilha do sessao_tentativas.correto.
       // Valores conforme os CHECKs de avaliacoes: tipo ∈ (rapida|ampliada|check_in),
       // origem ∈ (fracta_capture|fracta_care|fracta_clinic). Os antigos
       // 'care_internal'/'web' violavam ambos → 400 silencioso desde sempre.
