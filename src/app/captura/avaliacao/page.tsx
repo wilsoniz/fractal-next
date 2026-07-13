@@ -581,8 +581,10 @@ function responder(valor: number) {
         score_geral: Math.round(
           Object.values(scores).reduce((a, b) => a + b, 0) / 8
         ),
-        tipo: "captura",
-        origem: "web",
+        // Valores conforme os CHECKs de avaliacoes (tipo/origem) — os antigos
+        // 'captura'/'web' violavam ambos e o insert falhava com 400.
+        tipo: "rapida",
+        origem: "fracta_capture",
         convertido: false,
       };
 

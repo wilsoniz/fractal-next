@@ -335,7 +335,10 @@ function AvaliarPageInner() {
       score_autonomia: sc.autonomia,
       score_motivacao: sc.motivacao,
       score_geral: Math.round(Object.values(sc).reduce((a,b)=>a+b,0)/8),
-      tipo: 'care_internal', origem: 'web', convertido: true,
+      // Valores conforme os CHECKs de avaliacoes: tipo ∈ (rapida|ampliada|check_in),
+      // origem ∈ (fracta_capture|fracta_care|fracta_clinic). Os antigos
+      // 'care_internal'/'web' violavam ambos → 400 silencioso desde sempre.
+      tipo: 'rapida', origem: 'fracta_care', convertido: true,
     })
     if (errRadar || errAval) {
       // Diagnóstico p/ dev (família vê só a mensagem amigável): qual insert e por quê.
