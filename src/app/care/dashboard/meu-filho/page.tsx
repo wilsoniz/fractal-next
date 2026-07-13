@@ -155,13 +155,10 @@ function MeuFilhoPageInner() {
     // criadas antes do fix da captura podem não ter linha em perfis — garante as
     // duas antes do insert da criança (unificação perfis->profiles: trilha B).
     const nomeResp = user.user_metadata?.nome || user.email?.split('@')[0] || 'Responsável'
+    // Tenta garantir as duas tabelas de perfil, mas NÃO bloqueia por elas: o gate
+    // real (com causa exata no log) é o insert da criança logo abaixo.
     const { error: errPerfis } = await supabase.from('perfis').upsert({ id: user.id, nome: nomeResp, email: user.email })
-    if (errPerfis) {
-      console.error('[meu-filho] perfis upsert falhou:', errPerfis.code, errPerfis.message, errPerfis.details)
-      setErroFilho('Não foi possível preparar seu perfil. Tente novamente — se persistir, fale com o suporte.')
-      setSalvandoFilho(false)
-      return
-    }
+    if (errPerfis) console.error('[meu-filho] perfis upsert falhou:', errPerfis.code, errPerfis.message, errPerfis.details)
     await supabase.from('profiles').upsert({ id: user.id, nome: nomeResp, email: user.email })
 
     // Insert direto: responsavel_id = usuário logado (pai/mãe autenticado no Care)
