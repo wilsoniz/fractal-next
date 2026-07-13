@@ -151,6 +151,19 @@ function MeuFilhoPageInner() {
       return
     }
 
+    // Auto-cura: criancas.responsavel_id tem FK -> perfis(id) (legado). Contas
+    // criadas antes do fix da captura podem não ter linha em perfis — garante as
+    // duas antes do insert da criança (unificação perfis->profiles: trilha B).
+    const nomeResp = user.user_metadata?.nome || user.email?.split('@')[0] || 'Responsável'
+    const { error: errPerfis } = await supabase.from('perfis').upsert({ id: user.id, nome: nomeResp, email: user.email })
+    if (errPerfis) {
+      console.error('[meu-filho] perfis upsert falhou:', errPerfis.code, errPerfis.message, errPerfis.details)
+      setErroFilho('Não foi possível preparar seu perfil. Tente novamente — se persistir, fale com o suporte.')
+      setSalvandoFilho(false)
+      return
+    }
+    await supabase.from('profiles').upsert({ id: user.id, nome: nomeResp, email: user.email })
+
     // Insert direto: responsavel_id = usuário logado (pai/mãe autenticado no Care)
     // Este caminho é EXCLUSIVO do FractaCare (responsável familiar)
     const { data: novaC, error } = await supabase
@@ -167,7 +180,7 @@ function MeuFilhoPageInner() {
       .single()
 
     if (error) {
-      console.error('Erro ao cadastrar filho:', error)
+      console.error('[meu-filho] criancas insert falhou:', error.code, error.message, error.details)
       setErroFilho('Não foi possível cadastrar. Verifique os dados e tente novamente.')
       setSalvandoFilho(false)
       return

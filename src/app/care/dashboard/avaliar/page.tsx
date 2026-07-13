@@ -324,7 +324,10 @@ function AvaliarPageInner() {
     const { error: errAval } = await supabase.from('avaliacoes').insert({
       crianca_id: crianca.id,
       responsavel_id: user.id,
-      idade_crianca: crianca.idade_anos,
+      nome_crianca: crianca.nome,
+      idade_crianca: crianca.idade_anos ?? (crianca.data_nascimento
+        ? Math.max(0, new Date().getFullYear() - new Date(crianca.data_nascimento).getFullYear())
+        : null),
       respostas: resps,
       score_comunicacao: sc.comunicacao,
       score_social: sc.social,
@@ -341,9 +344,10 @@ function AvaliarPageInner() {
       tipo: 'rapida', origem: 'fracta_care', convertido: true,
     })
     if (errRadar || errAval) {
-      // Diagnóstico p/ dev (família vê só a mensagem amigável): qual insert e por quê.
-      if (errRadar) console.error('[avaliar] radar_snapshots insert falhou:', errRadar)
-      if (errAval)  console.error('[avaliar] avaliacoes insert falhou:', errAval)
+      // Diagnóstico p/ dev (família vê só a mensagem amigável). Campos explícitos
+      // porque o console do Next serializa PostgrestError como {}.
+      if (errRadar) console.error('[avaliar] radar_snapshots insert falhou:', errRadar.code, errRadar.message, errRadar.details)
+      if (errAval)  console.error('[avaliar] avaliacoes insert falhou:', errAval.code, errAval.message, errAval.details)
       setErroSalvar("A avaliação foi concluída, mas houve um problema ao salvar. Tente novamente em instantes.")
     }
     setFase("resultado")
