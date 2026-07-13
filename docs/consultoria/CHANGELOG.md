@@ -1,5 +1,34 @@
 # CHANGELOG — Plataforma de Consultoria
 
+## Fase 14 — Biblioteca de Exercícios, Favoritos e Assimetria
+
+Schema criado, mas **não aplicado automaticamente**:
+
+- `012_fase14_exercise_library.sql`: famílias, variações, favoritos,
+  `exercise_library_id`, prescrição por lado e snapshots laterais nos logs;
+- `013_fase14_exercise_library_seed.sql`: lote piloto idempotente e revisável.
+- `014_fase14_reconcile_preliminary_schema.sql`: correção aditiva para ambientes
+  que aplicaram a proposta preliminar (`equipment`/`exercise_variation_id`), sem
+  remover colunas ou dados; deve rodar antes do seed 013 nesses ambientes.
+
+Adicionado:
+
+- `VISION.md` obrigatório e ADR-FIT-007/008;
+- biblioteca global e variações próprias isoladas por RLS;
+- favoritos com arquivamento lógico;
+- picker por Meus exercícios, Favoritos, grupo muscular, família, equipamento e busca;
+- seleção para exercícios standalone e dentro de grupos;
+- exercício manual preservado;
+- editor de prescrição diferente por lado em cada bloco;
+- runner e registro separados por lado, incluindo dor e observação opcionais.
+
+Compatibilidade:
+
+- todas as referências novas são nullable;
+- sem backfill, DELETE ou reescrita de snapshots;
+- blocos sem lados e exercícios antigos seguem o fluxo anterior;
+- nenhuma rota, tabela, auth, middleware ou biblioteca do Fracta foi alterada.
+
 ## Beta hardening — "Ver como paciente" + arquivamento
 
 Sem SQL, sem alteração no Fracta.

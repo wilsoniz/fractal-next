@@ -211,6 +211,84 @@ export interface FitWorkoutDay {
   updated_at: string;
 }
 
+// ── Fase 14 — biblioteca de exercícios ─────────────────────
+export type FitExerciseSide = "left" | "right" | "bilateral" | "alternating" | "affected" | "unaffected" | "custom";
+
+export const EXERCISE_SIDE_LABELS: Record<FitExerciseSide, string> = {
+  left: "Lado esquerdo",
+  right: "Lado direito",
+  bilateral: "Bilateral",
+  alternating: "Alternado",
+  affected: "Membro afetado",
+  unaffected: "Membro não afetado",
+  custom: "Personalizado",
+};
+
+export interface FitExerciseFamily {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  primary_muscle_group: string | null;
+  movement_pattern: string | null;
+  status: "active" | "archived";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FitExerciseVariation {
+  id: string;
+  family_id: string;
+  professional_id: string | null;
+  slug: string | null;
+  name: string;
+  display_name: string;
+  implementation: string | null;
+  primary_muscle_group: string | null;
+  secondary_muscle_groups: string[];
+  movement_pattern: string | null;
+  equipment_type: string | null;
+  equipment_brand: string | null;
+  equipment_model: string | null;
+  laterality: string | null;
+  grip: string | null;
+  body_position: string | null;
+  bench_angle: number | null;
+  execution_mode: string | null;
+  difficulty: string | null;
+  skill_requirement: string | null;
+  fatigue_score: number | null;
+  joint_stress: string | null;
+  exercise_goal: string | null;
+  instructions: string | null;
+  common_errors: string | null;
+  coaching_cues: string | null;
+  contraindications: string | null;
+  substitutions: string[];
+  image_url: string | null;
+  video_url: string | null;
+  tags: string[];
+  data: Record<string, unknown>;
+  is_system: boolean;
+  status: "active" | "archived";
+  created_at: string;
+  updated_at: string;
+  family?: FitExerciseFamily;
+}
+
+export type FitExerciseVariationInput = Omit<FitExerciseVariation,
+  "id" | "professional_id" | "slug" | "is_system" | "status" | "created_at" | "updated_at" | "family"
+>;
+
+export interface FitExerciseFavorite {
+  id: string;
+  professional_id: string;
+  exercise_library_id: string;
+  status: "active" | "archived";
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FitWorkoutExercise {
   id: string;
   plan_id: string;
@@ -225,6 +303,7 @@ export interface FitWorkoutExercise {
   video_url: string | null;
   instructions: string | null;
   notes: string | null;
+  exercise_library_id: string | null;
   group_id: string | null;   // Fase 11 — grupo (null = standalone)
   group_order: number;       // ordem dentro do grupo
   status: "active" | "archived";
@@ -270,6 +349,7 @@ export interface FitExerciseGroupInput {
 // Payload de exercício vindo do FitExerciseEditor (normalizado).
 export interface FitWorkoutExerciseInput {
   name: string;
+  exercise_library_id: string | null;
   sets: number | null;
   target_reps: string | null;
   target_load: string | null;
@@ -316,6 +396,45 @@ export interface FitExerciseBlock {
   status: "active" | "archived";
   created_at: string;
   updated_at: string;
+  sides?: FitExerciseBlockSide[];
+}
+
+export interface FitExerciseBlockSide {
+  id: string;
+  block_id: string;
+  exercise_id: string;
+  side: FitExerciseSide;
+  side_label: string | null;
+  order_index: number;
+  sets: number | null;
+  target_reps: string | null;
+  target_load: string | null;
+  target_load_unit: string | null;
+  target_intensity_pct_rm: number | null;
+  rest_seconds: number | null;
+  rir: string | null;
+  rpe: string | null;
+  tempo: string | null;
+  instructions: string | null;
+  data: Record<string, unknown>;
+  status: "active" | "archived";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FitExerciseBlockSideInput {
+  side: FitExerciseSide;
+  side_label: string | null;
+  sets: number | null;
+  target_reps: string | null;
+  target_load: string | null;
+  target_load_unit: string | null;
+  target_intensity_pct_rm: number | null;
+  rest_seconds: number | null;
+  rir: string | null;
+  rpe: string | null;
+  tempo: string | null;
+  instructions: string | null;
 }
 
 export interface FitExerciseBlockInput {
@@ -362,6 +481,7 @@ export interface FitTrainingLogEntry {
   log_id: string;
   exercise_id: string | null;
   exercise_name: string;
+  exercise_library_id: string | null;
   sets_done: number | null;
   reps_done: string | null;
   load_done: number | null;
@@ -376,6 +496,7 @@ export interface FitTrainingLogEntry {
 export interface FitTrainingLogEntryInput {
   exercise_id: string | null;
   exercise_name: string;
+  exercise_library_id: string | null;
   sets_done: number | null;
   reps_done: string | null;
   load_done: number | null;
@@ -418,6 +539,10 @@ export interface FitTrainingLogBlockEntry {
   log_id: string;
   exercise_id: string | null;
   block_id: string | null;
+  exercise_library_id: string | null;
+  side_prescription_id: string | null;
+  side: FitExerciseSide | null;
+  side_label_snapshot: string | null;
   exercise_name: string | null;
   block_label: string | null;
   block_type: string | null;
@@ -427,6 +552,7 @@ export interface FitTrainingLogBlockEntry {
   sets_done: number | null;
   rpe: number | null;
   rir: number | null;
+  pain_level: number | null;
   completed: boolean;
   notes: string | null;
   data: Record<string, unknown>;
@@ -437,6 +563,10 @@ export interface FitTrainingLogBlockEntry {
 export interface FitTrainingLogBlockEntryInput {
   exercise_id: string | null;
   block_id: string | null;
+  exercise_library_id: string | null;
+  side_prescription_id: string | null;
+  side: FitExerciseSide | null;
+  side_label_snapshot: string | null;
   exercise_name: string | null;
   block_label: string | null;
   block_type: string | null;
@@ -446,6 +576,7 @@ export interface FitTrainingLogBlockEntryInput {
   sets_done: number | null;
   rpe: number | null;
   rir: number | null;
+  pain_level: number | null;
   completed: boolean;
   notes: string | null;
 }

@@ -30,6 +30,9 @@ export function FitExerciseRow({
         <button onClick={() => onEdit(exercise)} style={{ flex: 1, minWidth: 0, textAlign: "left", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
           <div style={{ fontSize: ".86rem", fontWeight: 600, color: "#f2f6ff" }}>
             {exercise.name}
+            {exercise.exercise_library_id && (
+              <span style={{ marginLeft: 8, fontSize: ".62rem", color: "#7c9cfc", background: "rgba(124,156,252,.12)", borderRadius: 999, padding: "1px 7px" }}>biblioteca</span>
+            )}
             {hasBlocks && (
               <span style={{ marginLeft: 8, fontSize: ".62rem", color: "#b7a6ff", background: "rgba(124,92,252,.16)", border: "1px solid rgba(124,92,252,.4)", borderRadius: 999, padding: "1px 7px" }}>
                 {exercise.blocks.length} bloco{exercise.blocks.length > 1 ? "s" : ""}

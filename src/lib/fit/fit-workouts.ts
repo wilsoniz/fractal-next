@@ -13,6 +13,8 @@ import type {
   FitExerciseBlockInput,
   FitExerciseGroup,
   FitExerciseGroupInput,
+  FitExerciseBlockSide,
+  FitExerciseBlockSideInput,
   FitExerciseWithBlocks,
   FitGroupWithExercises,
 } from "./types";
@@ -74,14 +76,27 @@ export async function getPlanFull(planId: string): Promise<FitWorkoutPlanFull | 
     .eq("status", "active")
     .order("order_index", { ascending: true });
 
+  const blockIds = ((blocks as FitExerciseBlock[] | null) ?? []).map((b) => b.id);
+  const { data: sides } = blockIds.length > 0
+    ? await supabase
+        .from("fit_exercise_block_sides")
+        .select("*")
+        .in("block_id", blockIds)
+        .eq("status", "active")
+        .order("order_index", { ascending: true })
+    : { data: [] };
+
   const exList = (exercises as FitWorkoutExercise[] | null) ?? [];
   const dayList = (days as FitWorkoutDay[] | null) ?? [];
   const blockList = (blocks as FitExerciseBlock[] | null) ?? [];
   const groupList = (groups as FitExerciseGroup[] | null) ?? [];
+  const sideList = (sides as FitExerciseBlockSide[] | null) ?? [];
 
   const withBlocks = (e: FitWorkoutExercise): FitExerciseWithBlocks => ({
     ...e,
-    blocks: blockList.filter((b) => b.exercise_id === e.id),
+    blocks: blockList
+      .filter((b) => b.exercise_id === e.id)
+      .map((b) => ({ ...b, sides: sideList.filter((s) => s.block_id === b.id) })),
   });
 
   return {
@@ -180,6 +195,31 @@ export async function updateBlock(
 
 export async function archiveBlock(id: string): Promise<boolean> {
   const { error } = await supabase.from("fit_exercise_blocks").update({ status: "archived" }).eq("id", id);
+  return !error;
+}
+
+// ── Prescrição por lado ─────────────────────────────────────
+export async function addBlockSide(params: {
+  blockId: string;
+  exerciseId: string;
+  orderIndex: number;
+  input: FitExerciseBlockSideInput;
+}): Promise<FitExerciseBlockSide | null> {
+  const { data, error } = await supabase
+    .from("fit_exercise_block_sides")
+    .insert({ block_id: params.blockId, exercise_id: params.exerciseId, order_index: params.orderIndex, ...params.input })
+    .select()
+    .single();
+  return error ? null : data as FitExerciseBlockSide;
+}
+
+export async function updateBlockSide(id: string, patch: Partial<FitExerciseBlockSideInput>): Promise<boolean> {
+  const { error } = await supabase.from("fit_exercise_block_sides").update(patch).eq("id", id);
+  return !error;
+}
+
+export async function archiveBlockSide(id: string): Promise<boolean> {
+  const { error } = await supabase.from("fit_exercise_block_sides").update({ status: "archived" }).eq("id", id);
   return !error;
 }
 

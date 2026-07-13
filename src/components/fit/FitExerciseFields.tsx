@@ -3,7 +3,7 @@
 // Form de exercício + helpers compartilhados (usado por standalone e por grupos).
 
 import { useState } from "react";
-import type { FitWorkoutExercise, FitWorkoutExerciseInput } from "@/lib/fit/types";
+import type { FitExerciseVariation, FitWorkoutExercise, FitWorkoutExerciseInput } from "@/lib/fit/types";
 import { fitLabelStyle, fitFieldStyle } from "./FitSection";
 
 export function nn(v: string): string | null {
@@ -22,19 +22,21 @@ export function exerciseSummary(ex: FitWorkoutExercise): string {
 
 export function ExerciseForm({
   initial,
+  libraryItem = null,
   onSave,
 }: {
   initial: FitWorkoutExercise | null;
+  libraryItem?: FitExerciseVariation | null;
   onSave: (input: FitWorkoutExerciseInput) => Promise<void>;
 }) {
-  const [name, setName] = useState(initial?.name ?? "");
+  const [name, setName] = useState(initial?.name ?? libraryItem?.display_name ?? "");
   const [sets, setSets] = useState(initial?.sets != null ? String(initial.sets) : "");
   const [reps, setReps] = useState(initial?.target_reps ?? "");
   const [load, setLoad] = useState(initial?.target_load ?? "");
   const [rest, setRest] = useState(initial?.rest_seconds != null ? String(initial.rest_seconds) : "");
   const [tempo, setTempo] = useState(initial?.tempo ?? "");
-  const [video, setVideo] = useState(initial?.video_url ?? "");
-  const [instructions, setInstructions] = useState(initial?.instructions ?? "");
+  const [video, setVideo] = useState(initial?.video_url ?? libraryItem?.video_url ?? "");
+  const [instructions, setInstructions] = useState(initial?.instructions ?? libraryItem?.instructions ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -47,6 +49,7 @@ export function ExerciseForm({
       const restNum = rest.trim() === "" ? null : parseInt(rest, 10);
       await onSave({
         name: name.trim(),
+        exercise_library_id: initial?.exercise_library_id ?? libraryItem?.id ?? null,
         sets: setsNum != null && !Number.isNaN(setsNum) ? setsNum : null,
         target_reps: nn(reps),
         target_load: nn(load),
@@ -65,7 +68,8 @@ export function ExerciseForm({
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div>
         <label style={fitLabelStyle}>Nome do exercício *</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Supino reto" style={fitFieldStyle} />
+        <input value={name} onChange={(e) => setName(e.target.value)} readOnly={Boolean(initial?.exercise_library_id || libraryItem)} placeholder="Ex.: Supino reto" style={{ ...fitFieldStyle, opacity: initial?.exercise_library_id || libraryItem ? .78 : 1 }} />
+        {(initial?.exercise_library_id || libraryItem) && <div style={{ fontSize: ".7rem", color: "#8ea3c0", marginTop: 4 }}>Nome preservado como snapshot do item da biblioteca.</div>}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
         <div><label style={fitLabelStyle}>Séries</label><input value={sets} onChange={(e) => setSets(e.target.value)} placeholder="3" inputMode="numeric" style={fitFieldStyle} /></div>

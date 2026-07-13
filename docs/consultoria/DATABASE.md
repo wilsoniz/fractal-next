@@ -177,3 +177,40 @@ Check-in semanal: data, peso, aderência %, energia/sono/humor (1-5), dor (0-10)
 Nenhuma policy das Fases 1–3 foi alterada.
 
 SQL aplicável: [`sql/004_fase4_patient.sql`](sql/004_fase4_patient.sql).
+
+## Fase 14 — biblioteca, favoritos e prescrição por lado
+
+### `fit_exercise_families` / `fit_exercise_variations`
+
+Famílias globais organizam o movimento-base. Variações representam o ativo rico,
+com implementação, equipamento, marca/modelo, lateralidade e campos técnicos
+opcionais. Globais são read-only para profissionais; personalizados pertencem ao
+autor. Pacientes não acessam a biblioteca.
+
+### `fit_exercise_favorites`
+
+Preferência do profissional por um item existente. Usa `status` para desfavoritar
+sem DELETE físico e tem unicidade por profissional/item.
+
+### Compatibilidade da prescrição
+
+`fit_workout_exercises.exercise_library_id` é nullable. `name` continua sendo o
+snapshot canônico da prescrição. Logs simples e por bloco também guardam a
+referência nullable para análises futuras.
+
+### `fit_exercise_block_sides`
+
+Prescrição estruturada por lado vinculada ao bloco. Sem registros ativos, o bloco
+funciona como antes. O registro por bloco recebe `side_prescription_id`, `side`,
+`side_label_snapshot` e `pain_level`, todos nullable. Sem backfill.
+
+SQL: [`sql/012_fase14_exercise_library.sql`](sql/012_fase14_exercise_library.sql) e
+seed piloto [`sql/013_fase14_exercise_library_seed.sql`](sql/013_fase14_exercise_library_seed.sql).
+
+### Reconciliação de schema preliminar
+
+Ambientes que aplicaram a proposta preliminar (com `equipment` e
+`exercise_variation_id`) devem executar primeiro
+[`sql/014_fase14_reconcile_preliminary_schema.sql`](sql/014_fase14_reconcile_preliminary_schema.sql).
+A correção é aditiva: preserva as colunas legadas, cria o contrato aprovado e só
+copia valores para as colunas equivalentes. Depois, executar o seed 013.

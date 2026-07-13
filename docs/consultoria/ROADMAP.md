@@ -75,3 +75,17 @@ Acompanhamento Semanal → Reavaliação → Novo Treino → Histórico Completo
    grupo. Aditivo; registro segue por exercício/bloco; gráficos inalterados.
 
 **Backlog pós-MVP concluído (#1–#5).**
+
+## Fase 14 — Biblioteca de exercícios e assimetria ✅ (implementada; SQL pendente)
+
+- famílias, variações globais/personalizadas e favoritos;
+- picker por favoritos, grupo muscular, família, equipamento e texto;
+- `exercise_library_id` com snapshot de nome;
+- prescrição e registro separados por lado no modo avançado por blocos;
+- seeds 012/013 criados, ainda não aplicados no Supabase;
+- dashboard de assimetria e modelo corporal visual ficam para fase futura.
+
+### Futuro — modelo corporal e análise segmentar
+
+Mapa corporal, dor por região, força por lado, mobilidade por articulação,
+assimetrias e visualizações segmentares próprias, sem copiar produtos existentes.

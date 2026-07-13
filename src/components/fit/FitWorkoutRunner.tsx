@@ -16,7 +16,7 @@ import {
   type FitTrainingLogBlockEntryInput,
 } from "@/lib/fit/types";
 import { fitFieldStyle } from "./FitSection";
-import { FitBlockRunner, emptyBlockEntry, type FitBlockEntryState } from "./FitBlockRunner";
+import { FitBlockRunner, emptyBlockEntry, emptySideEntry, type FitBlockEntryState } from "./FitBlockRunner";
 
 type DayFull = FitWorkoutDay & { exercises: FitExerciseWithBlocks[]; groups: FitGroupWithExercises[] };
 
@@ -79,7 +79,10 @@ export function FitWorkoutRunner({
     ),
   );
   const [blockEntries, setBlockEntries] = useState<Record<string, FitBlockEntryState>>(() =>
-    Object.fromEntries(allExercises.flatMap((ex) => ex.blocks.map((b) => [b.id, emptyBlockEntry(b)]))),
+    Object.fromEntries(allExercises.flatMap((ex) => ex.blocks.flatMap((b) => {
+      const sides = b.sides ?? [];
+      return sides.length > 0 ? sides.map((side) => [side.id, emptySideEntry(side)]) : [[b.id, emptyBlockEntry(b)]];
+    }))),
   );
 
   const [openInfo, setOpenInfo] = useState<string | null>(null);
@@ -110,6 +113,7 @@ export function FitWorkoutRunner({
         return {
           exercise_id: ex.id,
           exercise_name: ex.name,
+          exercise_library_id: ex.exercise_library_id,
           sets_done: toInt(e.sets_done),
           reps_done: nn(e.reps_done),
           load_done: toNum(e.load_done),
@@ -121,23 +125,32 @@ export function FitWorkoutRunner({
       });
 
     const blockPayload: FitTrainingLogBlockEntryInput[] = allExercises.flatMap((ex) =>
-      ex.blocks.map((b) => {
-        const v = blockEntries[b.id];
-        return {
-          exercise_id: ex.id,
-          block_id: b.id,
-          exercise_name: ex.name,
-          block_label: b.label ?? blockTypeLabel(b.block_type),
-          block_type: b.block_type,
-          load_done: toNum(v.load),
-          load_unit: "kg",
-          reps_done: nn(v.reps),
-          sets_done: toInt(v.sets),
-          rpe: toNum(v.rpe),
-          rir: toNum(v.rir),
-          completed: v.completed,
-          notes: null,
-        };
+      ex.blocks.flatMap((b) => {
+        const sides = b.sides ?? [];
+        const rows = sides.length > 0 ? sides.map((side) => ({ key: side.id, side })) : [{ key: b.id, side: null }];
+        return rows.map(({ key, side }) => {
+          const v = blockEntries[key];
+          return {
+            exercise_id: ex.id,
+            block_id: b.id,
+            exercise_library_id: ex.exercise_library_id,
+            side_prescription_id: side?.id ?? null,
+            side: side?.side ?? null,
+            side_label_snapshot: side ? (side.side_label ?? side.side) : null,
+            exercise_name: ex.name,
+            block_label: b.label ?? blockTypeLabel(b.block_type),
+            block_type: b.block_type,
+            load_done: toNum(v.load),
+            load_unit: side?.target_load_unit ?? "kg",
+            reps_done: nn(v.reps),
+            sets_done: toInt(v.sets),
+            rpe: toNum(v.rpe),
+            rir: toNum(v.rir),
+            pain_level: toNum(v.pain),
+            completed: v.completed,
+            notes: nn(v.notes),
+          };
+        });
       }),
     );
 
@@ -152,7 +165,7 @@ export function FitWorkoutRunner({
     onDone();
   }
 
-  const totalUnits = allExercises.reduce((acc, ex) => acc + (ex.blocks.length > 0 ? ex.blocks.length : 1), 0);
+  const totalUnits = allExercises.reduce((acc, ex) => acc + (ex.blocks.length > 0 ? ex.blocks.reduce((n, b) => n + Math.max(1, b.sides?.length ?? 0), 0) : 1), 0);
   const doneUnits =
     Object.values(entries).filter((e) => e.completed).length +
     Object.values(blockEntries).filter((b) => b.completed).length;

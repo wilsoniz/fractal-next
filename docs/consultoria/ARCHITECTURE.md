@@ -55,6 +55,19 @@ por bloco (`fit_training_log_block_entries`), preservando o modo simples. Detalh
 racional em [ADR-FIT-001](adr/ADR-FIT-001-metodos-treino-blocos.md). Catálogo de métodos
 e papel de cada bloco no gráfico vivem em `src/lib/fit/training-methods.ts`.
 
+## Biblioteca e assimetria (Fase 14)
+
+`fit_exercise_families` organiza movimentos-base e `fit_exercise_variations`
+representa ativos técnicos específicos. `fit_workout_exercises.name` permanece
+snapshot; `exercise_library_id` é a referência estável opcional. Favoritos são
+relações em `fit_exercise_favorites`, sem duplicar o catálogo.
+
+Prescrições diferentes por lado pertencem ao bloco em
+`fit_exercise_block_sides`. Sem lados ativos, o bloco mantém o comportamento da
+Fase 6. Com lados ativos, o runner registra uma entrada separada por lado, com
+identificadores e snapshots. Ver [ADR-FIT-007](adr/ADR-FIT-007-biblioteca-exercicios-variacoes.md)
+e [ADR-FIT-008](adr/ADR-FIT-008-prescricao-assimetrica.md).
+
 ## Evolução (camada de leitura)
 
 `fit-evolution.ts` agrega as tabelas fit_* em séries para os gráficos (recharts),

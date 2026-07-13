@@ -11,9 +11,11 @@ import {
   type FitGroupWithExercises,
   type FitExerciseWithBlocks,
   type FitWorkoutExerciseInput,
+  type FitExerciseVariation,
 } from "@/lib/fit/types";
 import { FitModal } from "./FitModal";
 import { ExerciseForm } from "./FitExerciseFields";
+import { FitExercisePicker } from "./FitExercisePicker";
 import { FitExerciseRow } from "./FitExerciseRow";
 import { fitLabelStyle, fitFieldStyle } from "./FitSection";
 
@@ -32,6 +34,8 @@ export function FitGroupEditor({ group, onChanged }: { group: FitGroupWithExerci
 
   const [editing, setEditing] = useState<FitExerciseWithBlocks | null>(null);
   const [creating, setCreating] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [libraryItem, setLibraryItem] = useState<FitExerciseVariation | null>(null);
 
   async function saveParams() {
     await updateGroup(group.id, {
@@ -134,12 +138,15 @@ export function FitGroupEditor({ group, onChanged }: { group: FitGroupWithExerci
         <div style={{ fontSize: ".78rem", color: "#8ea3c0", marginBottom: 8 }}>Sem exercícios neste grupo.</div>
       )}
 
-      <button onClick={() => setCreating(true)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid rgba(124,92,252,.5)", background: "rgba(124,92,252,.14)", color: "#b7a6ff", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+      <button onClick={() => setPicking(true)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid rgba(124,92,252,.5)", background: "rgba(124,92,252,.14)", color: "#b7a6ff", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
         + Exercício no grupo
       </button>
 
-      <FitModal open={creating || editing !== null} onClose={() => { setCreating(false); setEditing(null); }} title={editing ? "Editar exercício" : "Novo exercício"}>
-        <ExerciseForm initial={editing} onSave={handleSaveExercise} />
+      <FitModal open={picking} onClose={() => setPicking(false)} title="Biblioteca de exercícios">
+        <FitExercisePicker onSelect={(item) => { setLibraryItem(item); setPicking(false); setCreating(true); }} onManual={() => { setLibraryItem(null); setPicking(false); setCreating(true); }} />
+      </FitModal>
+      <FitModal open={creating || editing !== null} onClose={() => { setCreating(false); setEditing(null); setLibraryItem(null); }} title={editing ? "Editar exercício" : "Configurar exercício"}>
+        <ExerciseForm initial={editing} libraryItem={libraryItem} onSave={handleSaveExercise} />
       </FitModal>
     </div>
   );

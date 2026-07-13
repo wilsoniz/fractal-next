@@ -9,6 +9,7 @@ import { TRAINING_METHODS, blockTypeLabel, BLOCK_TYPE_META } from "@/lib/fit/tra
 import type { FitExerciseBlock, FitExerciseBlockInput, FitExerciseWithBlocks, FitBlockType } from "@/lib/fit/types";
 import { FitModal } from "./FitModal";
 import { fitLabelStyle, fitFieldStyle } from "./FitSection";
+import { FitBlockSideEditor } from "./FitBlockSideEditor";
 
 function nn(v: string): string | null {
   const t = v.trim();
@@ -99,7 +100,8 @@ export function FitBlockEditor({
       {blocks.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
           {blocks.map((b) => (
-            <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, background: "rgba(20,28,48,.6)", border: "1px solid rgba(90,110,160,.2)" }}>
+            <div key={b.id} style={{ padding: "7px 10px", borderRadius: 8, background: "rgba(20,28,48,.6)", border: "1px solid rgba(90,110,160,.2)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button onClick={() => setEditing(b)} style={{ flex: 1, minWidth: 0, textAlign: "left", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                 <div style={{ fontSize: ".8rem", fontWeight: 600, color: "#e6edf6" }}>
                   {b.label ?? blockTypeLabel(b.block_type)}
@@ -108,6 +110,8 @@ export function FitBlockEditor({
                 {blockSummary(b) && <div style={{ fontSize: ".72rem", color: "#8ea3c0", marginTop: 1 }}>{blockSummary(b)}</div>}
               </button>
               <button onClick={() => handleArchive(b.id)} aria-label="Remover" style={{ background: "none", border: "none", color: "#f0857a", cursor: "pointer", fontSize: "1rem", padding: "2px 6px" }}>×</button>
+              </div>
+              <FitBlockSideEditor block={b} onChanged={onChanged} />
             </div>
           ))}
         </div>

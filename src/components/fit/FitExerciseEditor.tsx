@@ -10,10 +10,12 @@ import {
   type FitExerciseWithBlocks,
   type FitGroupWithExercises,
   type FitWorkoutExerciseInput,
+  type FitExerciseVariation,
   type FitGroupType,
 } from "@/lib/fit/types";
 import { FitModal } from "./FitModal";
 import { ExerciseForm } from "./FitExerciseFields";
+import { FitExercisePicker } from "./FitExercisePicker";
 import { FitExerciseRow } from "./FitExerciseRow";
 import { FitGroupEditor } from "./FitGroupEditor";
 import { fitLabelStyle, fitFieldStyle } from "./FitSection";
@@ -33,6 +35,8 @@ export function FitExerciseEditor({
 }) {
   const [editing, setEditing] = useState<FitExerciseWithBlocks | null>(null);
   const [creating, setCreating] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [libraryItem, setLibraryItem] = useState<FitExerciseVariation | null>(null);
   const [addingGroup, setAddingGroup] = useState(false);
   const [groupType, setGroupType] = useState<FitGroupType>("superset");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -92,7 +96,7 @@ export function FitExerciseEditor({
       )}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button onClick={() => setCreating(true)} style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(124,92,252,.5)", background: "rgba(124,92,252,.14)", color: "#b7a6ff", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+        <button onClick={() => setPicking(true)} style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(124,92,252,.5)", background: "rgba(124,92,252,.14)", color: "#b7a6ff", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
           + Adicionar exercício
         </button>
         <button onClick={() => setAddingGroup(true)} style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(90,110,160,.4)", background: "transparent", color: "#c5d2e6", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
@@ -100,11 +104,15 @@ export function FitExerciseEditor({
         </button>
       </div>
 
-      <FitModal open={creating || editing !== null} onClose={() => { setCreating(false); setEditing(null); setSaveError(null); }} title={editing ? "Editar exercício" : "Novo exercício"}>
+      <FitModal open={picking} onClose={() => setPicking(false)} title="Biblioteca de exercícios">
+        <FitExercisePicker onSelect={(item) => { setLibraryItem(item); setPicking(false); setCreating(true); }} onManual={() => { setLibraryItem(null); setPicking(false); setCreating(true); }} />
+      </FitModal>
+
+      <FitModal open={creating || editing !== null} onClose={() => { setCreating(false); setEditing(null); setLibraryItem(null); setSaveError(null); }} title={editing ? "Editar exercício" : "Configurar exercício"}>
         {saveError && (
           <div style={{ padding: "9px 12px", marginBottom: 12, background: "rgba(224,90,75,.1)", border: "1px solid rgba(224,90,75,.3)", borderRadius: 8, fontSize: ".8rem", color: "#f08070" }}>{saveError}</div>
         )}
-        <ExerciseForm initial={editing} onSave={handleSaveExercise} />
+        <ExerciseForm initial={editing} libraryItem={libraryItem} onSave={handleSaveExercise} />
       </FitModal>
 
       <FitModal open={addingGroup} onClose={() => setAddingGroup(false)} title="Novo grupo">

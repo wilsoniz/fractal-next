@@ -4,7 +4,7 @@
 // Apresentacional: o estado é mantido pelo FitWorkoutRunner (values/onChange).
 
 import { blockTypeLabel } from "@/lib/fit/training-methods";
-import type { FitExerciseBlock } from "@/lib/fit/types";
+import { EXERCISE_SIDE_LABELS, type FitExerciseBlock, type FitExerciseBlockSide } from "@/lib/fit/types";
 import { fitFieldStyle } from "./FitSection";
 
 export interface FitBlockEntryState {
@@ -13,6 +13,8 @@ export interface FitBlockEntryState {
   sets: string;
   rpe: string;
   rir: string;
+  pain: string;
+  notes: string;
   completed: boolean;
 }
 
@@ -22,6 +24,19 @@ export const emptyBlockEntry = (b: FitExerciseBlock): FitBlockEntryState => ({
   sets: b.sets != null ? String(b.sets) : "",
   rpe: "",
   rir: "",
+  pain: "",
+  notes: "",
+  completed: false,
+});
+
+export const emptySideEntry = (side: FitExerciseBlockSide): FitBlockEntryState => ({
+  load: "",
+  reps: side.target_reps ?? "",
+  sets: side.sets != null ? String(side.sets) : "",
+  rpe: "",
+  rir: "",
+  pain: "",
+  notes: "",
   completed: false,
 });
 
@@ -33,6 +48,11 @@ function prescribed(b: FitExerciseBlock): string {
   if (b.rir) parts.push(`RIR ${b.rir}`);
   if (b.rest_seconds != null) parts.push(`desc ${b.rest_seconds}s`);
   return parts.join(" · ");
+}
+
+function prescribedSide(s: FitExerciseBlockSide): string {
+  const parts = [s.sets != null ? `${s.sets}x` : null, s.target_reps, s.target_load, s.target_intensity_pct_rm != null ? `${s.target_intensity_pct_rm}% 1RM` : null, s.rir ? `RIR ${s.rir}` : null];
+  return parts.filter(Boolean).join(" · ");
 }
 
 const input: React.CSSProperties = { ...fitFieldStyle, padding: "7px 6px", textAlign: "center" };
@@ -58,6 +78,7 @@ export function FitBlockRunner({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
       {blocks.map((b) => {
+        const sides = b.sides ?? [];
         const v = values[b.id] ?? emptyBlockEntry(b);
         return (
           <div key={b.id} style={{ padding: 12, borderRadius: 10, background: "rgba(15,22,40,.55)", border: `1px solid ${v.completed ? "rgba(34,197,164,.45)" : "rgba(90,110,160,.2)"}` }}>
@@ -71,23 +92,35 @@ export function FitBlockRunner({
 
             {b.instructions && <div style={{ fontSize: ".72rem", color: "#9fb2cf", marginTop: 6, whiteSpace: "pre-wrap" }}>{b.instructions}</div>}
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, marginTop: 10 }}>
-              <Field label="Carga"><input value={v.load} onChange={(e) => onChange(b.id, { load: e.target.value })} inputMode="decimal" style={input} /></Field>
-              <Field label="Reps"><input value={v.reps} onChange={(e) => onChange(b.id, { reps: e.target.value })} style={input} /></Field>
-              <Field label="Séries"><input value={v.sets} onChange={(e) => onChange(b.id, { sets: e.target.value })} inputMode="numeric" style={input} /></Field>
-              <Field label="RPE"><input value={v.rpe} onChange={(e) => onChange(b.id, { rpe: e.target.value })} inputMode="decimal" style={input} /></Field>
-              <Field label="RIR"><input value={v.rir} onChange={(e) => onChange(b.id, { rir: e.target.value })} inputMode="decimal" style={input} /></Field>
-            </div>
-
-            <button
-              onClick={() => onChange(b.id, { completed: !v.completed })}
-              style={{ marginTop: 8, width: "100%", padding: "7px", borderRadius: 8, border: `1px solid ${v.completed ? "rgba(34,197,164,.5)" : "rgba(90,110,160,.4)"}`, background: v.completed ? "rgba(34,197,164,.16)" : "transparent", color: v.completed ? "#3fd6ad" : "#c5d2e6", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}
-            >
-              {v.completed ? "✓ Feito" : "Marcar bloco como feito"}
-            </button>
+            {sides.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+                {sides.map((side) => {
+                  const sv = values[side.id] ?? emptySideEntry(side);
+                  return <div key={side.id} style={{ padding: 9, borderRadius: 8, border: `1px solid ${sv.completed ? "rgba(34,197,164,.4)" : "rgba(124,92,252,.25)"}` }}>
+                    <div style={{ fontSize: ".76rem", fontWeight: 700, color: "#b7a6ff" }}>{side.side_label ?? EXERCISE_SIDE_LABELS[side.side]} <span style={{ color: "#8ea3c0", fontWeight: 400 }}>· {prescribedSide(side)}</span></div>
+                    <EntryFields value={sv} onChange={(patch) => onChange(side.id, patch)} />
+                  </div>;
+                })}
+              </div>
+            ) : <EntryFields value={v} onChange={(patch) => onChange(b.id, patch)} />}
           </div>
         );
       })}
     </div>
   );
+}
+
+function EntryFields({ value, onChange }: { value: FitBlockEntryState; onChange: (patch: Partial<FitBlockEntryState>) => void }) {
+  return <>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6, marginTop: 10 }}>
+      <Field label="Carga"><input value={value.load} onChange={(e) => onChange({ load: e.target.value })} inputMode="decimal" style={input} /></Field>
+      <Field label="Reps"><input value={value.reps} onChange={(e) => onChange({ reps: e.target.value })} style={input} /></Field>
+      <Field label="Séries"><input value={value.sets} onChange={(e) => onChange({ sets: e.target.value })} inputMode="numeric" style={input} /></Field>
+      <Field label="RPE"><input value={value.rpe} onChange={(e) => onChange({ rpe: e.target.value })} inputMode="decimal" style={input} /></Field>
+      <Field label="RIR"><input value={value.rir} onChange={(e) => onChange({ rir: e.target.value })} inputMode="decimal" style={input} /></Field>
+      <Field label="Dor 0–10"><input value={value.pain} onChange={(e) => onChange({ pain: e.target.value })} inputMode="decimal" style={input} /></Field>
+    </div>
+    <input value={value.notes} onChange={(e) => onChange({ notes: e.target.value })} placeholder="Observação opcional" style={{ ...input, marginTop: 6, textAlign: "left" }} />
+    <button onClick={() => onChange({ completed: !value.completed })} style={{ marginTop: 8, width: "100%", padding: "7px", borderRadius: 8, border: `1px solid ${value.completed ? "rgba(34,197,164,.5)" : "rgba(90,110,160,.4)"}`, background: value.completed ? "rgba(34,197,164,.16)" : "transparent", color: value.completed ? "#3fd6ad" : "#c5d2e6", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{value.completed ? "✓ Feito" : "Marcar como feito"}</button>
+  </>;
 }
