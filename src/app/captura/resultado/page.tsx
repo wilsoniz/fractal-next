@@ -267,7 +267,16 @@ export default function ResultadoPage() {
   }
 
   async function finalizarCadastro(userId: string) {
-    // 2. Cria perfil
+    // 2. Cria perfil — NAS DUAS tabelas: criancas.responsavel_id tem FK → perfis(id)
+    // (legado), enquanto o app lê profiles. Sem a linha em perfis, o insert da
+    // criança falha com 409. Unificação perfis→profiles é dívida da trilha B.
+    const { error: errPerfis } = await supabase.from("perfis").upsert({ id: userId, nome: cadNome, email: cadEmail });
+    if (errPerfis) {
+      console.error("[captura] perfis upsert falhou:", errPerfis);
+      setErro("Sua conta foi criada, mas houve um problema ao preparar seu perfil. Entre na sua conta e adicione a criança em 'Meu Filho'.");
+      setLoading(false);
+      return;
+    }
     await supabase.from("profiles").upsert({ id: userId, nome: cadNome, email: cadEmail });
 
     // 3. Cria criança

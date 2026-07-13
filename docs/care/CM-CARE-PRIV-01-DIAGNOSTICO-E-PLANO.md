@@ -56,6 +56,19 @@ where trigger_schema = 'public';
 select * from cron.job;  -- se pg_cron estiver habilitado
 ```
 
+## 2b. Descoberta da F0 já confirmada (12/07/2026)
+
+- **`criancas.responsavel_id` → FK `perfis(id)` ON DELETE CASCADE.** Duas
+  consequências graves: (a) o perfil canônico do banco é **`perfis`** (legado), não
+  `profiles` — a unificação (trilha B) vira pré-requisito ou co-entrega desta CM;
+  (b) **já existe um cascade perigoso em produção**: deletar uma linha de `perfis`
+  apaga as crianças em cascata (e o que mais depender de `criancas`). O fluxo de
+  exclusão NÃO deve se apoiar nesse cascade — a ordem controlada por etapas (§
+  "Ordem da exclusão") permanece obrigatória, e vale avaliar trocar o cascade por
+  `ON DELETE RESTRICT` quando a Edge Function assumir a exclusão.
+- `leads` sem constraint única em `email` (e com duplicatas) — tabela de marketing;
+  entra no grupo "exclusão definitiva" do titular.
+
 ## 3. Riscos de integridade identificados
 
 1. **Criança compartilhada**: criança com 2 responsáveis (convite) — excluir a conta
