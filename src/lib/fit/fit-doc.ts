@@ -1,6 +1,8 @@
 // Chassi de documento imprimível da Consultoria (HTML → print). Ver ADR-FIT-004.
 // Isolado: NÃO usa nada do chassi/documentos do Fracta.
 
+import { FIT_BRAND_NAME } from "./brand";
+
 export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -45,7 +47,7 @@ function docShell(bodyHtml: string, title: string, footer: string): string {
 export function printDocument(bodyHtml: string, title: string): boolean {
   const win = window.open("", "_blank", "width=900,height=1200");
   if (!win) return false;
-  const footer = `Gerado por ConsultoriaFit · ${new Date().toLocaleString("pt-BR")}`;
+  const footer = `Gerado por ${FIT_BRAND_NAME} · ${new Date().toLocaleString("pt-BR")}`;
   win.document.open();
   win.document.write(docShell(bodyHtml, title, footer));
   win.document.close();

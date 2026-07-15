@@ -1,13 +1,18 @@
-# VISION — Plataforma de Consultoria
+# VISION — POREA
 
 **Status:** Aprovado
-**Produto:** Plataforma de Consultoria
+**Produto:** POREA — Plataforma de Consultoria
+**Slogan:** Sua jornada em movimento
 **Leitura obrigatória:** qualquer Codex, Claude Code ou outro agente que trabalhe
 na Consultoria deve ler este documento antes de propor ou executar mudanças.
 
 ## Identidade e isolamento
 
-A Consultoria é um produto independente do Fracta Behavior. Possui domínio,
+POREA tem raiz no grego e comunica trajetória, caminho e jornada. A identidade
+pública substitui o nome provisório Consultoria Fit; nomes técnicos consolidados,
+como a rota `/consultoria` e o prefixo `fit_*`, permanecem estáveis.
+
+A POREA é um produto independente do Fracta Behavior. Possui domínio,
 entidades, regras, componentes, documentação e evolução técnica próprios.
 
 Nenhuma entidade, regra, componente ou lógica clínica do Fracta pode ser
@@ -52,6 +57,9 @@ A composição conceitual é:
 
 `Movimento-base → Variação específica → Implementação → Equipamento → Lateralidade → Detalhes técnicos → Método → Blocos → Prescrição por lado`
 
+Estratégias complexas devem ser decompostas em etapas registráveis quando a
+redução para um único campo apagar informações importantes da execução.
+
 A evolução deve preservar como referência o item específico, o equipamento e,
 quando aplicável, o lado executado. Cargas de equipamentos diferentes não devem
 ser agrupadas automaticamente como equivalentes.
@@ -79,6 +87,16 @@ Diferenças entre lados devem ser estruturadas, nunca depender apenas de notas.
 Prescrições e registros devem permitir análises futuras de força, carga, dor,
 mobilidade e assimetria por lado ou por membro afetado/não afetado.
 
+## Avaliação segmentada
+
+A avaliação pode registrar simultaneamente localização anatômica, papel clínico,
+região, segmento, articulação, protocolo, método e exercício de origem. Diferenças
+absolutas, relativas e índices laterais são dados derivados e devem preservar os
+valores e contextos que os originaram.
+
+“A plataforma mensura diferenças entre lados, mas não presume que simetria seja
+sempre o objetivo.”
+
 ## Preservação histórica
 
 Prescrições e execuções passadas não podem depender da permanência ou edição de
@@ -95,6 +113,7 @@ A biblioteca apoia, mas não substitui, o trabalho profissional. Deve ser possí
 - personalizar detalhes técnicos;
 - usar exercício manual;
 - escolher ou personalizar métodos e blocos;
+- editar as etapas internas de uma estratégia complexa;
 - prescrever lados de forma independente.
 
 Ativos personalizados pertencem ao autor e não aparecem para outros
@@ -122,8 +141,8 @@ Uma fase futura poderá introduzir mapa corporal e visualizações próprias par
 - relatórios visuais inspirados em necessidades de avaliação corporal, sem copiar
   produtos existentes.
 
-A Fase 14 apenas estrutura os dados necessários. Não implementa modelo corporal
-visual.
+A Fase 16 estrutura os dados segmentares necessários. Não implementa modelo
+corporal visual.
 
 ## Fora de escopo automático
 

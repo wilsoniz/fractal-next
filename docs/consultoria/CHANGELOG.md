@@ -1,4 +1,76 @@
-# CHANGELOG — Plataforma de Consultoria
+# CHANGELOG — POREA
+
+## v0.5.0-beta
+
+Primeiro marco Beta da POREA, validado operacionalmente com profissional e aluno
+real. Consolida as Fases 15 e 16 sem alterar os fluxos anteriores.
+
+- migration 015: estratégias avançadas com etapas internas, ocorrências e
+  registros detalhados para feeder/top/backoff, Myo Reps, Rest-pause, Cluster,
+  Drop set, Widowmaker, pico de contração, isometria e repetições completas ou
+  parciais;
+- migration 016: avaliação segmentada, lateralidade, papel clínico e contexto
+  anatômico em medições independentes;
+- IMC derivado e rastreável, sem persistência manual;
+- diferenças absoluta e relativa, evolução lateralizada e trajetória da
+  assimetria calculadas sem criar medições derivadas;
+- snapshots históricos, fluxos globais antigos e compatibilidade aditiva
+  preservados;
+- isolamento do Fracta Behavior, menor privilégio e RLS explícita preservados.
+
+## Fase 16 — Avaliação Segmentada, Assimetria e IMC Derivado
+
+Schema criado, mas **não aplicado automaticamente**:
+
+- `016_fase16_segmented_measurements.sql`: contexto anatômico, lado, papel clínico,
+  método, protocolo, origem em exercício e JSONB extensível em `fit_measurements`.
+
+Adicionado:
+
+- ADR-FIT-010;
+- entrada global, unilateral, esquerda/direita e afetado/não afetado;
+- gravação atômica de pares e bloqueio de duplicações técnicas novas;
+- duplicação rápida para eixo oposto e preview neutro da diferença;
+- comparabilidade estrita e mensagens para dados inseguros ou ambíguos;
+- diferença absoluta, relativa e índice afetado/não afetado derivados;
+- IMC temporal com peso/altura/fontes, sem entrada manual;
+- comparativo e histórico por identidade técnica completa;
+- gráfico de duas séries e trajetória de assimetria na Evolução;
+- PDF com métricas globais, segmentares, diferenças e IMC rastreável.
+
+Compatibilidade e isolamento:
+
+- métricas antigas continuam globais; `bmi` antigo permanece legado;
+- sem backfill, remoção, alteração de RLS ou recálculo destrutivo;
+- nenhuma alteração em treinos, runner, auth, middleware, Fracta ou
+  `supabase/schema.sql`.
+
+## Fase 15 — Estratégias com Etapas Internas
+
+Schema criado, mas **não aplicado automaticamente**:
+
+- `015_fase15_strategy_steps.sql`: etapas de prescrição e ocorrências detalhadas,
+  ambas com RLS, arquivamento lógico e sem DELETE físico.
+
+Adicionado:
+
+- ADR-FIT-009 e contrato versionado de `fit_exercise_blocks.data`;
+- presets estruturados para Drop set com meta, Drop set com isometria em estágios,
+  escada completa/parcial, Widowmaker, isometria alongada e pico de contração;
+- etapas estruturadas também para Myo Reps, Rest-pause e Cluster;
+- editor de etapas e runner guiado, mobile-first, por bloco e lado;
+- ocorrências abertas com limites, ação de adicionar e encerramento explícito;
+- detalhe de carga, completas, parciais, isometria, descanso, dor e encerramento;
+- geração de resumo compatível com a Evolução atual;
+- compensação segura: falha arquiva o log incompleto, preserva o estado local e
+  permite nova tentativa sem marcar o treino como concluído.
+
+Compatibilidade e isolamento:
+
+- blocos sem etapas continuam no fluxo anterior;
+- sem backfill, remoção de dados ou alteração de migration histórica;
+- somente tabelas `fit_*`, componentes `Fit*` e arquivos da Consultoria;
+- nenhuma alteração em autenticação, middleware, `supabase/schema.sql` ou Fracta.
 
 ## Fase 14 — Biblioteca de Exercícios, Favoritos e Assimetria
 

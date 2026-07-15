@@ -1,4 +1,4 @@
-# ROADMAP — Plataforma de Consultoria
+# ROADMAP — POREA
 
 Prioridade: MVP funcional no ar. Evitar features secundárias antes do MVP.
 
@@ -85,7 +85,67 @@ Acompanhamento Semanal → Reavaliação → Novo Treino → Histórico Completo
 - seeds 012/013 criados, ainda não aplicados no Supabase;
 - dashboard de assimetria e modelo corporal visual ficam para fase futura.
 
+## Fase 15 — Estratégias com etapas internas ✅ (concluída e validada)
+
+- etapas ordenadas e editáveis dentro de blocos, com snapshot do preset;
+- ocorrências fixas ou abertas, índice por ocorrência e encerramento explícito;
+- runner guiado por etapa e por lado, com registro de completas, parciais,
+  isometria, descanso, dor e motivo de encerramento;
+- resumo compatível em `fit_training_log_block_entries` e detalhe preservado em
+  `fit_training_log_block_step_entries`;
+- presets piloto intensivos sem recomendação automática ao paciente;
+- migration 015 versionada e validada operacionalmente.
+
+## Fase 16 — Avaliação segmentada e assimetria ✅ (concluída e validada)
+
+- contexto anatômico, lado e papel clínico em `fit_measurements`;
+- registro global, unilateral e pareado sem persistir diferenças derivadas;
+- IMC automático por data de referência, com fontes rastreáveis;
+- comparativos longitudinais por identidade técnica completa;
+- Evolução esquerda/direita, afetado/não afetado e trajetória da assimetria;
+- PDF global e segmentar;
+- migration 016 versionada e validada operacionalmente.
+
+## Marco v0.5.0-beta
+
+As Fases 15 e 16 formam o primeiro marco Beta versionado da POREA. A validação
+operacional conjunta confirmou os fluxos avançados de treino e avaliação
+segmentada com profissional e aluno real.
+
+Grandes expansões arquiteturais ficam temporariamente congeladas durante o Beta.
+
+## Beta Hardening
+
+Objetivo: transformar uma plataforma funcional em um produto rápido, intuitivo,
+confiável e pronto para uso recorrente.
+
+Prioridades iniciais:
+
+1. corrigir atritos observados por usuários reais;
+2. melhorar fluxos de maior frequência;
+3. reduzir cliques e redigitação;
+4. melhorar responsividade mobile;
+5. melhorar loading, skeletons e estados vazios;
+6. melhorar mensagens de erro;
+7. prevenir perda de formulário;
+8. melhorar acessibilidade;
+9. revisar performance;
+10. criar onboarding;
+11. criar templates e atalhos apenas quando sustentados por uso real;
+12. não abrir grandes módulos sem evidência de necessidade.
+
+> Nenhuma grande funcionalidade nova entra durante o Beta Hardening sem evidência
+> de uso real, risco operacional ou necessidade estratégica aprovada.
+
+### Futuro — alternativas de equipamento e planejamento semanal
+
+Alternativas equivalentes de equipamento exigirão modelagem própria e validação
+profissional; não serão inferidas pela plataforma. Planejamento semanal e
+periodização permanecem fases futuras, sem código de periodização nesta fase.
+
 ### Futuro — modelo corporal e análise segmentar
 
 Mapa corporal, dor por região, força por lado, mobilidade por articulação,
-assimetrias e visualizações segmentares próprias, sem copiar produtos existentes.
+assimetrias, composição corporal segmentar, histórico visual e regiões clicáveis,
+sem copiar produtos existentes. A Fase 16 prepara os dados, mas não implementa o
+corpo gráfico.

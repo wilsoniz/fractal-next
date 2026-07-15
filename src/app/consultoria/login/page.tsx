@@ -8,15 +8,17 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signInFit, signUpFit, getFitUser, resetPasswordFit } from "@/lib/fit/supabase-fit";
 import { ensureProfile } from "@/lib/fit/fit-profiles";
+import { FIT_BRAND_NAME, FIT_BRAND_SLOGAN } from "@/lib/fit/brand";
 import type { FitRole } from "@/lib/fit/types";
 
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const redirect = params.get("redirect") ?? "/consultoria";
+  const fromInvite = redirect.includes("/consultoria/convite");
 
-  const [tab, setTab] = useState<"login" | "register">("login");
-  const [role, setRole] = useState<FitRole>("professional");
+  const [tab, setTab] = useState<"login" | "register">(fromInvite ? "register" : "login");
+  const [role, setRole] = useState<FitRole>(fromInvite ? "patient" : "professional");
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,7 +37,6 @@ function LoginInner() {
     router.push(`/consultoria/convite?token=${encodeURIComponent(tk)}`);
   }
 
-  const fromInvite = redirect.includes("/consultoria/convite");
   const [forgot, setForgot] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
 
@@ -45,14 +46,6 @@ function LoginInner() {
       if (user) router.replace(redirect);
     });
   }, [router, redirect]);
-
-  // Vindo de um convite → já cria conta como Paciente.
-  useEffect(() => {
-    if (fromInvite) {
-      setTab("register");
-      setRole("patient");
-    }
-  }, [fromInvite]);
 
   async function handleForgot(e: React.FormEvent) {
     e.preventDefault();
@@ -150,10 +143,10 @@ function LoginInner() {
         {/* Marca */}
         <div style={{ textAlign: "center", marginBottom: 30 }}>
           <div style={{ fontSize: "1.55rem", fontWeight: 800, color: "#f2f6ff", letterSpacing: "-.02em" }}>
-            Consultoria<span style={{ color: "#7c5cfc" }}>Fit</span>
+            {FIT_BRAND_NAME}
           </div>
           <div style={{ fontSize: ".82rem", color: "#8ea3c0", marginTop: 6 }}>
-            Acompanhamento de treino, performance e reabilitação
+            {FIT_BRAND_SLOGAN}
           </div>
         </div>
 

@@ -4,7 +4,7 @@
 // Grupo é ORIENTAÇÃO de execução; o registro continua por exercício/bloco.
 
 import { useState } from "react";
-import { createLog, saveEntries, saveBlockEntries } from "@/lib/fit/fit-training-logs";
+import { archiveFailedLog, createLog, saveEntries, saveBlockEntries, saveBlockStepEntries } from "@/lib/fit/fit-training-logs";
 import { orderedDayItems } from "@/lib/fit/fit-workouts";
 import { blockTypeLabel } from "@/lib/fit/training-methods";
 import {
@@ -14,9 +14,11 @@ import {
   type FitGroupWithExercises,
   type FitTrainingLogEntryInput,
   type FitTrainingLogBlockEntryInput,
+  type FitTrainingLogBlockStepEntryInput,
 } from "@/lib/fit/types";
 import { fitFieldStyle } from "./FitSection";
 import { FitBlockRunner, emptyBlockEntry, emptySideEntry, type FitBlockEntryState } from "./FitBlockRunner";
+import { emptyStepEntry, strategyContextKey, strategyStepKey, type FitStepEntryState } from "./FitStrategyStepRunner";
 
 type DayFull = FitWorkoutDay & { exercises: FitExerciseWithBlocks[]; groups: FitGroupWithExercises[] };
 
@@ -84,6 +86,20 @@ export function FitWorkoutRunner({
       return sides.length > 0 ? sides.map((side) => [side.id, emptySideEntry(side)]) : [[b.id, emptyBlockEntry(b)]];
     }))),
   );
+  const [occurrenceCounts, setOccurrenceCounts] = useState<Record<string, number>>(() => {
+    const result: Record<string, number> = {};
+    for (const ex of allExercises) for (const block of ex.blocks) for (const side of (block.sides?.length ? block.sides : [null])) for (const step of block.steps ?? []) result[`${strategyContextKey(block.id, side?.id ?? null)}:${step.id}`] = step.repeat_mode === "open" ? Math.max(1, step.min_occurrences) : 1;
+    return result;
+  });
+  const [stepEntries, setStepEntries] = useState<Record<string, FitStepEntryState>>(() => {
+    const result: Record<string, FitStepEntryState> = {};
+    for (const ex of allExercises) for (const block of ex.blocks) for (const side of (block.sides?.length ? block.sides : [null])) for (const step of block.steps ?? []) {
+      const count = step.repeat_mode === "open" ? Math.max(1, step.min_occurrences) : 1;
+      for (let occurrence = 0; occurrence < count; occurrence++) result[strategyStepKey(block.id, side?.id ?? null, step.id, occurrence)] = emptyStepEntry();
+    }
+    return result;
+  });
+  const [endedStrategies, setEndedStrategies] = useState<Record<string, boolean>>({});
 
   const [openInfo, setOpenInfo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -95,8 +111,26 @@ export function FitWorkoutRunner({
   function updBlock(blockId: string, patch: Partial<FitBlockEntryState>) {
     setBlockEntries((prev) => ({ ...prev, [blockId]: { ...prev[blockId], ...patch } }));
   }
+  function updStep(key: string, patch: Partial<FitStepEntryState>) { setStepEntries((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } })); }
+  function addOccurrence(context: string, stepId: string) {
+    const countKey = `${context}:${stepId}`;
+    setOccurrenceCounts((prev) => {
+      const nextCount = (prev[countKey] ?? 1) + 1;
+      const [blockId, sideToken] = context.split(":");
+      setStepEntries((entries) => ({ ...entries, [strategyStepKey(blockId, sideToken === "bilateral" ? null : sideToken, stepId, nextCount - 1)]: emptyStepEntry() }));
+      return { ...prev, [countKey]: nextCount };
+    });
+  }
 
   async function handleFinish() {
+    for (const ex of allExercises) for (const block of ex.blocks) if ((block.steps?.length ?? 0) > 0) for (const side of (block.sides?.length ? block.sides : [null])) {
+      const context = strategyContextKey(block.id, side?.id ?? null);
+      for (const step of block.steps ?? []) {
+        const count = occurrenceCounts[`${context}:${step.id}`] ?? 1;
+        for (let i = 0; i < count; i++) if (!stepEntries[strategyStepKey(block.id, side?.id ?? null, step.id, i)]?.completed) { setError(`Conclua todas as etapas obrigatórias de ${block.label ?? block.block_type}.`); return; }
+        if (step.repeat_mode === "open" && !endedStrategies[context]) { setError(`Encerre explicitamente a estratégia ${block.label ?? block.block_type}.`); return; }
+      }
+    }
     setSaving(true);
     setError(null);
     const { data: log, error: logErr } = await createLog({ patientId, planId, dayId: day.id, performed_at: new Date().toISOString().slice(0, 10), notes: null });
@@ -129,7 +163,26 @@ export function FitWorkoutRunner({
         const sides = b.sides ?? [];
         const rows = sides.length > 0 ? sides.map((side) => ({ key: side.id, side })) : [{ key: b.id, side: null }];
         return rows.map(({ key, side }) => {
-          const v = blockEntries[key];
+          const hasSteps = (b.steps?.length ?? 0) > 0;
+          const context = strategyContextKey(b.id, side?.id ?? null);
+          const details = hasSteps ? (b.steps ?? []).flatMap((step) => {
+            const count = occurrenceCounts[`${context}:${step.id}`] ?? 1;
+            return Array.from({ length: count }, (_, occurrence) => ({
+              step,
+              value: stepEntries[strategyStepKey(b.id, side?.id ?? null, step.id, occurrence)] ?? emptyStepEntry(),
+            }));
+          }) : [];
+          const detailValues = details.map((detail) => detail.value);
+          const v = blockEntries[key] ?? emptyBlockEntry(b);
+          const initialLoad = detailValues.map((d) => toNum(d.load)).find((n) => n != null) ?? null;
+          const totalReps = detailValues.reduce((sum, d) => sum + (toInt(d.reps) ?? 0) + (toInt(d.fullReps) ?? 0) + (toInt(d.partialReps) ?? 0), 0);
+          const totalFull = detailValues.reduce((sum, d) => sum + (toInt(d.fullReps) ?? 0), 0);
+          const totalPartial = detailValues.reduce((sum, d) => sum + (toInt(d.partialReps) ?? 0), 0);
+          const totalDuration = detailValues.reduce((sum, d) => sum + (toInt(d.duration) ?? 0), 0);
+          const dropCount = details.filter((detail) => detail.step.step_type === "load_drop").length;
+          const miniBlockCount = details.filter((detail) => detail.step.step_type === "mini_set").length;
+          const pauseCount = b.data?.strategy_key === "widowmaker" || b.data?.strategy_key === "rest_pause" ? miniBlockCount : details.filter((detail) => (toInt(detail.value.rest) ?? 0) > 0).length;
+          const terminationReason = detailValues.map((d) => nn(d.terminationReason)).find(Boolean) ?? null;
           return {
             exercise_id: ex.id,
             block_id: b.id,
@@ -140,35 +193,48 @@ export function FitWorkoutRunner({
             exercise_name: ex.name,
             block_label: b.label ?? blockTypeLabel(b.block_type),
             block_type: b.block_type,
-            load_done: toNum(v.load),
+            load_done: hasSteps ? initialLoad : toNum(v.load),
             load_unit: side?.target_load_unit ?? "kg",
-            reps_done: nn(v.reps),
-            sets_done: toInt(v.sets),
+            reps_done: hasSteps ? String(totalReps) : nn(v.reps),
+            sets_done: hasSteps ? detailValues.length : toInt(v.sets),
             rpe: toNum(v.rpe),
             rir: toNum(v.rir),
             pain_level: toNum(v.pain),
-            completed: v.completed,
-            notes: nn(v.notes),
+            completed: hasSteps ? true : v.completed,
+            notes: hasSteps ? terminationReason : nn(v.notes),
+            data: hasSteps ? { strategy_key: b.data?.strategy_key ?? null, summary_rule: b.data?.summary_rule ?? null, total_reps: totalReps, total_full_reps: totalFull, total_partial_reps: totalPartial, total_duration_seconds: totalDuration, occurrence_count: detailValues.length, drop_count: dropCount, mini_block_count: miniBlockCount, pause_count: pauseCount, termination_reason: terminationReason } : {},
           };
         });
       }),
     );
 
-    const { ok: okSimple, error: simpleErr } = await saveEntries(log.id, simplePayload);
-    const { ok: okBlocks, error: blocksErr } = await saveBlockEntries(log.id, blockPayload);
-    setSaving(false);
-    if (!okSimple || !okBlocks) {
-      const detail = simpleErr ?? blocksErr;
-      setError(detail ? `Treino criado, mas erro ao salvar registro: ${detail}` : "Treino criado, mas houve erro ao salvar parte do registro.");
+    const stepPayload: FitTrainingLogBlockStepEntryInput[] = allExercises.flatMap((ex) => ex.blocks.flatMap((b) => (b.steps ?? []).flatMap((step) => (b.sides?.length ? b.sides : [null]).flatMap((side) => {
+      const count = occurrenceCounts[`${strategyContextKey(b.id, side?.id ?? null)}:${step.id}`] ?? 1;
+      return Array.from({ length: count }, (_, occurrence) => {
+        const v = stepEntries[strategyStepKey(b.id, side?.id ?? null, step.id, occurrence)] ?? emptyStepEntry();
+        return { exercise_id: ex.id, block_id: b.id, step_id: step.id, exercise_library_id: ex.exercise_library_id, side_prescription_id: side?.id ?? null, occurrence_index: occurrence, exercise_name: ex.name, block_type: b.block_type, block_label: b.label ?? blockTypeLabel(b.block_type), step_type: step.step_type, step_label: step.label, side: side?.side ?? null, side_label_snapshot: side ? (side.side_label ?? side.side) : null, load_done: toNum(v.load), load_unit: side?.target_load_unit ?? step.target_load_unit ?? "kg", reps_done: toInt(v.reps), full_reps_done: toInt(v.fullReps), partial_reps_done: toInt(v.partialReps), duration_seconds: toInt(v.duration), rest_seconds: toInt(v.rest), rpe: toNum(v.rpe), rir: toNum(v.rir), pain_level: toNum(v.pain), termination_reason: nn(v.terminationReason), completed: v.completed, notes: nn(v.notes), data: {} };
+      });
+    }))));
+
+    const simpleResult = await saveEntries(log.id, simplePayload);
+    const blockResult = simpleResult.ok ? await saveBlockEntries(log.id, blockPayload) : { ok: false, error: null };
+    const stepResult = simpleResult.ok && blockResult.ok ? await saveBlockStepEntries(log.id, stepPayload) : { ok: false, error: null };
+    if (!simpleResult.ok || !blockResult.ok || !stepResult.ok) {
+      const detail = simpleResult.error ?? blockResult.error ?? stepResult.error ?? "Falha desconhecida";
+      await archiveFailedLog(log.id, detail);
+      setError(`Não foi possível salvar todo o treino: ${detail}. Os dados preenchidos foram mantidos; tente novamente.`);
+      setSaving(false);
       return;
     }
+    setSaving(false);
     onDone();
   }
 
-  const totalUnits = allExercises.reduce((acc, ex) => acc + (ex.blocks.length > 0 ? ex.blocks.reduce((n, b) => n + Math.max(1, b.sides?.length ?? 0), 0) : 1), 0);
+  const totalUnits = Object.keys(stepEntries).length + allExercises.reduce((acc, ex) => acc + (ex.blocks.length > 0 ? ex.blocks.filter((b) => (b.steps?.length ?? 0) === 0).reduce((n, b) => n + Math.max(1, b.sides?.length ?? 0), 0) : 1), 0);
   const doneUnits =
     Object.values(entries).filter((e) => e.completed).length +
-    Object.values(blockEntries).filter((b) => b.completed).length;
+    Object.values(blockEntries).filter((b) => b.completed).length +
+    Object.values(stepEntries).filter((s) => s.completed).length;
 
   function renderExercise(ex: FitExerciseWithBlocks) {
     const hasBlocks = ex.blocks.length > 0;
@@ -201,7 +267,7 @@ export function FitWorkoutRunner({
         )}
 
         {hasBlocks ? (
-          <FitBlockRunner blocks={ex.blocks} values={blockEntries} onChange={updBlock} />
+          <FitBlockRunner blocks={ex.blocks} values={blockEntries} onChange={updBlock} stepValues={stepEntries} occurrenceCounts={occurrenceCounts} endedStrategies={endedStrategies} onStepChange={updStep} onAddOccurrence={addOccurrence} onEndStrategy={(context) => setEndedStrategies((prev) => ({ ...prev, [context]: true }))} />
         ) : (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginTop: 12 }}>

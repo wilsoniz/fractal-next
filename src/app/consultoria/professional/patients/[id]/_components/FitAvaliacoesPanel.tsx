@@ -16,6 +16,7 @@ import { FitCard } from "@/components/fit/FitCard";
 import { FitSection, fitFieldStyle } from "@/components/fit/FitSection";
 import { FitAssessmentForm, type FitAssessmentInput } from "@/components/fit/FitAssessmentForm";
 import { FitMeasurementEditor } from "@/components/fit/FitMeasurementEditor";
+import { FitAssessmentBmi } from "@/components/fit/FitAssessmentBmi";
 import {
   ASSESSMENT_TYPE_LABELS,
   MEASUREMENT_CATEGORY_LABELS,
@@ -239,6 +240,10 @@ function AssessmentDetail({
         <FitAssessmentForm initial={assessment} professionalName={professionalName} submitLabel="Salvar dados gerais" onSubmit={handleGeneral} />
       </FitSection>
 
+      <FitSection title="IMC automático" subtitle="Calculado por data de referência; sem interpretação automática.">
+        <FitAssessmentBmi patientId={patientId} assessmentId={assessmentId} assessedAt={assessment.assessed_at} refreshKey={measurements.map((m) => `${m.id}:${m.value}`).join("|")} />
+      </FitSection>
+
       {/* Blocos de medição por categoria */}
       {MEASUREMENT_CATEGORY_ORDER.filter((c) => c !== "other").map((cat) => (
         <FitSection key={cat} title={MEASUREMENT_CATEGORY_LABELS[cat]}>
@@ -271,7 +276,7 @@ function AssessmentDetail({
               {compareRef === "previous" ? "Não há avaliação anterior para comparar." : "Não há linha de base para comparar."}
             </div>
           ) : (
-            <FitComparisonTable rows={comparison.rows} refLabel={comparison.referenceLabel} />
+            <FitComparisonTable rows={comparison.rows} asymmetries={comparison.asymmetries} refLabel={comparison.referenceLabel} />
           )}
         </FitSection>
       ) : (

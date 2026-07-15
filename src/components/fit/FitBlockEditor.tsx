@@ -4,12 +4,13 @@
 // Aplica um método (semeia blocos) ou adiciona blocos manualmente. Soft-delete.
 
 import { useState } from "react";
-import { addBlock, updateBlock, archiveBlock } from "@/lib/fit/fit-workouts";
+import { addBlock, addBlockStep, updateBlock, archiveBlock } from "@/lib/fit/fit-workouts";
 import { TRAINING_METHODS, blockTypeLabel, BLOCK_TYPE_META } from "@/lib/fit/training-methods";
 import type { FitExerciseBlock, FitExerciseBlockInput, FitExerciseWithBlocks, FitBlockType } from "@/lib/fit/types";
 import { FitModal } from "./FitModal";
 import { fitLabelStyle, fitFieldStyle } from "./FitSection";
 import { FitBlockSideEditor } from "./FitBlockSideEditor";
+import { FitBlockStepEditor } from "./FitBlockStepEditor";
 
 function nn(v: string): string | null {
   const t = v.trim();
@@ -39,14 +40,20 @@ export function FitBlockEditor({
   const [editing, setEditing] = useState<FitExerciseBlock | null>(null);
   const [creating, setCreating] = useState(false);
   const [methodKey, setMethodKey] = useState("");
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
   const blocks = exercise.blocks;
 
   async function applyMethod() {
     const method = TRAINING_METHODS.find((m) => m.key === methodKey);
     if (!method) return;
+    setApplying(true);
+    setApplyError(null);
+    const createdIds: string[] = [];
+    let failed = false;
     let idx = blocks.length;
     for (const s of method.blocks) {
-      await addBlock({
+      const created = await addBlock({
         exerciseId: exercise.id,
         planId: exercise.plan_id,
         dayId: exercise.day_id,
@@ -62,11 +69,27 @@ export function FitBlockEditor({
           rpe: null,
           tempo: null,
           instructions: null,
+          data: s.data ?? {},
         },
       });
+      if (!created) { failed = true; break; }
+      createdIds.push(created.id);
+      if (created && s.steps) {
+        for (const [stepIndex, stepInput] of s.steps.entries()) {
+          const createdStep = await addBlockStep({ blockId: created.id, exerciseId: exercise.id, orderIndex: stepIndex, input: stepInput });
+          if (!createdStep) { failed = true; break; }
+        }
+      }
+      if (failed) break;
     }
-    setMethodKey("");
+    if (failed) {
+      await Promise.all(createdIds.map((id) => archiveBlock(id)));
+      setApplyError("Não foi possível copiar toda a estratégia. Os blocos parciais foram arquivados; tente novamente.");
+    } else {
+      setMethodKey("");
+    }
     await onChanged();
+    setApplying(false);
   }
 
   async function handleSave(input: FitExerciseBlockInput) {
@@ -93,8 +116,9 @@ export function FitBlockEditor({
           <option value="">Aplicar um método…</option>
           {TRAINING_METHODS.map((m) => <option key={m.key} value={m.key}>{m.name}</option>)}
         </select>
-        <button onClick={applyMethod} disabled={!methodKey} style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(124,92,252,.5)", background: methodKey ? "rgba(124,92,252,.14)" : "transparent", color: "#b7a6ff", fontWeight: 700, fontSize: ".8rem", cursor: methodKey ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>Aplicar</button>
+        <button onClick={applyMethod} disabled={!methodKey || applying} style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(124,92,252,.5)", background: methodKey ? "rgba(124,92,252,.14)" : "transparent", color: "#b7a6ff", fontWeight: 700, fontSize: ".8rem", cursor: methodKey && !applying ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{applying ? "Aplicando..." : "Aplicar"}</button>
       </div>
+      {applyError && <div style={{ marginBottom: 9, fontSize: ".74rem", color: "#f08070" }}>{applyError}</div>}
 
       {/* Blocos existentes */}
       {blocks.length > 0 ? (
@@ -112,6 +136,7 @@ export function FitBlockEditor({
               <button onClick={() => handleArchive(b.id)} aria-label="Remover" style={{ background: "none", border: "none", color: "#f0857a", cursor: "pointer", fontSize: "1rem", padding: "2px 6px" }}>×</button>
               </div>
               <FitBlockSideEditor block={b} onChanged={onChanged} />
+              <FitBlockStepEditor block={b} onChanged={onChanged} />
             </div>
           ))}
         </div>
@@ -158,6 +183,7 @@ function BlockForm({ initial, onSave }: { initial: FitExerciseBlock | null; onSa
         rpe: nn(rpe),
         tempo: nn(tempo),
         instructions: nn(instructions),
+        data: initial?.data ?? {},
       });
     } finally {
       setSaving(false);

@@ -6,6 +6,7 @@
 import { blockTypeLabel } from "@/lib/fit/training-methods";
 import { EXERCISE_SIDE_LABELS, type FitExerciseBlock, type FitExerciseBlockSide } from "@/lib/fit/types";
 import { fitFieldStyle } from "./FitSection";
+import { FitStrategyStepRunner, type FitStepEntryState } from "./FitStrategyStepRunner";
 
 export interface FitBlockEntryState {
   load: string;
@@ -55,6 +56,13 @@ function prescribedSide(s: FitExerciseBlockSide): string {
   return parts.filter(Boolean).join(" · ");
 }
 
+function safetyText(block: FitExerciseBlock): string[] {
+  const safety = block.data?.safety;
+  if (!safety || typeof safety !== "object" || Array.isArray(safety)) return [];
+  const values = safety as Record<string, unknown>;
+  return [values.warning, values.termination].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+}
+
 const input: React.CSSProperties = { ...fitFieldStyle, padding: "7px 6px", textAlign: "center" };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -70,16 +78,29 @@ export function FitBlockRunner({
   blocks,
   values,
   onChange,
+  stepValues,
+  occurrenceCounts,
+  endedStrategies,
+  onStepChange,
+  onAddOccurrence,
+  onEndStrategy,
 }: {
   blocks: FitExerciseBlock[];
   values: Record<string, FitBlockEntryState>;
   onChange: (blockId: string, patch: Partial<FitBlockEntryState>) => void;
+  stepValues: Record<string, FitStepEntryState>;
+  occurrenceCounts: Record<string, number>;
+  endedStrategies: Record<string, boolean>;
+  onStepChange: (key: string, patch: Partial<FitStepEntryState>) => void;
+  onAddOccurrence: (contextKey: string, stepId: string) => void;
+  onEndStrategy: (contextKey: string) => void;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
       {blocks.map((b) => {
         const sides = b.sides ?? [];
         const v = values[b.id] ?? emptyBlockEntry(b);
+        const safety = safetyText(b);
         return (
           <div key={b.id} style={{ padding: 12, borderRadius: 10, background: "rgba(15,22,40,.55)", border: `1px solid ${v.completed ? "rgba(34,197,164,.45)" : "rgba(90,110,160,.2)"}` }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
@@ -91,6 +112,7 @@ export function FitBlockRunner({
             </div>
 
             {b.instructions && <div style={{ fontSize: ".72rem", color: "#9fb2cf", marginTop: 6, whiteSpace: "pre-wrap" }}>{b.instructions}</div>}
+            {safety.length > 0 && <div style={{ fontSize: ".72rem", color: "#efb04a", marginTop: 6, whiteSpace: "pre-wrap" }}>{safety.join(" ")}</div>}
 
             {sides.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
@@ -98,11 +120,11 @@ export function FitBlockRunner({
                   const sv = values[side.id] ?? emptySideEntry(side);
                   return <div key={side.id} style={{ padding: 9, borderRadius: 8, border: `1px solid ${sv.completed ? "rgba(34,197,164,.4)" : "rgba(124,92,252,.25)"}` }}>
                     <div style={{ fontSize: ".76rem", fontWeight: 700, color: "#b7a6ff" }}>{side.side_label ?? EXERCISE_SIDE_LABELS[side.side]} <span style={{ color: "#8ea3c0", fontWeight: 400 }}>· {prescribedSide(side)}</span></div>
-                    <EntryFields value={sv} onChange={(patch) => onChange(side.id, patch)} />
+                    {(b.steps?.length ?? 0) > 0 ? <FitStrategyStepRunner block={b} side={side} values={stepValues} occurrenceCounts={occurrenceCounts} ended={endedStrategies} onChange={onStepChange} onAddOccurrence={onAddOccurrence} onEnd={onEndStrategy} /> : <EntryFields value={sv} onChange={(patch) => onChange(side.id, patch)} />}
                   </div>;
                 })}
               </div>
-            ) : <EntryFields value={v} onChange={(patch) => onChange(b.id, patch)} />}
+            ) : (b.steps?.length ?? 0) > 0 ? <FitStrategyStepRunner block={b} side={null} values={stepValues} occurrenceCounts={occurrenceCounts} ended={endedStrategies} onChange={onStepChange} onAddOccurrence={onAddOccurrence} onEnd={onEndStrategy} /> : <EntryFields value={v} onChange={(patch) => onChange(b.id, patch)} />}
           </div>
         );
       })}

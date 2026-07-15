@@ -4,6 +4,7 @@
 import { supabase } from "./supabase-fit";
 import { measurementLabel } from "./metrics";
 import { metricValence, type FitValence } from "./fit-evolution";
+import { compareMeasurements, measurementContextLabel, measurementIdentityKey, measurementTechnicalKey, resolveBMI, type FitComparisonMode } from "./fit-segmented-measurements";
 import {
   MEASUREMENT_CATEGORY_ORDER,
   type FitAssessment,
@@ -15,8 +16,11 @@ import {
 export type FitComparisonReference = "baseline" | "previous";
 
 export interface FitComparisonRow {
+  identityKey: string;
   metric: string;
   label: string;
+  contextLabel: string;
+  sideLabel: string | null;
   unit: string | null;
   category: FitMeasurementCategory;
   refValue: number | null;
@@ -26,11 +30,26 @@ export interface FitComparisonRow {
   valence: FitValence;
 }
 
+export interface FitAssessmentAsymmetryRow {
+  key: string;
+  label: string;
+  contextLabel: string;
+  unit: string | null;
+  mode: FitComparisonMode;
+  referenceDifference: number | null;
+  currentDifference: number | null;
+  differenceDelta: number | null;
+  referenceValues: [number, number] | null;
+  currentValues: [number, number] | null;
+  reason: string | null;
+}
+
 export interface FitComparisonResult {
   hasReference: boolean;
   referenceLabel: string;
   referenceDate: string | null;
   rows: FitComparisonRow[];
+  asymmetries: FitAssessmentAsymmetryRow[];
 }
 
 function fmt(d: string): string {
@@ -65,7 +84,7 @@ export async function getAssessmentComparison(
 ): Promise<FitComparisonResult> {
   const assessments = await loadAssessments(patientId);
   const currentIdx = assessments.findIndex((a) => a.id === currentAssessmentId);
-  if (currentIdx < 0) return { hasReference: false, referenceLabel: "", referenceDate: null, rows: [] };
+  if (currentIdx < 0) return { hasReference: false, referenceLabel: "", referenceDate: null, rows: [], asymmetries: [] };
   const current = assessments[currentIdx];
 
   let ref: FitAssessment | undefined;
@@ -76,43 +95,90 @@ export async function getAssessmentComparison(
   const currentMs = await measurementsFor(current.id);
   const refMs = ref ? await measurementsFor(ref.id) : [];
 
+  const visibleCurrent = currentMs.filter((m) => m.metric !== "bmi");
+  const visibleRef = refMs.filter((m) => m.metric !== "bmi");
   const refMap = new Map<string, number>();
-  for (const m of refMs) refMap.set(m.metric, Number(m.value));
+  for (const m of visibleRef) refMap.set(measurementIdentityKey(m), Number(m.value));
   const curMap = new Map<string, FitMeasurement>();
-  for (const m of currentMs) curMap.set(m.metric, m);
+  for (const m of visibleCurrent) curMap.set(measurementIdentityKey(m), m);
 
   const rows: FitComparisonRow[] = [];
-  for (const [metric, m] of curMap) {
+  for (const [identityKey, m] of curMap) {
     const currentValue = Number(m.value);
-    const refValue = refMap.has(metric) ? (refMap.get(metric) as number) : null;
+    const refValue = refMap.has(identityKey) ? (refMap.get(identityKey) as number) : null;
     const delta = refValue != null ? currentValue - refValue : null;
     const pct = refValue != null && refValue !== 0 ? ((delta as number) / refValue) * 100 : null;
     rows.push({
-      metric,
-      label: measurementLabel(metric, m.label),
+      identityKey,
+      metric: m.metric,
+      label: measurementLabel(m.metric, m.label),
+      contextLabel: measurementContextLabel(m),
+      sideLabel: m.side_label,
       unit: m.unit,
       category: m.category,
       refValue,
       currentValue,
       delta,
       pct,
-      valence: metricValence(metric),
+      valence: metricValence(m.metric),
     });
+  }
+  const [currentBmi, referenceBmi] = await Promise.all([
+    resolveBMI(patientId, current.assessed_at, current.id),
+    ref ? resolveBMI(patientId, ref.assessed_at, ref.id) : Promise.resolve(null),
+  ]);
+  if (currentBmi.status === "complete" && currentBmi.bmi != null) {
+    const refValue = referenceBmi?.status === "complete" ? referenceBmi.bmi : null;
+    const delta = refValue != null ? currentBmi.bmi - refValue : null;
+    rows.push({ identityKey: "derived|bmi", metric: "bmi_derived", label: "IMC derivado", contextLabel: `Peso ${currentBmi.weight?.value} kg (${currentBmi.weight?.date}) · altura ${currentBmi.height?.value} cm (${currentBmi.height?.date})`, sideLabel: null, unit: "kg/m²", category: "anthropometry", refValue, currentValue: currentBmi.bmi, delta, pct: refValue && delta != null ? delta / refValue * 100 : null, valence: "neutral" });
   }
   rows.sort(byCategoryThenLabel);
 
+  const asymmetries = compareAssessmentAsymmetries(visibleCurrent, visibleRef);
+
   const referenceLabel = !ref ? "" : ref.type === "baseline" ? "Linha de base" : `Reavaliação de ${fmt(ref.assessed_at)}`;
-  return { hasReference: !!ref, referenceLabel, referenceDate: ref?.assessed_at ?? null, rows };
+  return { hasReference: !!ref, referenceLabel, referenceDate: ref?.assessed_at ?? null, rows, asymmetries };
+}
+
+function asymmetriesFor(measurements: FitMeasurement[]): Map<string, Omit<FitAssessmentAsymmetryRow, "referenceDifference" | "differenceDelta" | "referenceValues">> {
+  const groups = new Map<string, FitMeasurement[]>();
+  for (const m of measurements) groups.set(measurementTechnicalKey(m), [...(groups.get(measurementTechnicalKey(m)) ?? []), m]);
+  const result = new Map<string, Omit<FitAssessmentAsymmetryRow, "referenceDifference" | "differenceDelta" | "referenceValues">>();
+  for (const [technicalKey, rows] of groups) for (const mode of ["left_right", "affected_unaffected"] as FitComparisonMode[]) {
+    const first = rows.filter((m) => mode === "left_right" ? m.side === "left" : m.clinical_role === "affected");
+    const second = rows.filter((m) => mode === "left_right" ? m.side === "right" : m.clinical_role === "unaffected");
+    if (first.length === 0 && second.length === 0) continue;
+    const sample = first[0] ?? second[0];
+    const key = `${technicalKey}|${mode}`;
+    if (first.length !== 1 || second.length !== 1) {
+      result.set(key, { key, label: measurementLabel(sample.metric, sample.label), contextLabel: measurementContextLabel(sample), unit: sample.unit, mode, currentDifference: null, currentValues: null, reason: first.length > 1 || second.length > 1 ? "Dados não comparáveis automaticamente: grupo ambíguo." : "Dados não comparáveis automaticamente: par incompleto." });
+      continue;
+    }
+    const compared = compareMeasurements(first[0], second[0], mode);
+    result.set(key, { key, label: measurementLabel(sample.metric, sample.label), contextLabel: measurementContextLabel(sample), unit: sample.unit, mode, currentDifference: compared.absoluteDifference, currentValues: [Number(compared.first.value), Number(compared.second.value)], reason: compared.comparable ? null : `Dados não comparáveis automaticamente: ${compared.reason}` });
+  }
+  return result;
+}
+
+function compareAssessmentAsymmetries(current: FitMeasurement[], reference: FitMeasurement[]): FitAssessmentAsymmetryRow[] {
+  const currentMap = asymmetriesFor(current); const refMap = asymmetriesFor(reference);
+  return Array.from(currentMap.values()).map((row) => {
+    const ref = refMap.get(row.key);
+    const referenceDifference = ref?.currentDifference ?? null;
+    return { ...row, referenceDifference, referenceValues: ref?.currentValues ?? null, differenceDelta: row.currentDifference != null && referenceDifference != null ? row.currentDifference - referenceDifference : null };
+  });
 }
 
 // ── Histórico: matriz métrica × avaliações ──
 export interface FitAssessmentHistory {
   assessments: { id: string; assessed_at: string; type: FitAssessmentType }[];
   metrics: {
+    identityKey: string;
     metric: string;
     label: string;
     unit: string | null;
     category: FitMeasurementCategory;
+    contextLabel: string;
     values: Record<string, number>; // assessmentId → valor
   }[];
 }
@@ -126,12 +192,13 @@ export async function listAssessmentsWithMeasurements(patientId: string): Promis
   const ms = (data as FitMeasurement[] | null) ?? [];
 
   const map = new Map<string, FitAssessmentHistory["metrics"][number]>();
-  for (const m of ms) {
+  for (const m of ms.filter((row) => row.metric !== "bmi")) {
     if (!m.assessment_id) continue;
-    let row = map.get(m.metric);
+    const identityKey = measurementIdentityKey(m);
+    let row = map.get(identityKey);
     if (!row) {
-      row = { metric: m.metric, label: measurementLabel(m.metric, m.label), unit: m.unit, category: m.category, values: {} };
-      map.set(m.metric, row);
+      row = { identityKey, metric: m.metric, label: measurementLabel(m.metric, m.label), unit: m.unit, category: m.category, contextLabel: measurementContextLabel(m), values: {} };
+      map.set(identityKey, row);
     }
     row.values[m.assessment_id] = Number(m.value);
   }

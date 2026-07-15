@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getFitUser, signOutFit } from "@/lib/fit/supabase-fit";
 import { ensureProfile } from "@/lib/fit/fit-profiles";
 import { getInviteInfo, redeemInvite } from "@/lib/fit/fit-invites";
+import { FIT_BRAND_NAME } from "@/lib/fit/brand";
 import type { FitInviteInfo } from "@/lib/fit/types";
 
 const REASON_LABEL: Record<string, string> = {
@@ -138,7 +139,7 @@ function ConviteInner() {
   return (
     <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 20 }}>
       <div style={cardStyle}>
-        <div style={{ fontSize: ".8rem", color: "#8ea3c0", marginBottom: 6 }}>Convite — ConsultoriaFit</div>
+        <div style={{ fontSize: ".8rem", color: "#8ea3c0", marginBottom: 6 }}>Convite — {FIT_BRAND_NAME}</div>
         {body()}
       </div>
     </div>

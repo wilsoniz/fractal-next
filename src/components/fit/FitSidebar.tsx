@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOutFit } from "@/lib/fit/supabase-fit";
+import { FIT_BRAND_NAME, FIT_BRAND_SLOGAN } from "@/lib/fit/brand";
 import type { FitProfile } from "@/lib/fit/types";
 
 const NAV = [
@@ -41,9 +42,9 @@ export function FitSidebar({ profile }: { profile: FitProfile | null }) {
         style={{ padding: "20px 20px 16px", textDecoration: "none", borderBottom: "1px solid rgba(90,110,160,.2)" }}
       >
         <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "#f2f6ff", letterSpacing: "-.02em" }}>
-          Consultoria<span style={{ color: "#7c5cfc" }}>Fit</span>
+          {FIT_BRAND_NAME}
         </div>
-        <div style={{ fontSize: ".68rem", color: "#8ea3c0", marginTop: 2 }}>Área do profissional</div>
+        <div style={{ fontSize: ".68rem", color: "#8ea3c0", marginTop: 2 }}>{FIT_BRAND_SLOGAN}</div>
       </Link>
 
       <nav style={{ flex: 1, padding: "10px 8px" }}>

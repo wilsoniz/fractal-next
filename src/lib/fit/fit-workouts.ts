@@ -15,6 +15,8 @@ import type {
   FitExerciseGroupInput,
   FitExerciseBlockSide,
   FitExerciseBlockSideInput,
+  FitExerciseBlockStep,
+  FitExerciseBlockStepInput,
   FitExerciseWithBlocks,
   FitGroupWithExercises,
 } from "./types";
@@ -77,6 +79,9 @@ export async function getPlanFull(planId: string): Promise<FitWorkoutPlanFull | 
     .order("order_index", { ascending: true });
 
   const blockIds = ((blocks as FitExerciseBlock[] | null) ?? []).map((b) => b.id);
+  const { data: steps } = blockIds.length > 0
+    ? await supabase.from("fit_exercise_block_steps").select("*").in("block_id", blockIds).eq("status", "active").order("order_index")
+    : { data: [] };
   const { data: sides } = blockIds.length > 0
     ? await supabase
         .from("fit_exercise_block_sides")
@@ -91,12 +96,13 @@ export async function getPlanFull(planId: string): Promise<FitWorkoutPlanFull | 
   const blockList = (blocks as FitExerciseBlock[] | null) ?? [];
   const groupList = (groups as FitExerciseGroup[] | null) ?? [];
   const sideList = (sides as FitExerciseBlockSide[] | null) ?? [];
+  const stepList = (steps as FitExerciseBlockStep[] | null) ?? [];
 
   const withBlocks = (e: FitWorkoutExercise): FitExerciseWithBlocks => ({
     ...e,
     blocks: blockList
       .filter((b) => b.exercise_id === e.id)
-      .map((b) => ({ ...b, sides: sideList.filter((s) => s.block_id === b.id) })),
+      .map((b) => ({ ...b, sides: sideList.filter((s) => s.block_id === b.id), steps: stepList.filter((s) => s.block_id === b.id) })),
   });
 
   return {
@@ -195,6 +201,22 @@ export async function updateBlock(
 
 export async function archiveBlock(id: string): Promise<boolean> {
   const { error } = await supabase.from("fit_exercise_blocks").update({ status: "archived" }).eq("id", id);
+  return !error;
+}
+
+// ── Etapas internas da estratégia ──────────────────────────
+export async function addBlockStep(params: { blockId: string; exerciseId: string; orderIndex: number; input: FitExerciseBlockStepInput }): Promise<FitExerciseBlockStep | null> {
+  const { data, error } = await supabase.from("fit_exercise_block_steps").insert({ block_id: params.blockId, exercise_id: params.exerciseId, order_index: params.orderIndex, ...params.input }).select().single();
+  return error ? null : data as FitExerciseBlockStep;
+}
+
+export async function updateBlockStep(id: string, patch: Partial<FitExerciseBlockStepInput & { order_index: number }>): Promise<boolean> {
+  const { error } = await supabase.from("fit_exercise_block_steps").update(patch).eq("id", id);
+  return !error;
+}
+
+export async function archiveBlockStep(id: string): Promise<boolean> {
+  const { error } = await supabase.from("fit_exercise_block_steps").update({ status: "archived" }).eq("id", id);
   return !error;
 }
 

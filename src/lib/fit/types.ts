@@ -157,6 +157,26 @@ export const MEASUREMENT_CATEGORY_ORDER: FitMeasurementCategory[] = [
   "other",
 ];
 
+export type FitMeasurementSide = "left" | "right" | "bilateral" | "custom";
+export type FitMeasurementClinicalRole = "dominant" | "non_dominant" | "affected" | "unaffected" | "operated" | "contralateral" | "custom";
+
+export const MEASUREMENT_SIDE_LABELS: Record<FitMeasurementSide, string> = {
+  left: "Esquerda",
+  right: "Direita",
+  bilateral: "Bilateral",
+  custom: "Personalizado",
+};
+
+export const MEASUREMENT_CLINICAL_ROLE_LABELS: Record<FitMeasurementClinicalRole, string> = {
+  dominant: "Dominante",
+  non_dominant: "Não dominante",
+  affected: "Afetado",
+  unaffected: "Não afetado",
+  operated: "Operado",
+  contralateral: "Contralateral",
+  custom: "Personalizado",
+};
+
 export interface FitMeasurement {
   id: string;
   patient_id: string;
@@ -169,6 +189,19 @@ export interface FitMeasurement {
   unit: string | null;
   measured_at: string;
   notes: string | null;
+  side: FitMeasurementSide | null;
+  clinical_role: FitMeasurementClinicalRole | null;
+  side_label: string | null;
+  body_region: string | null;
+  body_segment: string | null;
+  joint: string | null;
+  measurement_site: string | null;
+  protocol: string | null;
+  method: string | null;
+  source_exercise_library_id: string | null;
+  source_exercise_name_snapshot: string | null;
+  context: Record<string, unknown>;
+  data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -397,7 +430,42 @@ export interface FitExerciseBlock {
   created_at: string;
   updated_at: string;
   sides?: FitExerciseBlockSide[];
+  steps?: FitExerciseBlockStep[];
 }
+
+export type FitStrategyStepType = "dynamic_reps" | "partial_reps" | "isometric_hold" | "load_drop" | "rest" | "mini_set" | "failure_segment" | "target_total" | "custom";
+export type FitStepRepeatMode = "fixed" | "open";
+export type FitLoadChangeType = "percentage" | "absolute" | "manual";
+
+export interface FitExerciseBlockStep {
+  id: string;
+  block_id: string;
+  exercise_id: string;
+  step_type: FitStrategyStepType;
+  label: string | null;
+  order_index: number;
+  target_reps: string | null;
+  target_full_reps: number | null;
+  target_partial_reps: number | null;
+  target_duration_seconds: number | null;
+  target_load: string | null;
+  target_load_unit: string | null;
+  load_change_type: FitLoadChangeType | null;
+  load_change_value: number | null;
+  rest_seconds: number | null;
+  repeat_mode: FitStepRepeatMode;
+  min_occurrences: number;
+  max_occurrences: number | null;
+  termination_rule: string | null;
+  data: Record<string, unknown>;
+  status: "active" | "archived";
+  created_at: string;
+  updated_at: string;
+}
+
+export type FitExerciseBlockStepInput = Omit<FitExerciseBlockStep,
+  "id" | "block_id" | "exercise_id" | "order_index" | "status" | "created_at" | "updated_at"
+>;
 
 export interface FitExerciseBlockSide {
   id: string;
@@ -448,6 +516,7 @@ export interface FitExerciseBlockInput {
   rpe: string | null;
   tempo: string | null;
   instructions: string | null;
+  data: Record<string, unknown>;
 }
 
 // Exercício com seus blocos ativos aninhados.
@@ -579,7 +648,46 @@ export interface FitTrainingLogBlockEntryInput {
   pain_level: number | null;
   completed: boolean;
   notes: string | null;
+  data: Record<string, unknown>;
 }
+
+export interface FitTrainingLogBlockStepEntry {
+  id: string;
+  log_id: string;
+  exercise_id: string | null;
+  block_id: string | null;
+  step_id: string | null;
+  exercise_library_id: string | null;
+  side_prescription_id: string | null;
+  occurrence_index: number;
+  exercise_name: string | null;
+  block_type: string | null;
+  block_label: string | null;
+  step_type: string | null;
+  step_label: string | null;
+  side: FitExerciseSide | null;
+  side_label_snapshot: string | null;
+  load_done: number | null;
+  load_unit: string | null;
+  reps_done: number | null;
+  full_reps_done: number | null;
+  partial_reps_done: number | null;
+  duration_seconds: number | null;
+  rest_seconds: number | null;
+  rpe: number | null;
+  rir: number | null;
+  pain_level: number | null;
+  termination_reason: string | null;
+  completed: boolean;
+  notes: string | null;
+  data: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export type FitTrainingLogBlockStepEntryInput = Omit<FitTrainingLogBlockStepEntry,
+  "id" | "log_id" | "created_at" | "updated_at"
+>;
 
 // ── Fase 7 — convite/token de paciente ───────────────────────
 export type FitInviteStatus = "pending" | "accepted" | "revoked";

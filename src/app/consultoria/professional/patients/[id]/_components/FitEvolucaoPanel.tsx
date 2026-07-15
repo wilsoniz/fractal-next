@@ -22,11 +22,12 @@ import {
 } from "@/lib/fit/fit-evolution";
 import { listLogs } from "@/lib/fit/fit-training-logs";
 import { listAssessmentsWithMeasurements, type FitAssessmentHistory } from "@/lib/fit/fit-assessment-compare";
-import { FitCard, FitKpi } from "@/components/fit/FitCard";
+import { FitKpi } from "@/components/fit/FitCard";
 import { FitSection, fitFieldStyle } from "@/components/fit/FitSection";
 import { FitLineChart, type FitChartPoint } from "@/components/fit/FitLineChart";
 import { FitDeltaBadge } from "@/components/fit/FitDeltaBadge";
 import { FitAssessmentHistoryTable } from "@/components/fit/FitAssessmentHistoryTable";
+import { FitAsymmetryPanel } from "@/components/fit/FitAsymmetryPanel";
 import type { FitTrainingLog } from "@/lib/fit/types";
 
 function fmt(d: string): string {
@@ -87,12 +88,12 @@ export function FitEvolucaoPanel({ patientId }: { patientId: string }) {
   }, [patientId]);
 
   useEffect(() => {
-    if (!selMetric) { setMetricSeries([]); return; }
+    if (!selMetric) return;
     getMeasurementSeries(patientId, selMetric).then(setMetricSeries);
   }, [patientId, selMetric]);
 
   useEffect(() => {
-    if (!selExercise) { setExerciseSeries([]); return; }
+    if (!selExercise) return;
     getExerciseLoadSeries(patientId, selExercise).then(setExerciseSeries);
   }, [patientId, selExercise]);
 
@@ -117,7 +118,7 @@ export function FitEvolucaoPanel({ patientId }: { patientId: string }) {
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 16 }}>
         <FitKpi label="Peso atual" value={currentWeight != null ? `${currentWeight} kg` : "—"} />
-        <FitKpi label="IMC" value={bmi ? bmi.bmi.toFixed(1) : "—"} accent="#22c5a4" hint={bmi ? undefined : "registre a altura"} />
+        <FitKpi label="IMC" value={bmi ? bmi.bmi.toFixed(1) : "—"} accent="#22c5a4" hint={bmi ? `${bmi.weight} kg (${fmt(bmi.weightSource.date)}) · ${bmi.height_cm} cm (${fmt(bmi.heightSource.date)})` : "peso ou altura indisponível"} />
         <FitKpi label="Sessões" value={logs.length} />
         <FitKpi label="Aderência média" value={adherenceAvg != null ? `${adherenceAvg}%` : "—"} accent="#22c5a4" />
       </div>
@@ -146,6 +147,10 @@ export function FitEvolucaoPanel({ patientId }: { patientId: string }) {
           <FitAssessmentHistoryTable history={history} />
         </FitSection>
       )}
+
+      <FitSection title="Evolução segmentar e assimetria" subtitle="Comparações derivadas e neutras; a interpretação permanece com o profissional.">
+        <FitAsymmetryPanel patientId={patientId} />
+      </FitSection>
 
       {/* Peso */}
       <FitSection title="Peso ao longo do tempo">

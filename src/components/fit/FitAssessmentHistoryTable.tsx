@@ -58,9 +58,9 @@ function FragmentRows({
         </td>
       </tr>
       {metrics.map((m) => (
-        <tr key={m.metric}>
+        <tr key={m.identityKey}>
           <td style={{ ...cell, textAlign: "left", color: "#e6edf6" }}>
-            {m.label}{m.unit ? <span style={{ color: "#8ea3c0" }}> ({m.unit})</span> : null}
+            {m.label}{m.unit ? <span style={{ color: "#8ea3c0" }}> ({m.unit})</span> : null}<div style={{ color: "#6f829f", fontSize: ".64rem" }}>{m.contextLabel}</div>
           </td>
           {assessments.map((a) => (
             <td key={a.id} style={{ ...cell, textAlign: "right", color: m.values[a.id] != null ? "#e6edf6" : "#5a6b85", fontVariantNumeric: "tabular-nums" }}>

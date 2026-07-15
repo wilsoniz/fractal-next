@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { getFitUser, updatePasswordFit } from "@/lib/fit/supabase-fit";
+import { FIT_BRAND_NAME } from "@/lib/fit/brand";
 
 const card: React.CSSProperties = {
   width: "100%",
@@ -66,7 +67,7 @@ export default function NovaSenhaPage() {
   return (
     <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 20 }}>
       <div style={card}>
-        <div style={{ fontSize: ".8rem", color: "#8ea3c0", marginBottom: 6 }}>ConsultoriaFit</div>
+        <div style={{ fontSize: ".8rem", color: "#8ea3c0", marginBottom: 6 }}>{FIT_BRAND_NAME}</div>
         <h1 style={{ margin: "2px 0 14px", fontSize: "1.3rem", fontWeight: 800, color: "#f2f6ff" }}>Definir nova senha</h1>
 
         {!ready ? (

@@ -16,7 +16,6 @@ export const METRIC_CATALOG: FitMetricDef[] = [
   // Antropometria
   { key: "weight_kg", label: "Peso", unit: "kg", category: "anthropometry" },
   { key: "height_cm", label: "Altura", unit: "cm", category: "anthropometry" },
-  { key: "bmi", label: "IMC", unit: "kg/m²", category: "anthropometry" },
   { key: "body_fat_pct", label: "% Gordura", unit: "%", category: "anthropometry" },
   // Perimetria
   { key: "arm_cm", label: "Braço", unit: "cm", category: "circumference" },

@@ -214,3 +214,76 @@ Ambientes que aplicaram a proposta preliminar (com `equipment` e
 [`sql/014_fase14_reconcile_preliminary_schema.sql`](sql/014_fase14_reconcile_preliminary_schema.sql).
 A correção é aditiva: preserva as colunas legadas, cria o contrato aprovado e só
 copia valores para as colunas equivalentes. Depois, executar o seed 013.
+
+## Fase 15 — estratégias com etapas internas
+
+### `fit_exercise_block_steps`
+
+Etapas ordenadas de um bloco. `step_type` diferencia repetições dinâmicas e
+parciais, isometria, redução de carga, descanso, mini-série, segmento até falha,
+meta total e etapa personalizada. Metas, alteração de carga, descanso, modo de
+repetição (`fixed|open`), limites e regra de encerramento são colunas explícitas.
+`data jsonb` guarda apenas extensões da etapa. O status permite arquivamento lógico;
+não há policy de DELETE.
+
+### `fit_training_log_block_step_entries`
+
+Registro detalhado de cada ocorrência executada. A combinação lógica é
+`log_id + block_id + step_id + side_prescription_id + occurrence_index`; o índice
+de ocorrência começa em zero dentro da etapa e do lado. Guarda carga, repetições
+totais/completas/parciais, duração, descanso, RPE, RIR, dor, motivo de encerramento,
+notas e snapshots de exercício, bloco, etapa e lado. Não há DELETE físico.
+
+### Contrato de `fit_exercise_blocks.data`
+
+Presets estruturados gravam um objeto versionado com:
+
+- `strategy_key`: identificador estável da estratégia;
+- `strategy_version`: versão do snapshot;
+- `summary_rule`: regra declarativa usada para produzir o registro-resumo;
+- `configuration`: parâmetros relevantes do preset aplicado;
+- `safety`: instruções, alertas e critério de interrupção definidos na prescrição.
+
+Alterações futuras no catálogo não modificam esse snapshot nem as etapas já
+copiadas. Blocos clássicos podem manter `{}`.
+
+### Regra do registro-resumo
+
+`fit_training_log_block_entries` continua sendo gerado uma vez por bloco/lado.
+A carga é a primeira carga registrada; as repetições, repetições completas,
+parciais e durações são somadas; `sets_done` representa a quantidade de ocorrências;
+o motivo de encerramento é preservado. `data` registra os totais e a regra do
+snapshot. Assim: drop set resume carga inicial, repetições e drops; cluster resume
+carga, repetições e mini-blocos; Widowmaker resume carga, repetições e pausas;
+isometria resume carga e duração; a escada resume completas e parciais. O detalhe
+nunca é sobrescrito pelo resumo.
+
+SQL: [`sql/015_fase15_strategy_steps.sql`](sql/015_fase15_strategy_steps.sql).
+
+## Fase 16 — avaliação segmentada, lateralidade e IMC derivado
+
+`fit_measurements` recebe, de forma aditiva e nullable:
+
+- `side`: `left|right|bilateral|custom`;
+- `clinical_role`: `dominant|non_dominant|affected|unaffected|operated|contralateral|custom`;
+- `side_label`;
+- `body_region`, `body_segment`, `joint`, `measurement_site`;
+- `protocol`, `method`;
+- `source_exercise_library_id` e `source_exercise_name_snapshot`;
+- `context jsonb` e `data jsonb`, sempre objetos.
+
+Linhas com os campos novos nulos continuam sendo métricas globais. Cada lado de
+um par é uma linha independente. Não há tabela ou coluna para diferenças e IMC:
+ambos são derivados na leitura.
+
+Comparabilidade exige a mesma identidade técnica, incluindo unidade, anatomia,
+protocolo, método, contexto e item real da biblioteca quando houver exercício de
+origem. Nomes manuais não autorizam equivalência automática. Duplicidade nova é
+impedida pela camada de I/O, sem índice único que possa conflitar com dados antigos.
+
+O IMC ignora `bmi` legado e usa peso/altura globais até a data de referência. Peso
+da própria avaliação tem prioridade; o fallback aceita medição ou check-in. A
+origem completa é retornada junto ao resultado.
+
+RLS e a policy de DELETE corretivo permanecem inalteradas. Sem backfill.
+SQL: [`sql/016_fase16_segmented_measurements.sql`](sql/016_fase16_segmented_measurements.sql).
