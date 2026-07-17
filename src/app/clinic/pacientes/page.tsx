@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useClinicContext } from "../layout";
 import { Modal } from "@/components/fracta/Modal"
+import { listarProgramasDosPlanos } from "@/lib/plano-programas";
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 type StatusPaciente = "ativo" | "alerta" | "pausado";
@@ -134,7 +135,7 @@ export default function PacientesPage() {
       setLoading(true);
       try {
         // 1. Busca planos simples — sem join
-        const { data: planos, error: erroPlanos } = await supabase
+        const { data: planos } = await supabase
           .from("planos")
           .select("id, status, score_atual, criado_em, crianca_id")
           .eq("terapeuta_id", terapeuta!.id)
@@ -142,8 +143,6 @@ export default function PacientesPage() {
             filtroStatus === "ativos" ? ["ativo"] :
               filtroStatus === "inativos" ? ["pausado", "cancelado", "concluido"] :
                 ["ativo", "pausado", "cancelado", "concluido"])
-
-        console.log('planos:', planos, 'erro:', erroPlanos)
 
         if (!planos || planos.length === 0) {
           setPacientes([]);
@@ -160,6 +159,13 @@ export default function PacientesPage() {
           .in("id", criancaIdsFromPlanos)
 
         const criancaById = new Map((criancas ?? []).map((c: any) => [c.id, c]))
+
+        const planosAtivos = planos.filter(pl => pl.status === "ativo")
+        const programasRes = await listarProgramasDosPlanos(planosAtivos.map(pl => pl.id))
+        if (programasRes.error !== null) {
+          throw new Error(`Erro ao carregar programas dos planos ativos: ${programasRes.error}`)
+        }
+        const programasPorPlano = programasRes.data
 
         // 3. Monta mapa crianca → planos
         const criancaMap = new Map<string, { crianca: any; planos: any[] }>();
@@ -183,15 +189,16 @@ export default function PacientesPage() {
         }
 
         const { data: sessoes } = await supabase
-          .from("sessoes_clinicas")
-          .select("crianca_id, criado_em, concluida")
+          .from("sessoes_v2")
+          .select("crianca_id, inicio")
           .in("crianca_id", criancaIdsFromPlanos)
-          .order("criado_em", { ascending: false });
+          .eq("concluida", true)
+          .order("inicio", { ascending: false });
 
         const ultimaSessaoMap = new Map<string, string>();
         for (const s of (sessoes ?? [])) {
           if (!ultimaSessaoMap.has(s.crianca_id)) {
-            ultimaSessaoMap.set(s.crianca_id, s.criado_em);
+            ultimaSessaoMap.set(s.crianca_id, s.inicio);
           }
         }
 
@@ -213,15 +220,16 @@ export default function PacientesPage() {
               .map(d => d.nome)
             : [];
 
+          const cPlanosAtivos = cPlanos.filter(pl => pl.status === "ativo");
           const alertas: { nivel: "high" | "medium" | "low"; texto: string }[] = [];
-          for (const pl of cPlanos) {
-            const score = pl.score_atual ?? 0;
-            const prog = pl.programas as any;
-            if (!prog) continue;
-            if (score > 0 && score < 50) {
-              alertas.push({ nivel: "high", texto: `Score baixo em ${prog.nome} (${score}%)` });
-            } else if (score >= 75) {
-              alertas.push({ nivel: "low", texto: `${prog.nome} próximo de critério` });
+          for (const pl of cPlanosAtivos) {
+            for (const programa of programasPorPlano.get(pl.id) ?? []) {
+              const score = programa.percentualAtual ?? 0;
+              if (score > 0 && score < 50) {
+                alertas.push({ nivel: "high", texto: `Score baixo em ${programa.nome} (${score}%)` });
+              } else if (score >= 75) {
+                alertas.push({ nivel: "low", texto: `${programa.nome} próximo de critério` });
+              }
             }
           }
 
@@ -232,8 +240,13 @@ export default function PacientesPage() {
 
           const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0, 0, 0, 0);
           const sessoesMes = (sessoes ?? []).filter(s =>
-            s.crianca_id === crianca.id && new Date(s.criado_em) >= inicioMes
+            s.crianca_id === crianca.id && new Date(s.inicio) >= inicioMes
           ).length;
+
+          const programasAtivos = cPlanosAtivos.reduce(
+            (total, pl) => total + (programasPorPlano.get(pl.id)?.length ?? 0),
+            0
+          );
 
           return {
             id: crianca.id,
@@ -245,7 +258,7 @@ export default function PacientesPage() {
             taxaGeral,
             avaliado,
             sessoesMes,
-            programasAtivos: cPlanos.filter(pl => pl.status === "ativo").length,
+            programasAtivos,
             dominios: dominiosFoco,
             ultimaSessao: ultimaSessaoLabel(ultima),
             proximaSessao: null,
