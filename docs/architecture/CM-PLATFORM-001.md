@@ -2,7 +2,7 @@
 
 **Etapa:** 1 — Arquitetura
 
-**Status:** Bloco 1 implementado e validado — Blocos 2 e 3 não iniciados
+**Status:** Blocos 1 e 2 implementados e validados — Bloco 3 não iniciado
 
 **Natureza:** Exclusivamente documental
 
@@ -459,6 +459,36 @@ Validação registrada:
 - build com Turbopack inconclusivo por travamento, sem erro observado.
 
 O Bloco 1 não integrou autenticação, seleção, guards, navegação, rotas, banco, RLS, Clinic ou Care. Os Blocos 2 e 3 permanecem não iniciados.
+
+## 19. Registro de implementação do Bloco 2
+
+**Estado:** Implementado e aprovado.
+
+Contrato público entregue:
+
+- `PlatformIdentityEvidence`;
+- `EntryDecision`;
+- `resolveAuthorizedProductSurfaces(identity)`;
+- `resolveAuthorizedClinicalWorkspaces(identity, surfaceId)`;
+- `resolveEntryDecision(accesses)`.
+
+Critérios provisórios implementados:
+
+- Care exige identidade autenticada e pelo menos uma evidência entre perfil familiar, vínculo direto com criança ou vínculo associativo com criança;
+- Clinic exige identidade autenticada, linha em `profiles` e `clinicSeniority !== null`;
+- ABA somente é resolvido quando Clinic já está autorizado e `aba` está disponível no `ClinicalWorkspaceRegistry`;
+- seleção não concede autorização e as únicas decisões produzidas são `denied`, `direct` e `select`.
+
+O gate de senioridade do Clinic apenas reproduz o comportamento atual do layout. Ele não representa autorização profissional definitiva e não substitui vínculo, autorização de servidor ou RLS.
+
+Validação registrada:
+
+- 24 testes de plataforma aprovados;
+- TypeScript aprovado com `npx tsc --noEmit`;
+- lint do escopo `src/lib/platform` aprovado;
+- `git diff --check` aprovado.
+
+O Bloco 2 não integrou os resolvedores com autenticação, Supabase, páginas, layouts, navegação, rotas, guards, banco ou RLS. O Bloco 3 permanece não iniciado.
 
 ---
 
