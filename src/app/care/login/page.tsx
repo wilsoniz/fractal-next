@@ -1,9 +1,14 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FractaLogo } from "@/components/fracta/FractaLogo";
 import { supabase } from "@/lib/supabase";
+import { ProductSurfaceEntry } from "@/components/platform/ProductSurfaceEntry";
+import {
+  loadPlatformIdentityEvidenceSafely,
+  type PlatformIdentityEvidence,
+} from "@/lib/platform";
 
 type Aba = "login" | "cadastro";
 
@@ -18,17 +23,30 @@ function LoginPageInner() {
   const [loading,  setLoading]  = useState(false);
   const [erro,     setErro]     = useState("");
   const [checking, setChecking] = useState(true);
+  const [entryIdentity, setEntryIdentity] =
+    useState<PlatformIdentityEvidence | null>(null);
 
-  // Verifica sessão — se já logado vai direto
+  const navigate = useCallback((destination: string) => {
+    window.location.replace(destination);
+  }, []);
+
+  const resolveAuthenticatedEntry = useCallback(async () => {
+    setChecking(true);
+    const identity = await loadPlatformIdentityEvidenceSafely();
+    setEntryIdentity(identity);
+    setChecking(false);
+  }, []);
+
+  // Verifica sessão — se já logado resolve as superfícies autorizadas.
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
-        window.location.replace(redirect);
+        void resolveAuthenticatedEntry();
       } else {
         setChecking(false);
       }
     });
-  }, [redirect]);
+  }, [resolveAuthenticatedEntry]);
 
   // ── Login ────────────────────────────────────────────────
   async function handleLogin(e: React.FormEvent) {
@@ -53,8 +71,8 @@ function LoginPageInner() {
     }
 
     if (data.session) {
-      // Sessão confirmada — redirect completo
-      window.location.replace(redirect);
+      await resolveAuthenticatedEntry();
+      setLoading(false);
     }
   }
 
@@ -132,8 +150,9 @@ function LoginPageInner() {
     }
 
     if (data.session) {
-      // Confirmação de email desativada — vai direto
-      window.location.replace(redirect);
+      // Confirmação de email desativada — resolve a entrada autorizada.
+      await resolveAuthenticatedEntry();
+      setLoading(false);
     } else {
       // Confirmação de email ativada — mostra mensagem
       setLoading(false);
@@ -158,6 +177,17 @@ function LoginPageInner() {
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
+    );
+  }
+
+  if (entryIdentity) {
+    return (
+      <ProductSurfaceEntry
+        identity={entryIdentity}
+        loginPath="/care/login"
+        requestedRedirect={redirect}
+        onNavigate={navigate}
+      />
     );
   }
 

@@ -2,7 +2,7 @@
 
 **Etapa:** 1 — Arquitetura
 
-**Status:** Blocos 1 e 2 implementados e validados — Bloco 3 não iniciado
+**Status:** Blocos 1, 2 e 3 implementados e validados — aguardando encerramento
 
 **Natureza:** Exclusivamente documental
 
@@ -489,6 +489,40 @@ Validação registrada:
 - `git diff --check` aprovado.
 
 O Bloco 2 não integrou os resolvedores com autenticação, Supabase, páginas, layouts, navegação, rotas, guards, banco ou RLS. O Bloco 3 permanece não iniciado.
+
+## 20. Registro de implementação do Bloco 3
+
+**Estado:** Implementado e aprovado.
+
+Arquivos criados:
+
+- `src/lib/platform/access-evidence.ts`;
+- `src/lib/platform/navigation-resolution.ts`;
+- `src/lib/platform/navigation-resolution.test.mjs`;
+- `src/components/platform/ProductSurfaceEntry.tsx`;
+- `src/components/platform/PlatformSurfaceGate.tsx`.
+
+Integrações realizadas:
+
+- resolução de entrada após autenticação em `/login` e `/care/login`;
+- gate da superfície Clinic no layout existente de `/clinic/*`;
+- gate da superfície Care no layout existente de `/care/dashboard/*`;
+- gate da superfície Care na proteção isolada de `/care/atividade`;
+- exportação dos contratos de evidência e navegação em `src/lib/platform/index.ts`.
+
+Não foi criado layout global para Care. `/care` preserva o redirecionamento existente, e `/care/login`, `/care/esqueci-senha`, `/care/nova-senha` e `/care/convite/*` permanecem públicas por estrutura.
+
+Validação registrada:
+
+- 42 testes de plataforma aprovados;
+- TypeScript aprovado com `npx tsc --noEmit`;
+- lint do escopo novo e dos logins alterados aprovado;
+- 12 ocorrências preexistentes identificadas nos arquivos legados alterados `src/app/clinic/layout.tsx`, `src/app/care/dashboard/layout.tsx` e `src/app/care/atividade/page.tsx`;
+- `git diff --check` aprovado;
+- build com Webpack aprovado;
+- 64 páginas e todas as URLs existentes preservadas.
+
+O Bloco 3 não alterou banco, schema, migrations, RLS, critérios clínicos, módulos futuros ou disponibilidade de workspaces reservados.
 
 ---
 

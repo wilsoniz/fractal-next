@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { FractalTriangle } from "@/components/fracta/FractalTriangle";
+import { ProductSurfaceEntry } from "@/components/platform/ProductSurfaceEntry";
+import {
+  loadPlatformIdentityEvidenceSafely,
+  type PlatformIdentityEvidence,
+} from "@/lib/platform";
 
 function ClinicLoginPageInner() {
-  const router      = useRouter();
   const params      = useSearchParams();
   const redirect    = params.get("redirect") ?? "/clinic/dashboard";
 
@@ -18,22 +22,38 @@ function ClinicLoginPageInner() {
   const [loading,   setLoading] = useState(false);
   const [error,     setError]   = useState<string | null>(null);
   const [success,   setSuccess] = useState<string | null>(null);
+  const [checking,  setChecking] = useState(true);
+  const [entryIdentity, setEntryIdentity] =
+    useState<PlatformIdentityEvidence | null>(null);
 
-  // Se já tem sessão ativa, redireciona direto
+  const navigate = useCallback((destination: string) => {
+    window.location.replace(destination);
+  }, []);
+
+  const resolveAuthenticatedEntry = useCallback(async () => {
+    setChecking(true);
+    const identity = await loadPlatformIdentityEvidenceSafely();
+    setEntryIdentity(identity);
+    setChecking(false);
+  }, []);
+
+  // Se já tem sessão ativa, resolve as superfícies autorizadas.
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setTimeout(() => { window.location.href = redirect; }, 500);
+      if (session) {
+        void resolveAuthenticatedEntry();
+      } else {
+        setChecking(false);
+      }
     });
-  }, []);
+  }, [resolveAuthenticatedEntry]);
 
   async function handleLogin(e: React.FormEvent) {
   e.preventDefault();
   setLoading(true);
   setError(null);
 
-  const { error, data } = await supabase.auth.signInWithPassword({ email, password });
-  
-  console.log("LOGIN RESULT:", { data, error }); // adiciona essa linha
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
   
   if (error) {
       setError(
@@ -45,7 +65,8 @@ function ClinicLoginPageInner() {
       return;
     }
 
-    setTimeout(() => { window.location.href = redirect; }, 500);
+    await resolveAuthenticatedEntry();
+    setLoading(false);
   }
 
   async function handleRegister(e: React.FormEvent) {
@@ -93,6 +114,19 @@ function ClinicLoginPageInner() {
     boxSizing: "border-box",
     transition: "border-color .2s",
   };
+
+  if (checking) return null;
+
+  if (entryIdentity) {
+    return (
+      <ProductSurfaceEntry
+        identity={entryIdentity}
+        loginPath="/login"
+        requestedRedirect={redirect}
+        onNavigate={navigate}
+      />
+    );
+  }
 
   return (
     <div style={{

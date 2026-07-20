@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { FractaLogo } from "@/components/fracta/FractaLogo";
 import { FractalTriangle } from "@/components/fracta/FractalTriangle";
+import { PlatformSurfaceGate } from "@/components/platform/PlatformSurfaceGate";
 import { supabase } from "@/lib/supabase";
 
 // ─── TIPOS ────────────────────────────────────────────────
@@ -692,5 +693,11 @@ function AtividadePageInner() {
 }
 
 export default function AtividadePage() {
-  return <Suspense fallback={null}><AtividadePageInner /></Suspense>;
+  return (
+    <PlatformSurfaceGate surfaceId="care">
+      <Suspense fallback={null}>
+        <AtividadePageInner />
+      </Suspense>
+    </PlatformSurfaceGate>
+  );
 }

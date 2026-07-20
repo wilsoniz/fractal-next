@@ -15,6 +15,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { FractaLogo } from '@/components/fracta/FractaLogo'
 import { FractalTriangle } from '@/components/fracta/FractalTriangle'
 import { supabase, signOut, getUser } from '@/lib/supabase'
+import { PlatformSurfaceGate } from '@/components/platform/PlatformSurfaceGate'
 
 // ─────────────────────────────────────────────
 // TIPOS
@@ -116,6 +117,18 @@ const ABAS_MOBILE = ABAS.filter(a =>
 // CORRETO para Next.js 16:
 
 export default function CareDashboardLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
+  return (
+    <PlatformSurfaceGate surfaceId="care">
+      <CareDashboardContent>{children}</CareDashboardContent>
+    </PlatformSurfaceGate>
+  )
+}
+
+function CareDashboardContent({
   children,
 }: {
   children: ReactNode

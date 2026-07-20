@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
+import { PlatformSurfaceGate } from '@/components/platform/PlatformSurfaceGate'
 
 // ── TIPOS ───────────────────────────────────────────────────────────────────
 type SenioridadeNivel = 'terapeuta' | 'coordenador' | 'supervisor' | 'abat' | 'qasp_s' | 'qba'
@@ -329,6 +330,14 @@ function Sidebar({ terapeuta }: { terapeuta: TerapeutaAtivo | null }) {
 
 // ── LAYOUT ────────────────────────────────────────────────────────────────────
 export default function ClinicDashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <PlatformSurfaceGate surfaceId="clinic">
+      <ClinicDashboardContent>{children}</ClinicDashboardContent>
+    </PlatformSurfaceGate>
+  )
+}
+
+function ClinicDashboardContent({ children }: { children: React.ReactNode }) {
   const [terapeuta, setTerapeuta] = useState<TerapeutaAtivo | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [menuMaisAberto, setMenuMaisAberto] = useState(false)
